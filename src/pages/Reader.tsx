@@ -21,6 +21,7 @@ import {
   PanelLeft,
   FileText,
   Star,
+  Trash2,
 } from 'lucide-react';
 import type { Paper, Highlight, Note, HighlightColor, SortOption } from '../types';
 import {
@@ -29,6 +30,7 @@ import {
   getHighlightsByPaper,
   addHighlight,
   updateHighlight,
+  deleteHighlight,
   getNotesByPaper,
   addNote,
   deleteNote,
@@ -936,6 +938,26 @@ export function Reader() {
     setNotes((prev) => prev.filter((n) => n.id !== noteId));
   };
 
+  const handleDeleteHighlight = async (highlightId: string) => {
+    await deleteHighlight(highlightId);
+    setHighlights((prev) => prev.filter((h) => h.id !== highlightId));
+    setReadingList((prev) => prev.filter((h) => h.id !== highlightId));
+    // Also delete related notes
+    const relatedNotes = notes.filter((n) => n.highlightId === highlightId);
+    for (const note of relatedNotes) {
+      await deleteNote(note.id);
+    }
+    setNotes((prev) => prev.filter((n) => n.highlightId !== highlightId));
+    setEditingHighlight(null);
+  };
+
+  const handleChangeHighlightColor = async (highlight: Highlight, newColor: HighlightColor) => {
+    const updated = { ...highlight, color: newColor, updatedAt: new Date() };
+    await updateHighlight(updated);
+    setHighlights((prev) => prev.map((h) => (h.id === highlight.id ? updated : h)));
+    setEditingHighlight(updated);
+  };
+
   // Reading list helpers
   const isReadingItemResolved = (highlight: Highlight) => highlight.note?.includes('✓');
   
@@ -1546,17 +1568,20 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       className="shadow-lg rounded-sm overflow-hidden"
                       renderAnnotationLayer={false}
                     />
-                    {/* Highlight Overlays - rendered with lower z-index to appear under text */}
+                    {/* Highlight Overlays - pointer-events on wrapper, visual on children */}
                     {pageHighlights.map((highlight) => {
                       const isHovered = hoveredNoteHighlightId === highlight.id;
                       const isPulsing = pulsingHighlightId === highlight.id;
+                      const isEditing = editingHighlight?.id === highlight.id;
+                      const firstRect = highlight.rects[0];
                       
                       return (
                         <div key={highlight.id}>
+                          {/* Visual highlight layer - below text */}
                           {highlight.rects.map((rect, idx) => (
                             <div
-                              key={idx}
-                              className={`absolute cursor-pointer transition-all duration-300 ${
+                              key={`bg-${idx}`}
+                              className={`absolute pointer-events-none transition-all duration-300 ${
                                 isPulsing ? 'animate-highlight-pulse' : ''
                               }`}
                               style={{
@@ -1565,11 +1590,24 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                 width: rect.width * effectiveScale,
                                 height: rect.height * effectiveScale,
                                 backgroundColor: getHighlightBg(highlight.color, highlight.isFurtherReading),
-                                zIndex: isHovered || isPulsing ? 2 : 1,
+                                zIndex: 1,
                                 mixBlendMode: 'multiply',
-                                opacity: isHovered ? 1 : 0.85,
-                                filter: isHovered ? 'saturate(1.5) brightness(0.95)' : 'none',
+                                opacity: isHovered || isEditing ? 1 : 0.85,
+                                filter: isHovered || isEditing ? 'saturate(1.5) brightness(0.95)' : 'none',
                                 boxShadow: isPulsing ? `0 0 12px 4px ${getHighlightBg(highlight.color, highlight.isFurtherReading)}` : 'none',
+                              }}
+                            />
+                          ))}
+                          {/* Clickable overlay - above text layer */}
+                          {firstRect && (
+                            <div
+                              className="absolute cursor-pointer"
+                              style={{
+                                left: highlight.rects.reduce((min, r) => Math.min(min, r.x), Infinity) * effectiveScale,
+                                top: highlight.rects.reduce((min, r) => Math.min(min, r.y), Infinity) * effectiveScale,
+                                width: (highlight.rects.reduce((max, r) => Math.max(max, r.x + r.width), 0) - highlight.rects.reduce((min, r) => Math.min(min, r.x), Infinity)) * effectiveScale,
+                                height: (highlight.rects.reduce((max, r) => Math.max(max, r.y + r.height), 0) - highlight.rects.reduce((min, r) => Math.min(min, r.y), Infinity)) * effectiveScale,
+                                zIndex: 20,
                               }}
                               onClick={() => {
                                 // Open note editor for this highlight
@@ -1578,7 +1616,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                 setSidebarTab('notes');
                               }}
                             />
-                          ))}
+                          )}
                         </div>
                       );
                     })}
@@ -1721,6 +1759,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                   {/* Note Editor - shown when a highlight is clicked */}
                   {editingHighlight && (() => {
                     const editColorInfo = HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(editingHighlight));
+                    const highlightHasNotes = notes.some(n => n.highlightId === editingHighlight.id);
+                    
                     return (
                       <div 
                         className="mb-4 rounded-lg overflow-hidden animate-fade-in"
@@ -1729,7 +1769,37 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                           boxShadow: `0 2px 8px ${editColorInfo?.shadow || 'rgba(251, 191, 36, 0.2)'}`,
                         }}
                       >
-                        <div className="p-3 border-b" style={{ borderColor: `${editColorInfo?.border}40` }}>
+                        {/* Color picker bar */}
+                        <div 
+                          className="px-3 py-2 flex items-center justify-between border-b"
+                          style={{ borderColor: `${editColorInfo?.border}30` }}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            {HIGHLIGHT_COLORS.map(({ color, bg, border }) => (
+                              <button
+                                key={color}
+                                onClick={() => handleChangeHighlightColor(editingHighlight, color)}
+                                className="w-5 h-5 rounded-full transition-all hover:scale-110"
+                                style={{
+                                  backgroundColor: bg,
+                                  border: editingHighlight.color === color ? `2px solid ${border}` : '2px solid transparent',
+                                  boxShadow: editingHighlight.color === color ? `0 0 0 2px ${bg}` : 'none',
+                                }}
+                                title={color.charAt(0).toUpperCase() + color.slice(1)}
+                              />
+                            ))}
+                          </div>
+                          <button
+                            onClick={() => handleDeleteHighlight(editingHighlight.id)}
+                            className="p-1.5 rounded-full hover:bg-red-100 transition-colors text-[var(--text-muted)] hover:text-red-500"
+                            title="Delete highlight"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        
+                        {/* Quoted text */}
+                        <div className="p-3 border-b" style={{ borderColor: `${editColorInfo?.border}20` }}>
                           <p 
                             className="text-[10px] italic line-clamp-3"
                             style={{ color: editColorInfo?.dark || '#78350f' }}
@@ -1737,6 +1807,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                             "{editingHighlight.text}"
                           </p>
                         </div>
+                        
+                        {/* Note input */}
                         <div className="p-3">
                           <textarea
                             value={noteInput}
@@ -1771,7 +1843,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                               className="flex-1 text-xs py-1.5 px-3 rounded-full bg-white/50 hover:bg-white/80 transition-colors"
                               style={{ color: editColorInfo?.dark || '#78350f' }}
                             >
-                              Discard
+                              {highlightHasNotes ? 'Close' : 'Discard'}
                             </button>
                             <button
                               onClick={() => {
@@ -1833,6 +1905,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                       onMouseLeave={() => setHoveredNoteHighlightId(null)}
                                       onClick={() => {
                                         scrollToHighlight(highlight);
+                                        setEditingHighlight(highlight);
+                                        setNoteInput('');
                                       }}
                                     >
                                       {/* Delete button - top right */}
