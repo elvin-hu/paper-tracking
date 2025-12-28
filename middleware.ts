@@ -13,7 +13,7 @@ export const config = {
   ],
 };
 
-export default async function middleware(request: Request) {
+export default async function middleware(request: Request): Promise<Response | void> {
   const url = new URL(request.url);
   
   // Allow static assets, API routes, and Next.js internals to pass through
@@ -23,8 +23,8 @@ export default async function middleware(request: Request) {
     url.pathname.startsWith('/_next/') ||
     url.pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|woff|woff2|ttf|eot)$/)
   ) {
-    // Let static assets pass through - don't return anything to allow default behavior
-    return;
+    // Let static assets pass through - return nothing to allow default behavior
+    return undefined;
   }
   
   // Get password from environment variable (set in Vercel dashboard)
@@ -60,9 +60,9 @@ export default async function middleware(request: Request) {
     }
   }
   
-  // If authenticated, let request pass through (don't return anything)
+  // If authenticated, let request pass through (return nothing to allow default behavior)
   if (authCookie) {
-    return;
+    return undefined;
   }
   
   // Not authenticated - show password form
