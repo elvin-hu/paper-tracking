@@ -536,20 +536,34 @@ export function Library() {
         return next;
       });
       setLastSelectedId(paper.id);
-    } else if (isShiftKey && lastSelectedId) {
-      // Range selection
-      const paperIds = filteredAndSortedPapers.map(p => p.id);
-      const lastIndex = paperIds.indexOf(lastSelectedId);
-      const currentIndex = paperIds.indexOf(paper.id);
-      const start = Math.min(lastIndex, currentIndex);
-      const end = Math.max(lastIndex, currentIndex);
-      const rangeIds = paperIds.slice(start, end + 1);
-      
-      setSelectedPapers(prev => {
-        const next = new Set(prev);
-        rangeIds.forEach(id => next.add(id));
-        return next;
-      });
+    } else if (isShiftKey) {
+      // Range selection with Shift
+      if (lastSelectedId && lastSelectedId !== paper.id) {
+        // Select range from lastSelectedId to current paper
+        const paperIds = filteredAndSortedPapers.map(p => p.id);
+        const lastIndex = paperIds.indexOf(lastSelectedId);
+        const currentIndex = paperIds.indexOf(paper.id);
+        
+        if (lastIndex !== -1 && currentIndex !== -1) {
+          const start = Math.min(lastIndex, currentIndex);
+          const end = Math.max(lastIndex, currentIndex);
+          const rangeIds = paperIds.slice(start, end + 1);
+          
+          setSelectedPapers(prev => {
+            const next = new Set(prev);
+            rangeIds.forEach(id => next.add(id));
+            return next;
+          });
+        }
+      } else if (!lastSelectedId) {
+        // No previous selection, just select this one
+        setSelectedPapers(prev => {
+          const next = new Set(prev);
+          next.add(paper.id);
+          return next;
+        });
+        setLastSelectedId(paper.id);
+      }
     } else if (selectedPapers.size > 0 && !selectedPapers.has(paper.id)) {
       // Click outside selection clears it
       setSelectedPapers(new Set());
@@ -558,23 +572,59 @@ export function Library() {
       // No selection, open the paper
       handleOpenPaper(paper);
     } else if (selectedPapers.size === 1 && selectedPapers.has(paper.id)) {
-      // Double-clicking selected paper opens it
+      // Clicking selected paper opens it
       handleOpenPaper(paper);
     }
   };
 
   const togglePaperSelection = (e: React.MouseEvent, paperId: string) => {
     e.stopPropagation();
-    setSelectedPapers(prev => {
-      const next = new Set(prev);
-      if (next.has(paperId)) {
-        next.delete(paperId);
-      } else {
-        next.add(paperId);
+    const isMetaKey = e.metaKey || e.ctrlKey;
+    const isShiftKey = e.shiftKey;
+    
+    if (isShiftKey && lastSelectedId && lastSelectedId !== paperId) {
+      // Range selection with Shift
+      const paperIds = filteredAndSortedPapers.map(p => p.id);
+      const lastIndex = paperIds.indexOf(lastSelectedId);
+      const currentIndex = paperIds.indexOf(paperId);
+      
+      if (lastIndex !== -1 && currentIndex !== -1) {
+        const start = Math.min(lastIndex, currentIndex);
+        const end = Math.max(lastIndex, currentIndex);
+        const rangeIds = paperIds.slice(start, end + 1);
+        
+        setSelectedPapers(prev => {
+          const next = new Set(prev);
+          rangeIds.forEach(id => next.add(id));
+          return next;
+        });
+        setLastSelectedId(paperId);
       }
-      return next;
-    });
-    setLastSelectedId(paperId);
+    } else if (isMetaKey) {
+      // Toggle selection with Cmd/Ctrl
+      setSelectedPapers(prev => {
+        const next = new Set(prev);
+        if (next.has(paperId)) {
+          next.delete(paperId);
+        } else {
+          next.add(paperId);
+        }
+        return next;
+      });
+      setLastSelectedId(paperId);
+    } else {
+      // Regular toggle (or single selection)
+      setSelectedPapers(prev => {
+        const next = new Set(prev);
+        if (next.has(paperId)) {
+          next.delete(paperId);
+        } else {
+          next.add(paperId);
+        }
+        return next;
+      });
+      setLastSelectedId(paperId);
+    }
   };
 
   const selectAllPapers = () => {
