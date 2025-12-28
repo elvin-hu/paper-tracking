@@ -220,15 +220,6 @@ body {
   -ms-overflow-style: none;
 }
 
-/* Hide scrollbars for textareas */
-textarea::-webkit-scrollbar {
-  display: none;
-}
-
-textarea {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
 
 /* Animations - Apple-style spring */
 @keyframes fadeIn {
