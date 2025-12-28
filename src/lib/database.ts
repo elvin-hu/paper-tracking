@@ -145,16 +145,33 @@ export async function getPaperFile(paperId: string): Promise<PaperFile | undefin
 }
 
 export async function addPaperFile(file: PaperFile): Promise<void> {
+  // Validate that we have actual file data
+  if (!file.data || file.data.byteLength === 0) {
+    throw new Error(`Cannot upload empty PDF file for paper ${file.paperId}`);
+  }
+  
+  console.log(`Uploading PDF for paper ${file.paperId}, size: ${file.data.byteLength} bytes`);
+  
   const blob = new Blob([file.data], { type: 'application/pdf' });
   
-  const { error } = await supabase.storage
+  // Verify blob was created correctly
+  if (blob.size === 0) {
+    throw new Error(`Blob creation failed - size is 0 for paper ${file.paperId}`);
+  }
+  
+  const { error, data } = await supabase.storage
     .from('pdfs')
     .upload(`${file.paperId}.pdf`, blob, {
       contentType: 'application/pdf',
       upsert: true,
     });
   
-  if (error) throw error;
+  if (error) {
+    console.error('Supabase storage upload error:', error);
+    throw error;
+  }
+  
+  console.log(`PDF uploaded successfully for paper ${file.paperId}`, data);
 }
 
 // Highlight operations
