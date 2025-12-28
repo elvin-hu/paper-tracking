@@ -1381,56 +1381,56 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       p.id === paperId ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
                     }`} />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <p className={`text-xs leading-snug line-clamp-2 flex-1 ${
-                          p.id === paperId 
-                            ? 'text-[var(--text-primary)] font-semibold' 
-                            : 'text-[var(--text-primary)] font-normal opacity-80'
-                        }`}>
-                          {p.title}
-                        </p>
-                        <button
-                          onClick={(e) => togglePaperStarred(e, p)}
-                          className={`p-0.5 rounded transition-all flex-shrink-0 ${
-                            p.isStarred
-                              ? 'text-yellow-500'
-                              : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
-                          }`}
-                          title={p.isStarred ? "Unstar" : "Star"}
-                        >
-                          <Star className={`w-3 h-3 ${p.isStarred ? 'fill-current' : ''}`} />
-                        </button>
-                      </div>
+                      <p className={`text-xs leading-snug line-clamp-2 ${
+                        p.id === paperId 
+                          ? 'text-[var(--text-primary)] font-semibold' 
+                          : 'text-[var(--text-primary)] font-normal opacity-80'
+                      }`}>
+                        {p.title}
+                      </p>
                       {p.authors && (
                         <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate">
                           {p.authors.split(',')[0]}
                         </p>
                       )}
                     </div>
-                    <div className="relative flex items-center justify-center flex-shrink-0 mt-1.5 w-3 h-3">
-                      {!p.isRead ? (
-                        <button
-                          onClick={(e) => togglePaperReadStatus(e, p)}
-                          className="relative w-3 h-3 flex items-center justify-center group/button"
-                          title="Mark as read"
-                        >
-                          {/* Outer circle with faint blue fill - only on hover (2x dot width = 3px) */}
-                          <div className="absolute inset-0 w-3 h-3 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
-                          {/* Inner blue dot - always visible, centered */}
-                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-500" />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={(e) => togglePaperReadStatus(e, p)}
-                          className="relative w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
-                          title="Mark as unread"
-                        >
-                          {/* Outer circle with faint grey fill - only on hover (2x dot width = 3px) */}
-                          <div className="absolute inset-0 w-3 h-3 rounded-full bg-[var(--text-muted)]/15 opacity-0 group-hover/button:opacity-100 transition-opacity" />
-                          {/* Inner grey dot - centered */}
-                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
-                        </button>
-                      )}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={(e) => togglePaperStarred(e, p)}
+                        className={`p-0.5 rounded transition-all ${
+                          p.isStarred
+                            ? 'text-yellow-500'
+                            : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
+                        }`}
+                        title={p.isStarred ? "Unstar" : "Star"}
+                      >
+                        <Star className={`w-3 h-3 ${p.isStarred ? 'fill-current' : ''}`} />
+                      </button>
+                      <div className="relative flex items-center justify-center w-3 h-3">
+                        {!p.isRead ? (
+                          <button
+                            onClick={(e) => togglePaperReadStatus(e, p)}
+                            className="relative w-3 h-3 flex items-center justify-center group/button"
+                            title="Mark as read"
+                          >
+                            {/* Outer circle with faint blue fill - only on hover (2x dot width = 3px) */}
+                            <div className="absolute inset-0 w-3 h-3 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                            {/* Inner blue dot - always visible, centered */}
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => togglePaperReadStatus(e, p)}
+                            className="relative w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
+                            title="Mark as unread"
+                          >
+                            {/* Outer circle with faint grey fill - only on hover (2x dot width = 3px) */}
+                            <div className="absolute inset-0 w-3 h-3 rounded-full bg-[var(--text-muted)]/15 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                            {/* Inner grey dot - centered */}
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </button>
