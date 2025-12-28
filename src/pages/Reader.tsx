@@ -548,6 +548,38 @@ export function Reader() {
     };
   }, [showPaperList]);
 
+  // Show scrollbar when scrolling, hide after scroll stops
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let scrollTimeout: number | null = null;
+
+    const handleScroll = () => {
+      // Add class to show scrollbar
+      container.classList.add('is-scrolling');
+      
+      // Clear existing timeout
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+      
+      // Hide scrollbar after scrolling stops (300ms delay)
+      scrollTimeout = window.setTimeout(() => {
+        container.classList.remove('is-scrolling');
+      }, 300);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+    };
+  }, []);
+
   // Set pdfContainerReady when document is actually ready
   useEffect(() => {
     if (documentReady && numPages > 0) {

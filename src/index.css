@@ -239,36 +239,39 @@ body {
   background: var(--text-muted);
   border-radius: 3px;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.3s ease;
 }
 
-/* Show scrollbar on hover or when scrolling */
+/* Show scrollbar on hover, when scrolling, or when focused */
 .pdf-viewer-container:hover::-webkit-scrollbar-thumb,
+.pdf-viewer-container.is-scrolling::-webkit-scrollbar-thumb,
 .pdf-viewer-container:focus-within::-webkit-scrollbar-thumb {
-  opacity: 0.3;
+  opacity: 0.4;
 }
 
 .pdf-viewer-container::-webkit-scrollbar-thumb:hover {
-  opacity: 0.5;
+  opacity: 0.6;
   background: var(--text-secondary);
 }
 
-/* For Firefox - use thin scrollbar that appears on hover */
+/* For Firefox - use thin scrollbar that appears on hover or scroll */
 .pdf-viewer-container {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
-  transition: scrollbar-color 0.2s ease;
+  transition: scrollbar-color 0.3s ease;
 }
 
 .pdf-viewer-container:hover,
+.pdf-viewer-container.is-scrolling,
 .pdf-viewer-container:focus-within {
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
 }
 
 @media (prefers-color-scheme: dark) {
   .pdf-viewer-container:hover,
+  .pdf-viewer-container.is-scrolling,
   .pdf-viewer-container:focus-within {
-    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
   }
 }
 
