@@ -1090,6 +1090,13 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
         setPaper(updatedPaper);
         paperRef.current = updatedPaper;
         
+        // Also update in allPapers map for sidebar
+        setAllPapers(prev => {
+          const newMap = new Map(prev);
+          newMap.set(updatedPaper.id, updatedPaper);
+          return newMap;
+        });
+        
         // Update metadata state (this will not trigger autosave since we already saved)
         setMetadata(newMetadata);
       }
@@ -1876,7 +1883,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               </div>
 
               <div className="space-y-2.5">
-                {/* Title (read-only, from paper) */}
+                {/* Title */}
                 <div>
                   <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
                     Title
@@ -1884,8 +1891,33 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                   <input
                     type="text"
                     value={paper?.title || ''}
-                    readOnly
-                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] opacity-60"
+                    onChange={(e) => {
+                      if (!paper) return;
+                      const newTitle = e.target.value;
+                      const updatedPaper = { ...paper, title: newTitle };
+                      setPaper(updatedPaper);
+                      paperRef.current = updatedPaper;
+                      
+                      // Autosave title changes
+                      if (metadataSaveTimeoutRef.current) {
+                        clearTimeout(metadataSaveTimeoutRef.current);
+                      }
+                      metadataSaveTimeoutRef.current = window.setTimeout(async () => {
+                        try {
+                          await updatePaper(updatedPaper);
+                          // Also update in allPapers map for sidebar
+                          setAllPapers(prev => {
+                            const newMap = new Map(prev);
+                            newMap.set(updatedPaper.id, updatedPaper);
+                            return newMap;
+                          });
+                        } catch (err) {
+                          console.error('Failed to save title:', err);
+                        }
+                      }, 500);
+                    }}
+                    placeholder="Paper title..."
+                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
                   />
                 </div>
 
