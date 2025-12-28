@@ -4,15 +4,28 @@ import type { Paper, PaperFile, Highlight, Note, Riff, FurtherReading, AppSettin
 // Helper to convert database row to Paper type
 function rowToPaper(row: Record<string, unknown>): Paper {
   const metadata = row.metadata as Record<string, unknown> | null;
+  
+  // Ensure tags is always an array
+  let tags: string[] = [];
+  if (Array.isArray(row.tags)) {
+    tags = row.tags.filter((t): t is string => typeof t === 'string');
+  }
+  
+  // Validate required fields
+  if (!row.id || !row.title) {
+    console.error('Invalid paper data:', row);
+    throw new Error('Paper missing required fields (id or title)');
+  }
+  
   return {
-    id: row.id as string,
-    title: row.title as string,
-    authors: row.authors as string | undefined,
-    tags: (row.tags as string[]) || [],
-    uploadedAt: new Date(row.created_at as string),
-    lastOpenedAt: row.last_opened_at ? new Date(row.last_opened_at as string) : undefined,
-    isRead: row.is_read as boolean,
-    metadata: row.metadata as Paper['metadata'],
+    id: String(row.id),
+    title: String(row.title),
+    authors: row.authors ? String(row.authors) : undefined,
+    tags: tags,
+    uploadedAt: row.created_at ? new Date(String(row.created_at)) : new Date(),
+    lastOpenedAt: row.last_opened_at ? new Date(String(row.last_opened_at)) : undefined,
+    isRead: Boolean(row.is_read),
+    metadata: row.metadata as Paper['metadata'] || {},
     fileName: (metadata?.fileName as string) || `${row.id}.pdf`,
     fileSize: (metadata?.fileSize as number) || 0,
   };
@@ -54,8 +67,25 @@ export async function getAllPapers(): Promise<Paper[]> {
     .select('*')
     .order('created_at', { ascending: false });
   
-  if (error) throw error;
-  return (data || []).map(rowToPaper);
+  if (error) {
+    console.error('[Database] Error fetching papers:', error);
+    throw error;
+  }
+  
+  if (!data) return [];
+  
+  // Filter out invalid papers and log errors
+  const validPapers: Paper[] = [];
+  for (const row of data) {
+    try {
+      validPapers.push(rowToPaper(row));
+    } catch (err) {
+      console.error('[Database] Error parsing paper:', row.id, err);
+      // Skip corrupted papers instead of crashing
+    }
+  }
+  
+  return validPapers;
 }
 
 export async function getPaper(id: string): Promise<Paper | undefined> {
@@ -92,19 +122,25 @@ export async function addPaper(paper: Paper): Promise<void> {
 }
 
 export async function updatePaper(paper: Paper): Promise<void> {
+  // Ensure tags is always an array
+  const tags = Array.isArray(paper.tags) ? paper.tags : [];
+  
   const { error } = await supabase
     .from('papers')
     .update({
       title: paper.title,
       authors: paper.authors,
-      tags: paper.tags,
+      tags: tags, // Ensure it's always an array
       last_opened_at: paper.lastOpenedAt?.toISOString(),
       is_read: paper.isRead ?? false,
       metadata: paper.metadata || {},
     })
     .eq('id', paper.id);
   
-  if (error) throw error;
+  if (error) {
+    console.error('[Database] Error updating paper:', paper.id, error);
+    throw error;
+  }
 }
 
 export async function deletePaper(id: string): Promise<void> {

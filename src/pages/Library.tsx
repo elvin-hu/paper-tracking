@@ -96,6 +96,7 @@ export function Library() {
 
   const loadData = useCallback(async () => {
     try {
+      setIsLoading(true);
       console.log('[Library] Loading papers...');
       const [loadedPapers, tags, settings] = await Promise.all([getAllPapers(), getAllTags(), getSettings()]);
       console.log(`[Library] Loaded ${loadedPapers.length} papers`);
@@ -107,6 +108,14 @@ export function Library() {
       }
     } catch (error) {
       console.error('[Library] Error loading data:', error);
+      // Show user-friendly error
+      if (error instanceof Error) {
+        alert(`Failed to load papers: ${error.message}. Please refresh the page.`);
+      } else {
+        alert('Failed to load papers. Please refresh the page.');
+      }
+      // Set empty array to prevent infinite loading state
+      setPapers([]);
     } finally {
       setIsLoading(false);
     }
@@ -637,29 +646,61 @@ export function Library() {
   };
 
   const applyBatchEdit = async () => {
-    const selectedPapersList = papers.filter(p => selectedPapers.has(p.id));
+    if (selectedPapers.size === 0) return;
     
-    for (const paper of selectedPapersList) {
-      const newTags = [...paper.tags];
-      
-      // Add new tags
-      batchAddTags.forEach(tag => {
-        if (!newTags.includes(tag)) {
-          newTags.push(tag);
-        }
-      });
-      
-      // Remove tags
-      const filteredTags = newTags.filter(tag => !batchRemoveTags.includes(tag));
-      
-      if (JSON.stringify(filteredTags) !== JSON.stringify(paper.tags)) {
-        await updatePaper({ ...paper, tags: filteredTags });
-      }
+    const selectedPapersList = papers.filter(p => selectedPapers.has(p.id));
+    if (selectedPapersList.length === 0) {
+      alert('No papers selected');
+      return;
     }
     
-    setShowBatchEditModal(false);
-    clearSelection();
-    loadData();
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const paper of selectedPapersList) {
+        try {
+          // Ensure tags is an array
+          const currentTags = Array.isArray(paper.tags) ? paper.tags : [];
+          const newTags = [...currentTags];
+          
+          // Add new tags
+          batchAddTags.forEach(tag => {
+            if (!newTags.includes(tag)) {
+              newTags.push(tag);
+            }
+          });
+          
+          // Remove tags
+          const filteredTags = newTags.filter(tag => !batchRemoveTags.includes(tag));
+          
+          // Only update if tags actually changed
+          if (JSON.stringify(filteredTags.sort()) !== JSON.stringify(currentTags.sort())) {
+            await updatePaper({ ...paper, tags: filteredTags });
+            successCount++;
+          }
+        } catch (err) {
+          console.error(`[Library] Error updating paper ${paper.id}:`, err);
+          errorCount++;
+        }
+      }
+      
+      if (errorCount > 0) {
+        alert(`Updated ${successCount} paper(s), but ${errorCount} failed. Check console for details.`);
+      }
+      
+      setShowBatchEditModal(false);
+      setBatchAddTags([]);
+      setBatchRemoveTags([]);
+      setBatchNewTagInput('');
+      clearSelection();
+      
+      // Reload data to reflect changes
+      await loadData();
+    } catch (err) {
+      console.error('[Library] Batch edit error:', err);
+      alert('Failed to apply batch edit. Check console for details.');
+    }
   };
 
   const deleteSelectedPapers = async () => {
