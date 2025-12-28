@@ -261,6 +261,14 @@ export function Library() {
       return;
     }
 
+    // Check file size (50MB limit for Supabase free tier)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.size > MAX_FILE_SIZE) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      alert(`This file (${sizeMB}MB) exceeds the 50MB upload limit. Please compress the PDF or use a smaller file.`);
+      return;
+    }
+
     setPendingFile(file);
     
     // Extract title from PDF (skip author detection)
@@ -324,6 +332,17 @@ export function Library() {
     
     if (pdfFiles.length === 0) {
       alert('Please select valid PDF files.');
+      return;
+    }
+
+    // Check file sizes (50MB limit for Supabase free tier)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    const oversizedFiles = pdfFiles.filter(f => f.size > MAX_FILE_SIZE);
+    
+    if (oversizedFiles.length > 0) {
+      const fileNames = oversizedFiles.map(f => f.name).join(', ');
+      const sizeMB = (oversizedFiles[0].size / (1024 * 1024)).toFixed(1);
+      alert(`The following file(s) exceed the 50MB limit:\n${fileNames}\n\n${oversizedFiles[0].name} is ${sizeMB}MB. Please compress the PDF or use a smaller file.`);
       return;
     }
 
@@ -435,11 +454,26 @@ export function Library() {
       loadData();
     } catch (err) {
       console.error('Failed to upload paper:', err);
+      let errorMessage = 'Upload failed';
+      
+      if (err instanceof Error) {
+        // Parse common error messages
+        if (err.message.includes('413') || err.message.includes('too large') || err.message.includes('exceeded')) {
+          errorMessage = 'File too large (max 50MB)';
+        } else if (err.message.includes('400')) {
+          errorMessage = 'Invalid file format';
+        } else if (err.message.includes('500') || err.message.includes('Internal Server Error')) {
+          errorMessage = 'Server error - please try again';
+        } else {
+          errorMessage = err.message.length > 50 ? err.message.substring(0, 50) + '...' : err.message;
+        }
+      }
+      
       setUploadQueue(prev => prev.map(item => 
         item.id === pendingItem.id ? { 
           ...item, 
           status: 'error' as const, 
-          error: err instanceof Error ? err.message : 'Upload failed' 
+          error: errorMessage
         } : item
       ));
     } finally {
@@ -690,7 +724,21 @@ export function Library() {
       await loadData();
     } catch (err) {
       console.error('Failed to upload paper:', err);
-      alert('Failed to upload paper. Please check console for details.');
+      
+      let errorMessage = 'Failed to upload paper.';
+      if (err instanceof Error) {
+        if (err.message.includes('413') || err.message.includes('too large') || err.message.includes('exceeded')) {
+          errorMessage = 'File too large. Maximum file size is 50MB. Please compress the PDF or use a smaller file.';
+        } else if (err.message.includes('400')) {
+          errorMessage = 'Invalid file format. Please ensure the file is a valid PDF.';
+        } else if (err.message.includes('500')) {
+          errorMessage = 'Server error. Please try again later.';
+        } else {
+          errorMessage = `Upload failed: ${err.message}`;
+        }
+      }
+      
+      alert(errorMessage);
     } finally {
       setIsUploading(false);
     }
