@@ -427,13 +427,13 @@ input::placeholder, textarea::placeholder {
 
 /* Metadata panel inputs - better contrast in dark mode */
 @media (prefers-color-scheme: dark) {
-  [data-sidebar="notes-metadata"] input[class*="bg-[var(--bg-tertiary)]"],
-  [data-sidebar="notes-metadata"] textarea[class*="bg-[var(--bg-tertiary)]"] {
+  [data-sidebar="notes-metadata"] input,
+  [data-sidebar="notes-metadata"] textarea {
     background: rgba(255, 255, 255, 0.08) !important;
   }
   
-  [data-sidebar="notes-metadata"] input[class*="bg-[var(--bg-tertiary)]"]:focus,
-  [data-sidebar="notes-metadata"] textarea[class*="bg-[var(--bg-tertiary)]"]:focus {
+  [data-sidebar="notes-metadata"] input:focus,
+  [data-sidebar="notes-metadata"] textarea:focus {
     background: rgba(255, 255, 255, 0.12) !important;
   }
 }
