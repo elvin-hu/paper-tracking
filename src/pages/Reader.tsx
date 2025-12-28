@@ -1452,7 +1452,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
         {/* PDF Viewer */}
         <div 
           ref={containerRef} 
-          className="flex-1 overflow-auto relative"
+          className="pdf-viewer-container flex-1 overflow-auto relative"
           style={{ background: 'var(--bg-tertiary)' }}
         >
           {/* Overlay that fades out when PDF is ready */}

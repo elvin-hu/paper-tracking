@@ -220,6 +220,34 @@ body {
   -ms-overflow-style: none;
 }
 
+/* Show scrollbars for PDF viewer */
+.pdf-viewer-container::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+  height: 8px;
+}
+
+.pdf-viewer-container::-webkit-scrollbar-track {
+  background: transparent;
+  display: block;
+}
+
+.pdf-viewer-container::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 4px;
+  opacity: 0.5;
+  display: block;
+}
+
+.pdf-viewer-container::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+.pdf-viewer-container {
+  scrollbar-width: thin; /* Firefox */
+  -ms-overflow-style: auto; /* IE and Edge */
+}
+
 
 /* Animations - Apple-style spring */
 @keyframes fadeIn {
