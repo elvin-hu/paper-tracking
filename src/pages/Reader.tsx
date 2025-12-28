@@ -1579,7 +1579,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       className="shadow-lg rounded-sm overflow-hidden"
                       renderAnnotationLayer={false}
                     />
-                    {/* Highlight Overlays - visual layer below text, click handlers on each rect */}
+                    {/* Highlight Overlays - two layers: visual (below text) and click (above text) */}
                     {pageHighlights.map((highlight) => {
                       const isHovered = hoveredNoteHighlightId === highlight.id;
                       const isPulsing = pulsingHighlightId === highlight.id;
@@ -1587,47 +1587,52 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       
                       return (
                         <div key={highlight.id}>
-                          {highlight.rects.map((rect, idx) => {
-                            const rectLeft = rect.x * effectiveScale;
-                            const rectTop = rect.y * effectiveScale;
-                            const rectWidth = rect.width * effectiveScale;
-                            const rectHeight = rect.height * effectiveScale;
-                            
-                            return (
-                              <div
-                                key={idx}
-                                className={`absolute cursor-pointer transition-all duration-300 ${
-                                  isPulsing ? 'animate-highlight-pulse' : ''
-                                }`}
-                                style={{
-                                  left: rectLeft,
-                                  top: rectTop,
-                                  width: rectWidth,
-                                  height: rectHeight,
-                                  backgroundColor: getHighlightBg(highlight.color, highlight.isFurtherReading),
-                                  zIndex: 1,
-                                  mixBlendMode: 'multiply',
-                                  opacity: isHovered || isEditing ? 1 : 0.85,
-                                  filter: isHovered || isEditing ? 'saturate(1.5) brightness(0.95)' : 'none',
-                                  boxShadow: isPulsing ? `0 0 12px 4px ${getHighlightBg(highlight.color, highlight.isFurtherReading)}` : 'none',
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Calculate position for the floating popup
-                                  const pageContainer = pageRefs.current.get(pageNum);
-                                  if (pageContainer) {
-                                    // Position popup above the first rect of the highlight
-                                    const firstRect = highlight.rects[0];
-                                    const popupX = (firstRect.x + firstRect.width / 2) * effectiveScale;
-                                    const popupY = firstRect.y * effectiveScale - 10;
-                                    setEditingHighlightPosition({ x: popupX, y: popupY });
-                                  }
-                                  setEditingHighlight(highlight);
-                                  setNoteInput('');
-                                }}
-                              />
-                            );
-                          })}
+                          {/* Visual layer - below text, no pointer events */}
+                          {highlight.rects.map((rect, idx) => (
+                            <div
+                              key={`visual-${idx}`}
+                              className={`absolute pointer-events-none transition-all duration-300 ${
+                                isPulsing ? 'animate-highlight-pulse' : ''
+                              }`}
+                              style={{
+                                left: rect.x * effectiveScale,
+                                top: rect.y * effectiveScale,
+                                width: rect.width * effectiveScale,
+                                height: rect.height * effectiveScale,
+                                backgroundColor: getHighlightBg(highlight.color, highlight.isFurtherReading),
+                                zIndex: 1,
+                                mixBlendMode: 'multiply',
+                                opacity: isHovered || isEditing ? 1 : 0.85,
+                                filter: isHovered || isEditing ? 'saturate(1.5) brightness(0.95)' : 'none',
+                                boxShadow: isPulsing ? `0 0 12px 4px ${getHighlightBg(highlight.color, highlight.isFurtherReading)}` : 'none',
+                              }}
+                            />
+                          ))}
+                          {/* Click layer - above text, transparent */}
+                          {highlight.rects.map((rect, idx) => (
+                            <div
+                              key={`click-${idx}`}
+                              className="absolute cursor-pointer"
+                              style={{
+                                left: rect.x * effectiveScale,
+                                top: rect.y * effectiveScale,
+                                width: rect.width * effectiveScale,
+                                height: rect.height * effectiveScale,
+                                zIndex: 15,
+                                backgroundColor: 'transparent',
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Calculate position for the floating popup
+                                const firstRect = highlight.rects[0];
+                                const popupX = (firstRect.x + firstRect.width / 2) * effectiveScale;
+                                const popupY = firstRect.y * effectiveScale - 10;
+                                setEditingHighlightPosition({ x: popupX, y: popupY });
+                                setEditingHighlight(highlight);
+                                setNoteInput('');
+                              }}
+                            />
+                          ))}
                         </div>
                       );
                     })}
