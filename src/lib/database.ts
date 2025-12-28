@@ -372,7 +372,15 @@ export async function deleteFurtherReading(id: string): Promise<void> {
 }
 
 // Settings operations
+// OpenAI API key is stored in localStorage for security (never sent to cloud)
+const OPENAI_KEY_STORAGE = 'paper-tracking-openai-key';
+
 export async function getSettings(): Promise<AppSettings> {
+  // Get OpenAI key from localStorage (secure, device-only)
+  const localOpenAIKey = typeof window !== 'undefined' 
+    ? localStorage.getItem(OPENAI_KEY_STORAGE) || undefined
+    : undefined;
+  
   const { data, error } = await supabase
     .from('settings')
     .select('*')
@@ -382,13 +390,14 @@ export async function getSettings(): Promise<AppSettings> {
   if (error) {
     console.warn('Error fetching settings:', error);
     return {
+      openaiApiKey: localOpenAIKey,
       defaultHighlightColor: 'yellow' as HighlightColor,
       sidebarWidth: 320,
     };
   }
   
   return {
-    openaiApiKey: data.openai_api_key || undefined,
+    openaiApiKey: localOpenAIKey, // From localStorage, not Supabase
     defaultHighlightColor: (data.default_highlight_color as HighlightColor) || 'yellow',
     sidebarWidth: 320,
     researchContext: data.research_context || undefined,
@@ -397,10 +406,20 @@ export async function getSettings(): Promise<AppSettings> {
 }
 
 export async function updateSettings(settings: AppSettings): Promise<void> {
+  // Store OpenAI key in localStorage only (never send to cloud)
+  if (typeof window !== 'undefined') {
+    if (settings.openaiApiKey) {
+      localStorage.setItem(OPENAI_KEY_STORAGE, settings.openaiApiKey);
+    } else {
+      localStorage.removeItem(OPENAI_KEY_STORAGE);
+    }
+  }
+  
+  // Store other settings in Supabase (synced across devices)
   const { error } = await supabase
     .from('settings')
     .update({
-      openai_api_key: settings.openaiApiKey,
+      // Note: openai_api_key is NOT sent to Supabase anymore
       default_highlight_color: settings.defaultHighlightColor,
       research_context: settings.researchContext,
       sort_option: settings.sortOption,
