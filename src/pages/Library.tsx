@@ -359,19 +359,31 @@ export function Library() {
         item.id === pendingItem.id ? { ...item, progress: 30 } : item
       ));
       
+      console.log(`[Batch Upload] Reading file: ${pendingItem.file.name}, size: ${pendingItem.file.size}`);
       const fileData = await pendingItem.file.arrayBuffer();
+      console.log(`[Batch Upload] ArrayBuffer size after read: ${fileData.byteLength}`);
       
-      // Create copies - pdfjs may detach ArrayBuffers
+      // Create a fresh copy immediately for upload before anything else touches it
       const uploadCopy = fileData.slice(0);
-      const metadataCopy = fileData.slice(0);
+      console.log(`[Batch Upload] Upload copy size: ${uploadCopy.byteLength}`);
 
       // Progress: extracting metadata
       setUploadQueue(prev => prev.map(item => 
         item.id === pendingItem.id ? { ...item, progress: 40 } : item
       ));
 
-      // Extract title from PDF using a copy
-      const { title } = await extractPDFMetadata(metadataCopy);
+      // Extract title from PDF - use a separate copy and skip if it fails
+      let title: string | undefined;
+      try {
+        const metadataCopy = fileData.slice(0);
+        const metadata = await extractPDFMetadata(metadataCopy);
+        title = metadata.title;
+      } catch (e) {
+        console.warn('[Batch Upload] Metadata extraction failed:', e);
+        title = undefined;
+      }
+      
+      console.log(`[Batch Upload] Upload copy size after metadata: ${uploadCopy.byteLength}`);
 
       // Progress: creating paper record
       setUploadQueue(prev => prev.map(item => 
@@ -395,12 +407,16 @@ export function Library() {
         item.id === pendingItem.id ? { ...item, progress: 80 } : item
       ));
 
+      console.log(`[Batch Upload] About to upload, copy size: ${uploadCopy.byteLength}`);
+      
       // Use the upload copy (guaranteed to not be detached)
       await addPaperFile({
         id: uuidv4(),
         paperId,
         data: uploadCopy,
       });
+      
+      console.log(`[Batch Upload] Upload complete for ${pendingItem.file.name}`);
 
       // Complete
       setUploadQueue(prev => prev.map(item => 
