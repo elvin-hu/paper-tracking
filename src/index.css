@@ -254,8 +254,12 @@ textarea {
 }
 
 /* General button styles - ensure all buttons have center-aligned text */
-button {
+button:not([class*="flex"]):not([class*="grid"]) {
   text-align: center;
+}
+
+button[class*="flex"],
+button.flex {
   justify-content: center;
 }
 
