@@ -45,6 +45,7 @@ export function Library() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('date-desc');
+  const [isLoading, setIsLoading] = useState(true);
   const sortOptionSaveTimeoutRef = useRef<number | null>(null);
 
   // Restore scroll position on mount
@@ -106,6 +107,8 @@ export function Library() {
       }
     } catch (error) {
       console.error('[Library] Error loading data:', error);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -947,7 +950,11 @@ export function Library() {
             </div>
 
         {/* Papers List */}
-        {filteredAndSortedPapers.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-[var(--text-muted)] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : filteredAndSortedPapers.length === 0 ? (
           <div
             ref={dropZoneRef}
             onDragEnter={handleDragEnter}
