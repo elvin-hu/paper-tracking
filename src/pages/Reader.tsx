@@ -444,14 +444,37 @@ export function Reader() {
   const togglePaperReadStatus = useCallback(async (e: React.MouseEvent<HTMLButtonElement>, paper: Paper) => {
     e.stopPropagation();
     const updatedPaper = { ...paper, isRead: !paper.isRead };
-    await updatePaper(updatedPaper);
-    // Update in allPapers map to reflect change in sidebar
+    
+    // Optimistically update local state immediately
     setAllPapers(prev => {
       const newMap = new Map(prev);
       newMap.set(updatedPaper.id, updatedPaper);
       return newMap;
     });
-  }, []);
+    
+    // Also update current paper if it's the one being toggled
+    if (paper.id === paperId && paper) {
+      setPaper(updatedPaper);
+      paperRef.current = updatedPaper;
+    }
+    
+    // Save to database in background
+    try {
+      await updatePaper(updatedPaper);
+    } catch (error) {
+      console.error('Failed to update paper read status:', error);
+      // Revert on error
+      setAllPapers(prev => {
+        const newMap = new Map(prev);
+        newMap.set(paper.id, paper);
+        return newMap;
+      });
+      if (paper.id === paperId && paper) {
+        setPaper(paper);
+        paperRef.current = paper;
+      }
+    }
+  }, [paperId]);
 
   // Restore scroll position after document loads
   useEffect(() => {
@@ -1340,9 +1363,14 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       ) : (
                         <button
                           onClick={(e) => togglePaperReadStatus(e, p)}
-                          className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--text-secondary)]"
+                          className="relative w-1.5 h-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
                           title="Mark as unread"
-                        />
+                        >
+                          {/* Outer circle for better visual feedback */}
+                          <div className="absolute inset-0 w-2.5 h-2.5 -m-0.5 rounded-full border border-[var(--text-muted)]/30" />
+                          {/* Inner dot */}
+                          <div className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/40 hover:bg-[var(--text-muted)]/60 transition-colors" />
+                        </button>
                       )}
                     </div>
                   </div>

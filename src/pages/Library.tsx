@@ -858,8 +858,18 @@ export function Library() {
   const togglePaperReadStatus = async (e: React.MouseEvent, paper: Paper) => {
     e.stopPropagation();
     const updatedPaper = { ...paper, isRead: !paper.isRead };
-    await updatePaper(updatedPaper);
-    await loadData(); // Reload to reflect changes
+    
+    // Optimistically update local state immediately
+    setPapers(prev => prev.map(p => p.id === paper.id ? updatedPaper : p));
+    
+    // Save to database in background
+    try {
+      await updatePaper(updatedPaper);
+    } catch (error) {
+      console.error('Failed to update paper read status:', error);
+      // Revert on error
+      setPapers(prev => prev.map(p => p.id === paper.id ? paper : p));
+    }
   };
 
   const toggleTag = (tag: string) => {
@@ -1204,9 +1214,14 @@ export function Library() {
                             ) : (
                               <button
                                 onClick={(e) => togglePaperReadStatus(e, paper)}
-                                className="w-2 h-2 rounded-full bg-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--text-secondary)]"
+                                className="relative w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity"
                                 title="Mark as unread"
-                              />
+                              >
+                                {/* Outer circle for better visual feedback */}
+                                <div className="absolute inset-0 w-3 h-3 -m-0.5 rounded-full border border-[var(--text-muted)]/30" />
+                                {/* Inner dot */}
+                                <div className="absolute inset-0 w-2 h-2 rounded-full bg-[var(--text-muted)]/40 hover:bg-[var(--text-muted)]/60 transition-colors" />
+                              </button>
                             )}
                           </div>
                         </td>
