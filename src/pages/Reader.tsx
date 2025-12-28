@@ -257,6 +257,7 @@ export function Reader() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [colorPickerPosition, setColorPickerPosition] = useState({ x: 0, y: 0 });
   const [editingHighlight, setEditingHighlight] = useState<Highlight | null>(null); // Highlight being edited for a new note
+  const [editingHighlightPosition, setEditingHighlightPosition] = useState<{ x: number; y: number } | null>(null); // Position for floating editor
   const [hoveredNoteHighlightId, setHoveredNoteHighlightId] = useState<string | null>(null); // Highlight ID being hovered in sidebar
   const [pulsingHighlightId, setPulsingHighlightId] = useState<string | null>(null); // Highlight that should pulse
   const [noteInput, setNoteInput] = useState('');
@@ -930,7 +931,8 @@ export function Reader() {
     await addNote(note);
     setNotes((prev) => [...prev, note]);
     setNoteInput('');
-    setEditingHighlight(null); // Close the editor after saving
+    setEditingHighlight(null);
+    setEditingHighlightPosition(null);
   };
 
   const handleDeleteNote = async (noteId: string) => {
@@ -949,6 +951,7 @@ export function Reader() {
     }
     setNotes((prev) => prev.filter((n) => n.highlightId !== highlightId));
     setEditingHighlight(null);
+    setEditingHighlightPosition(null);
   };
 
   const handleChangeHighlightColor = async (highlight: Highlight, newColor: HighlightColor) => {
@@ -1516,6 +1519,14 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           ref={containerRef} 
           className="pdf-viewer-container flex-1 overflow-auto relative"
           style={{ background: 'var(--bg-tertiary)' }}
+          onClick={(e) => {
+            // Dismiss floating editor when clicking on background
+            if (editingHighlight && e.target === e.currentTarget) {
+              setEditingHighlight(null);
+              setEditingHighlightPosition(null);
+              setNoteInput('');
+            }
+          }}
         >
           {/* Overlay that fades out when PDF is ready */}
           <div 
@@ -1568,58 +1579,167 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       className="shadow-lg rounded-sm overflow-hidden"
                       renderAnnotationLayer={false}
                     />
-                    {/* Highlight Overlays - pointer-events on wrapper, visual on children */}
+                    {/* Highlight Overlays - visual layer below text, click handlers on each rect */}
                     {pageHighlights.map((highlight) => {
                       const isHovered = hoveredNoteHighlightId === highlight.id;
                       const isPulsing = pulsingHighlightId === highlight.id;
                       const isEditing = editingHighlight?.id === highlight.id;
-                      const firstRect = highlight.rects[0];
                       
                       return (
                         <div key={highlight.id}>
-                          {/* Visual highlight layer - below text */}
-                          {highlight.rects.map((rect, idx) => (
-                            <div
-                              key={`bg-${idx}`}
-                              className={`absolute pointer-events-none transition-all duration-300 ${
-                                isPulsing ? 'animate-highlight-pulse' : ''
-                              }`}
-                              style={{
-                                left: rect.x * effectiveScale,
-                                top: rect.y * effectiveScale,
-                                width: rect.width * effectiveScale,
-                                height: rect.height * effectiveScale,
-                                backgroundColor: getHighlightBg(highlight.color, highlight.isFurtherReading),
-                                zIndex: 1,
-                                mixBlendMode: 'multiply',
-                                opacity: isHovered || isEditing ? 1 : 0.85,
-                                filter: isHovered || isEditing ? 'saturate(1.5) brightness(0.95)' : 'none',
-                                boxShadow: isPulsing ? `0 0 12px 4px ${getHighlightBg(highlight.color, highlight.isFurtherReading)}` : 'none',
-                              }}
-                            />
-                          ))}
-                          {/* Clickable overlay - above text layer */}
-                          {firstRect && (
-                            <div
-                              className="absolute cursor-pointer"
-                              style={{
-                                left: highlight.rects.reduce((min, r) => Math.min(min, r.x), Infinity) * effectiveScale,
-                                top: highlight.rects.reduce((min, r) => Math.min(min, r.y), Infinity) * effectiveScale,
-                                width: (highlight.rects.reduce((max, r) => Math.max(max, r.x + r.width), 0) - highlight.rects.reduce((min, r) => Math.min(min, r.x), Infinity)) * effectiveScale,
-                                height: (highlight.rects.reduce((max, r) => Math.max(max, r.y + r.height), 0) - highlight.rects.reduce((min, r) => Math.min(min, r.y), Infinity)) * effectiveScale,
-                                zIndex: 20,
-                              }}
-                              onClick={() => {
-                                // Open note editor for this highlight
-                                setEditingHighlight(highlight);
-                                setNoteInput('');
-                                setSidebarTab('notes');
-                              }}
-                            />
-                          )}
+                          {highlight.rects.map((rect, idx) => {
+                            const rectLeft = rect.x * effectiveScale;
+                            const rectTop = rect.y * effectiveScale;
+                            const rectWidth = rect.width * effectiveScale;
+                            const rectHeight = rect.height * effectiveScale;
+                            
+                            return (
+                              <div
+                                key={idx}
+                                className={`absolute cursor-pointer transition-all duration-300 ${
+                                  isPulsing ? 'animate-highlight-pulse' : ''
+                                }`}
+                                style={{
+                                  left: rectLeft,
+                                  top: rectTop,
+                                  width: rectWidth,
+                                  height: rectHeight,
+                                  backgroundColor: getHighlightBg(highlight.color, highlight.isFurtherReading),
+                                  zIndex: 1,
+                                  mixBlendMode: 'multiply',
+                                  opacity: isHovered || isEditing ? 1 : 0.85,
+                                  filter: isHovered || isEditing ? 'saturate(1.5) brightness(0.95)' : 'none',
+                                  boxShadow: isPulsing ? `0 0 12px 4px ${getHighlightBg(highlight.color, highlight.isFurtherReading)}` : 'none',
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Calculate position for the floating popup
+                                  const pageContainer = pageRefs.current.get(pageNum);
+                                  if (pageContainer) {
+                                    // Position popup above the first rect of the highlight
+                                    const firstRect = highlight.rects[0];
+                                    const popupX = (firstRect.x + firstRect.width / 2) * effectiveScale;
+                                    const popupY = firstRect.y * effectiveScale - 10;
+                                    setEditingHighlightPosition({ x: popupX, y: popupY });
+                                  }
+                                  setEditingHighlight(highlight);
+                                  setNoteInput('');
+                                }}
+                              />
+                            );
+                          })}
                         </div>
                       );
                     })}
+                    
+                    {/* Floating Highlight Editor - shown when a highlight on this page is clicked */}
+                    {editingHighlight && editingHighlightPosition && editingHighlight.pageNumber === pageNum && (() => {
+                      const editColorInfo = HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(editingHighlight));
+                      const highlightHasNotes = notes.some(n => n.highlightId === editingHighlight.id);
+                      
+                      return (
+                        <div
+                          className="absolute z-50 animate-scale-in"
+                          style={{
+                            left: editingHighlightPosition.x,
+                            top: editingHighlightPosition.y,
+                            transform: 'translate(-50%, -100%)',
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div 
+                            className="rounded-xl overflow-hidden shadow-xl"
+                            style={{
+                              backgroundColor: editColorInfo?.bg || '#fef9c3',
+                              minWidth: '280px',
+                              maxWidth: '320px',
+                            }}
+                          >
+                            {/* Color picker bar */}
+                            <div 
+                              className="px-3 py-2 flex items-center justify-between border-b"
+                              style={{ borderColor: `${editColorInfo?.border}30` }}
+                            >
+                              <div className="flex items-center gap-2">
+                                {HIGHLIGHT_COLORS.map(({ color, bg, border }) => (
+                                  <button
+                                    key={color}
+                                    onClick={() => handleChangeHighlightColor(editingHighlight, color)}
+                                    className="w-6 h-6 rounded-full transition-all hover:scale-110"
+                                    style={{
+                                      backgroundColor: bg,
+                                      border: editingHighlight.color === color ? `2px solid ${border}` : '2px solid transparent',
+                                      boxShadow: editingHighlight.color === color ? `0 0 0 2px white` : 'none',
+                                    }}
+                                    title={color.charAt(0).toUpperCase() + color.slice(1)}
+                                  />
+                                ))}
+                              </div>
+                              <button
+                                onClick={() => handleDeleteHighlight(editingHighlight.id)}
+                                className="p-1.5 rounded-full hover:bg-red-100 transition-colors text-[var(--text-muted)] hover:text-red-500"
+                                title="Delete highlight"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            
+                            {/* Note input */}
+                            <div className="p-3">
+                              <textarea
+                                value={noteInput}
+                                onChange={(e) => setNoteInput(e.target.value)}
+                                placeholder="Add a note..."
+                                rows={2}
+                                autoFocus
+                                className="w-full text-xs py-2 px-3 mb-2 resize-none bg-white/80 border-0"
+                                style={{ 
+                                  borderRadius: '8px',
+                                  color: editColorInfo?.dark || '#78350f',
+                                  outline: 'none',
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                    e.preventDefault();
+                                    if (noteInput.trim()) {
+                                      handleAddNote();
+                                    }
+                                  } else if (e.key === 'Escape') {
+                                    setEditingHighlight(null);
+                                    setEditingHighlightPosition(null);
+                                    setNoteInput('');
+                                  }
+                                }}
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    setEditingHighlight(null);
+                                    setEditingHighlightPosition(null);
+                                    setNoteInput('');
+                                  }}
+                                  className="flex-1 text-xs py-1.5 px-3 rounded-full bg-white/50 hover:bg-white/80 transition-colors"
+                                  style={{ color: editColorInfo?.dark || '#78350f' }}
+                                >
+                                  {highlightHasNotes ? 'Close' : 'Cancel'}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (noteInput.trim()) {
+                                      handleAddNote();
+                                    }
+                                  }}
+                                  disabled={!noteInput.trim()}
+                                  className="flex-1 btn-primary text-xs py-1.5 px-3 disabled:opacity-50"
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -1756,113 +1876,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               {/* Notes Tab */}
               {sidebarTab === 'notes' && (
                 <>
-                  {/* Note Editor - shown when a highlight is clicked */}
-                  {editingHighlight && (() => {
-                    const editColorInfo = HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(editingHighlight));
-                    const highlightHasNotes = notes.some(n => n.highlightId === editingHighlight.id);
-                    
-                    return (
-                      <div 
-                        className="mb-4 rounded-lg overflow-hidden animate-fade-in"
-                        style={{
-                          backgroundColor: editColorInfo?.bg || '#fef9c3',
-                          boxShadow: `0 2px 8px ${editColorInfo?.shadow || 'rgba(251, 191, 36, 0.2)'}`,
-                        }}
-                      >
-                        {/* Color picker bar */}
-                        <div 
-                          className="px-3 py-2 flex items-center justify-between border-b"
-                          style={{ borderColor: `${editColorInfo?.border}30` }}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            {HIGHLIGHT_COLORS.map(({ color, bg, border }) => (
-                              <button
-                                key={color}
-                                onClick={() => handleChangeHighlightColor(editingHighlight, color)}
-                                className="w-5 h-5 rounded-full transition-all hover:scale-110"
-                                style={{
-                                  backgroundColor: bg,
-                                  border: editingHighlight.color === color ? `2px solid ${border}` : '2px solid transparent',
-                                  boxShadow: editingHighlight.color === color ? `0 0 0 2px ${bg}` : 'none',
-                                }}
-                                title={color.charAt(0).toUpperCase() + color.slice(1)}
-                              />
-                            ))}
-                          </div>
-                          <button
-                            onClick={() => handleDeleteHighlight(editingHighlight.id)}
-                            className="p-1.5 rounded-full hover:bg-red-100 transition-colors text-[var(--text-muted)] hover:text-red-500"
-                            title="Delete highlight"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        
-                        {/* Quoted text */}
-                        <div className="p-3 border-b" style={{ borderColor: `${editColorInfo?.border}20` }}>
-                          <p 
-                            className="text-[10px] italic line-clamp-3"
-                            style={{ color: editColorInfo?.dark || '#78350f' }}
-                          >
-                            "{editingHighlight.text}"
-                          </p>
-                        </div>
-                        
-                        {/* Note input */}
-                        <div className="p-3">
-                          <textarea
-                            value={noteInput}
-                            onChange={(e) => setNoteInput(e.target.value)}
-                            placeholder="Add your note..."
-                            rows={3}
-                            autoFocus
-                            className="w-full text-xs py-2 px-3 mb-2 resize-none bg-white/80 border-0 focus:ring-2 focus:ring-offset-0"
-                            style={{ 
-                              borderRadius: '8px',
-                              color: editColorInfo?.dark || '#78350f',
-                              outline: 'none',
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                                e.preventDefault();
-                                if (noteInput.trim()) {
-                                  handleAddNote();
-                                }
-                              } else if (e.key === 'Escape') {
-                                setEditingHighlight(null);
-                                setNoteInput('');
-                              }
-                            }}
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                setEditingHighlight(null);
-                                setNoteInput('');
-                              }}
-                              className="flex-1 text-xs py-1.5 px-3 rounded-full bg-white/50 hover:bg-white/80 transition-colors"
-                              style={{ color: editColorInfo?.dark || '#78350f' }}
-                            >
-                              {highlightHasNotes ? 'Close' : 'Discard'}
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (noteInput.trim()) {
-                                  handleAddNote();
-                                }
-                              }}
-                              disabled={!noteInput.trim()}
-                              className="flex-1 btn-primary text-xs py-1.5 px-3 disabled:opacity-50"
-                            >
-                              Save Note
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {Object.keys(groupedHighlights).length === 0 && !editingHighlight ? (
+                  {Object.keys(groupedHighlights).length === 0 ? (
                     <div className="text-center py-8">
                       <StickyNote className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-2" />
                       <p className="text-[var(--text-muted)] text-xs">
@@ -1905,6 +1919,13 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                       onMouseLeave={() => setHoveredNoteHighlightId(null)}
                                       onClick={() => {
                                         scrollToHighlight(highlight);
+                                        // Calculate position for floating editor based on highlight location
+                                        const firstRect = highlight.rects[0];
+                                        if (firstRect) {
+                                          const popupX = (firstRect.x + firstRect.width / 2) * effectiveScale;
+                                          const popupY = firstRect.y * effectiveScale - 10;
+                                          setEditingHighlightPosition({ x: popupX, y: popupY });
+                                        }
                                         setEditingHighlight(highlight);
                                         setNoteInput('');
                                       }}
