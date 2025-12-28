@@ -113,7 +113,7 @@
 }
 
 html {
-  overflow-y: scroll; /* Always show scrollbar to prevent layout shift */
+  overflow-y: auto; /* Allow scrolling but hide scrollbar */
 }
 
 body {
@@ -199,24 +199,25 @@ body {
   letter-spacing: 0.1em;
 }
 
-/* Scrollbar styling - minimal Apple style */
+/* Hide scrollbars everywhere */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  display: none;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--text-muted);
-  border-radius: 4px;
-  opacity: 0.5;
+  display: none;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
+/* Hide scrollbars for Firefox */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 /* Hide scrollbars for textareas */
