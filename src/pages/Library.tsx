@@ -1228,7 +1228,7 @@ export function Library() {
                               >
                                 {/* Outer circle with faint blue fill on hover (2x dot width = 4px) */}
                                 <div className="absolute inset-0 w-4 h-4 rounded-full bg-blue-500/10 group-hover/button:bg-blue-500/20 transition-colors" />
-                                {/* Inner blue dot */}
+                                {/* Inner blue dot - always visible for unread */}
                                 <div className="absolute inset-0 w-2 h-2 rounded-full bg-blue-500" />
                               </button>
                             ) : (
