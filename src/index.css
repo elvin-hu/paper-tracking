@@ -1,6 +1,36 @@
 @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&family=SF+Pro+Text:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+/* Mobile Safari fixes */
+@supports (-webkit-touch-callout: none) {
+  /* Fix viewport height on iOS Safari - use dvh (dynamic viewport height) when available */
+  .h-screen {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile browsers */
+    height: -webkit-fill-available; /* Fallback for older iOS */
+  }
+  
+  /* Fix min-height viewport on iOS Safari */
+  .min-h-screen {
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
+  
+  /* Fix overflow issues with tables on mobile */
+  table {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+  }
+  
+  /* Prevent text size adjustment on orientation change */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
 /* Light theme (default) - Apple monochrome */
 :root {
   --bg-primary: #ffffff;
@@ -557,4 +587,71 @@ input::placeholder, textarea::placeholder {
   height: 20px;
   background: var(--border-default);
   margin: 0 0.125rem;
+}
+
+/* Mobile Safari safe area support */
+@supports (padding: max(0px)) {
+  /* Add safe area padding for fixed elements at bottom */
+  .fixed.bottom-6 {
+    bottom: max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)));
+  }
+  
+  /* Ensure content doesn't get cut off on notched devices */
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Fix for sticky headers on mobile */
+  .sticky.top-0 {
+    top: env(safe-area-inset-top);
+  }
+  
+  /* Add bottom padding to main content to account for safe area */
+  main {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Fix for mobile Safari overflow issues */
+@supports (-webkit-touch-callout: none) {
+  /* Prevent rubber band scrolling issues */
+  body {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Fix for flex containers that might overflow */
+  .flex.flex-col {
+    min-height: 0;
+  }
+  
+  /* Fix table overflow on mobile */
+  table {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Ensure fixed elements stay in viewport */
+  .fixed {
+    position: fixed;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+  
+  /* Fix for table rows at bottom - ensure they're visible */
+  tbody tr:last-child {
+    margin-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  /* Fix overflow container issues */
+  .overflow-auto,
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* Prevent bottom rows from being cut off */
+  .rounded-xl.overflow-hidden {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
 }

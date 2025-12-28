@@ -1108,7 +1108,7 @@ export function Library() {
               </div>
             )}
             {/* List View */}
-            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl overflow-hidden">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl overflow-hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}>
               <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b border-[var(--border-default)]">
