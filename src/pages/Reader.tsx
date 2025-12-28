@@ -1357,17 +1357,17 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                         </p>
                       )}
                     </div>
-                    <div className="relative flex items-center justify-center flex-shrink-0 mt-1.5">
+                    <div className="relative flex items-center justify-center flex-shrink-0 mt-1.5 w-3 h-3">
                       {!p.isRead ? (
                         <button
                           onClick={(e) => togglePaperReadStatus(e, p)}
                           className="relative w-3 h-3 flex items-center justify-center group/button"
                           title="Mark as read"
                         >
-                          {/* Outer circle with faint blue fill on hover (2x dot width = 3px) */}
-                          <div className="absolute inset-0 w-3 h-3 rounded-full bg-blue-500/10 group-hover/button:bg-blue-500/20 transition-colors" />
-                          {/* Inner blue dot */}
-                          <div className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          {/* Outer circle with faint blue fill - only on hover (2x dot width = 3px) */}
+                          <div className="absolute inset-0 w-3 h-3 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                          {/* Inner blue dot - always visible, centered */}
+                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-500" />
                         </button>
                       ) : (
                         <button
@@ -1375,10 +1375,10 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                           className="relative w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
                           title="Mark as unread"
                         >
-                          {/* Outer circle with faint grey fill on hover (2x dot width = 3px) */}
-                          <div className="absolute inset-0 w-3 h-3 rounded-full bg-[var(--text-muted)]/5 group-hover/button:bg-[var(--text-muted)]/15 transition-colors" />
-                          {/* Inner grey dot */}
-                          <div className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
+                          {/* Outer circle with faint grey fill - only on hover (2x dot width = 3px) */}
+                          <div className="absolute inset-0 w-3 h-3 rounded-full bg-[var(--text-muted)]/15 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                          {/* Inner grey dot - centered */}
+                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
                         </button>
                       )}
                     </div>

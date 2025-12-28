@@ -1219,17 +1219,17 @@ export function Library() {
                       >
                         {/* Unread indicator */}
                         <td className="pl-4 py-3 w-8">
-                          <div className="relative flex items-center justify-center">
+                          <div className="relative flex items-center justify-center w-4 h-4">
                             {isUnread ? (
                               <button
                                 onClick={(e) => togglePaperReadStatus(e, paper)}
                                 className="relative w-4 h-4 flex items-center justify-center group/button"
                                 title="Mark as read"
                               >
-                                {/* Outer circle with faint blue fill on hover (2x dot width = 4px) */}
-                                <div className="absolute inset-0 w-4 h-4 rounded-full bg-blue-500/10 group-hover/button:bg-blue-500/20 transition-colors" />
-                                {/* Inner blue dot - always visible for unread */}
-                                <div className="absolute inset-0 w-2 h-2 rounded-full bg-blue-500" />
+                                {/* Outer circle with faint blue fill - only on hover (2x dot width = 4px) */}
+                                <div className="absolute inset-0 w-4 h-4 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                                {/* Inner blue dot - always visible for unread, centered */}
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-500" />
                               </button>
                             ) : (
                               <button
@@ -1237,10 +1237,10 @@ export function Library() {
                                 className="relative w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
                                 title="Mark as unread"
                               >
-                                {/* Outer circle with faint grey fill on hover (2x dot width = 4px) */}
-                                <div className="absolute inset-0 w-4 h-4 rounded-full bg-[var(--text-muted)]/5 group-hover/button:bg-[var(--text-muted)]/15 transition-colors" />
-                                {/* Inner grey dot */}
-                                <div className="absolute inset-0 w-2 h-2 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
+                                {/* Outer circle with faint grey fill - only on hover (2x dot width = 4px) */}
+                                <div className="absolute inset-0 w-4 h-4 rounded-full bg-[var(--text-muted)]/15 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                                {/* Inner grey dot - centered */}
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
                               </button>
                             )}
                           </div>
