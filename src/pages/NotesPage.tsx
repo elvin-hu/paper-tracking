@@ -110,11 +110,6 @@ export function NotesPage() {
     loadNotes();
   }, [loadNotes, location.key]);
 
-  const formatDate = (date: Date) => {
-    const d = new Date(date);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
   const getColorScheme = (highlight: Highlight | null) => {
     if (!highlight) return HIGHLIGHT_COLORS.yellow;
     return HIGHLIGHT_COLORS[highlight.color] || HIGHLIGHT_COLORS.yellow;

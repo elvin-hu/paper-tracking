@@ -8,7 +8,6 @@ import {
   ZoomOut,
   Maximize2,
   BookMarked,
-  Trash2,
   X,
   Loader2,
   StickyNote,
@@ -837,30 +836,6 @@ export function Reader() {
     setNotes((prev) => prev.filter((n) => n.id !== noteId));
   };
 
-  const toggleFurtherReading = async (highlight: Highlight) => {
-    const updated = {
-      ...highlight,
-      isFurtherReading: !highlight.isFurtherReading,
-      updatedAt: new Date(),
-    };
-    await updateHighlight(updated);
-    setHighlights((prev) => prev.map((h) => (h.id === highlight.id ? updated : h)));
-    
-    // Update reading list to only show items from current paper that are marked as further reading
-    setReadingList((prev) => {
-      if (updated.isFurtherReading) {
-        // Add to reading list if it's from current paper
-        if (updated.paperId === paperId) {
-          return [...prev, updated];
-        }
-      } else {
-        // Remove from reading list
-        return prev.filter((h) => h.id !== updated.id);
-      }
-      return prev;
-    });
-  };
-
   // Reading list helpers
   const isReadingItemResolved = (highlight: Highlight) => highlight.note?.includes('✓');
   
@@ -1583,7 +1558,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                 (n) => n.highlightId === highlight.id
                               );
                               const isExpanded = expandedHighlights.has(highlight.id);
-                              const isSelected = selectedHighlight?.id === highlight.id;
 
                               const highlightColorInfo = HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(highlight));
                               
