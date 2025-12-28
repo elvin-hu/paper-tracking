@@ -143,6 +143,38 @@ export async function updatePaper(paper: Paper): Promise<void> {
   }
 }
 
+// Batch update multiple papers at once (much faster than individual updates)
+export async function updatePapersBatch(papers: Paper[]): Promise<void> {
+  if (papers.length === 0) return;
+  
+  // Prepare updates - only include fields that can be updated
+  const updates = papers.map(paper => {
+    const tags = Array.isArray(paper.tags) ? paper.tags : [];
+    return {
+      id: paper.id,
+      title: paper.title,
+      authors: paper.authors,
+      tags: tags,
+      last_opened_at: paper.lastOpenedAt?.toISOString(),
+      is_read: paper.isRead ?? false,
+      metadata: paper.metadata || {},
+    };
+  });
+  
+  // Use upsert to update multiple papers in a single operation
+  const { error } = await supabase
+    .from('papers')
+    .upsert(updates, {
+      onConflict: 'id',
+      ignoreDuplicates: false,
+    });
+  
+  if (error) {
+    console.error('[Database] Error batch updating papers:', error);
+    throw error;
+  }
+}
+
 export async function deletePaper(id: string): Promise<void> {
   // Delete PDF file from storage
   const { error: storageError } = await supabase.storage

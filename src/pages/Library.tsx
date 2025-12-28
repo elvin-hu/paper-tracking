@@ -22,7 +22,7 @@ import {
   Check,
 } from 'lucide-react';
 import type { Paper, SortOption } from '../types';
-import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, getSettings, updateSettings } from '../lib/database';
+import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, updatePapersBatch, getSettings, updateSettings } from '../lib/database';
 
 // Setup pdfjs worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -655,39 +655,44 @@ export function Library() {
     }
     
     try {
-      let successCount = 0;
-      let errorCount = 0;
+      // Prepare all updates in memory first
+      const papersToUpdate: Paper[] = [];
       
       for (const paper of selectedPapersList) {
-        try {
-          // Ensure tags is an array
-          const currentTags = Array.isArray(paper.tags) ? paper.tags : [];
-          const newTags = [...currentTags];
-          
-          // Add new tags
-          batchAddTags.forEach(tag => {
-            if (!newTags.includes(tag)) {
-              newTags.push(tag);
-            }
-          });
-          
-          // Remove tags
-          const filteredTags = newTags.filter(tag => !batchRemoveTags.includes(tag));
-          
-          // Only update if tags actually changed
-          if (JSON.stringify(filteredTags.sort()) !== JSON.stringify(currentTags.sort())) {
-            await updatePaper({ ...paper, tags: filteredTags });
-            successCount++;
+        // Ensure tags is an array
+        const currentTags = Array.isArray(paper.tags) ? paper.tags : [];
+        const newTags = [...currentTags];
+        
+        // Add new tags
+        batchAddTags.forEach(tag => {
+          if (!newTags.includes(tag)) {
+            newTags.push(tag);
           }
-        } catch (err) {
-          console.error(`[Library] Error updating paper ${paper.id}:`, err);
-          errorCount++;
+        });
+        
+        // Remove tags
+        const filteredTags = newTags.filter(tag => !batchRemoveTags.includes(tag));
+        
+        // Only include if tags actually changed
+        if (JSON.stringify(filteredTags.sort()) !== JSON.stringify(currentTags.sort())) {
+          papersToUpdate.push({ ...paper, tags: filteredTags });
         }
       }
       
-      if (errorCount > 0) {
-        alert(`Updated ${successCount} paper(s), but ${errorCount} failed. Check console for details.`);
+      if (papersToUpdate.length === 0) {
+        // No changes needed
+        setShowBatchEditModal(false);
+        setBatchAddTags([]);
+        setBatchRemoveTags([]);
+        setBatchNewTagInput('');
+        clearSelection();
+        return;
       }
+      
+      // Update all papers in a single batch operation
+      await updatePapersBatch(papersToUpdate);
+      
+      console.log(`[Library] Batch updated ${papersToUpdate.length} paper(s)`);
       
       setShowBatchEditModal(false);
       setBatchAddTags([]);
