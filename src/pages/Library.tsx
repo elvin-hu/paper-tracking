@@ -805,6 +805,13 @@ export function Library() {
     navigate(`/reader/${paper.id}`, { state: { from: '/' } });
   };
 
+  const togglePaperReadStatus = async (e: React.MouseEvent, paper: Paper) => {
+    e.stopPropagation();
+    const updatedPaper = { ...paper, isRead: !paper.isRead };
+    await updatePaper(updatedPaper);
+    await loadData(); // Reload to reflect changes
+  };
+
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
@@ -1141,9 +1148,17 @@ export function Library() {
                       >
                         {/* Unread indicator */}
                         <td className="pl-4 py-3 w-8">
-                          {isUnread && (
-                            <div className="w-2 h-2 rounded-full bg-[#007AFF]" title="Unread" />
-                          )}
+                          <div className="relative flex items-center justify-center">
+                            {isUnread ? (
+                              <div className="w-2 h-2 rounded-full bg-[#007AFF]" title="Unread" />
+                            ) : (
+                              <button
+                                onClick={(e) => togglePaperReadStatus(e, paper)}
+                                className="w-2 h-2 rounded-full bg-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--text-secondary)]"
+                                title="Mark as unread"
+                              />
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 overflow-hidden">
                           <div className="flex items-center gap-2 min-w-0">

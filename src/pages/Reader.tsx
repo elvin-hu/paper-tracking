@@ -440,6 +440,19 @@ export function Reader() {
     navigate(`/reader/${targetPaperId}`, { state: { from: sourceRoute }, replace: true });
   }, [paperId, navigate, sourceRoute]);
 
+  // Toggle paper read status
+  const togglePaperReadStatus = useCallback(async (e: React.MouseEvent<HTMLButtonElement>, paper: Paper) => {
+    e.stopPropagation();
+    const updatedPaper = { ...paper, isRead: !paper.isRead };
+    await updatePaper(updatedPaper);
+    // Update in allPapers map to reflect change in sidebar
+    setAllPapers(prev => {
+      const newMap = new Map(prev);
+      newMap.set(updatedPaper.id, updatedPaper);
+      return newMap;
+    });
+  }, []);
+
   // Restore scroll position after document loads
   useEffect(() => {
     if (documentReady && paperId && containerRef.current) {
@@ -1297,7 +1310,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                 <button
                   key={p.id}
                   onClick={() => switchToPaper(p.id)}
-                  className={`w-full text-left px-3 py-2.5 border-b border-[var(--border-muted)] transition-colors ${
+                  className={`group w-full text-left px-3 py-2.5 border-b border-[var(--border-muted)] transition-colors ${
                     p.id === paperId
                       ? 'bg-[var(--bg-tertiary)]'
                       : 'hover:bg-[var(--bg-tertiary)]/50'
@@ -1321,9 +1334,17 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                         </p>
                       )}
                     </div>
-                    {!p.isRead && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-1.5" />
-                    )}
+                    <div className="relative flex items-center justify-center flex-shrink-0 mt-1.5">
+                      {!p.isRead ? (
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                      ) : (
+                        <button
+                          onClick={(e) => togglePaperReadStatus(e, p)}
+                          className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--text-secondary)]"
+                          title="Mark as unread"
+                        />
+                      )}
+                    </div>
                   </div>
                 </button>
               ))}
