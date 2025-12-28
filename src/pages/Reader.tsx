@@ -998,6 +998,7 @@ Paper Text (all ${pagesToExtract} pages):
 ${fullText}
 
 Please extract and return a JSON object with the following fields:
+- title: The full title of the paper (extract the complete, official title from the paper)
 - firstAuthor: The first author's name (e.g., "Smith, J." or "John Smith")
 - venue: The publication venue (conference, journal, workshop, etc.) where this paper was published
 - date: The publication date (year is sufficient, e.g., "2023")
@@ -1008,6 +1009,7 @@ Please extract and return a JSON object with the following fields:
 
 Return ONLY a valid JSON object, no other text. If a field cannot be determined, use an empty string. Format:
 {
+  "title": "...",
   "firstAuthor": "...",
   "venue": "...",
   "date": "...",
@@ -1069,11 +1071,13 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
         notes: extractedMetadata.notes || '',
       };
 
-      // Update the paper immediately with both metadata and authors (if firstAuthor is available)
+      // Update the paper immediately with title, metadata and authors (if firstAuthor is available)
       // This ensures metadata.firstAuthor is saved and matches the extracted author
       if (paper) {
+        const extractedTitle = extractedMetadata.title || '';
         const updatedPaper: Paper = {
           ...paper,
+          title: extractedTitle || paper.title, // Update title if extracted, otherwise keep existing
           authors: extractedMetadata.firstAuthor ? extractedMetadata.firstAuthor : paper.authors, // Update main authors field with firstAuthor
           metadata: {
             ...paper.metadata,
