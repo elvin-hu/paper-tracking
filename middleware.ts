@@ -13,7 +13,7 @@ export const config = {
   ],
 };
 
-export default function middleware(request: Request) {
+export default async function middleware(request: Request) {
   const url = new URL(request.url);
   
   // Allow static assets, API routes, and Next.js internals to pass through
@@ -23,7 +23,8 @@ export default function middleware(request: Request) {
     url.pathname.startsWith('/_next/') ||
     url.pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|woff|woff2|ttf|eot)$/)
   ) {
-    return new Response(null, { status: 200 });
+    // Let static assets pass through - don't return anything to allow default behavior
+    return;
   }
   
   // Get password from environment variable (set in Vercel dashboard)
@@ -39,14 +40,13 @@ export default function middleware(request: Request) {
   if (submittedPassword) {
     if (submittedPassword === expectedPassword) {
       // Password correct - set auth cookie and redirect to remove password from URL
-      const response = new Response(null, {
+      return new Response(null, {
         status: 302,
         headers: {
           'Location': url.pathname,
           'Set-Cookie': 'paper-lab-auth=authenticated; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800', // 7 days
         },
       });
-      return response;
     } else {
       // Wrong password - show error
       url.searchParams.set('auth_error', '1');
@@ -60,9 +60,9 @@ export default function middleware(request: Request) {
     }
   }
   
-  // If authenticated, allow access
+  // If authenticated, let request pass through (don't return anything)
   if (authCookie) {
-    return new Response(null, { status: 200 });
+    return;
   }
   
   // Not authenticated - show password form
