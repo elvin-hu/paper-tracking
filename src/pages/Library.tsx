@@ -254,13 +254,13 @@ export function Library() {
 
     setPendingFile(file);
     
-    // Extract metadata from PDF
+    // Extract title from PDF (skip author detection)
     try {
       const fileData = await file.arrayBuffer();
-      const { title, authors } = await extractPDFMetadata(fileData);
+      const { title } = await extractPDFMetadata(fileData);
       
       setUploadTitle(title || file.name.replace('.pdf', ''));
-      setUploadAuthors(authors || '');
+      setUploadAuthors('');
     } catch (error) {
       console.error('Error extracting metadata:', error);
       setUploadTitle(file.name.replace('.pdf', ''));
@@ -366,8 +366,8 @@ export function Library() {
         item.id === pendingItem.id ? { ...item, progress: 40 } : item
       ));
 
-      // Extract title and authors from PDF
-      const { title, authors } = await extractPDFMetadata(fileData);
+      // Extract title from PDF (skip author detection)
+      const { title } = await extractPDFMetadata(fileData);
 
       // Progress: creating paper record
       setUploadQueue(prev => prev.map(item => 
@@ -377,7 +377,7 @@ export function Library() {
       const paper: Paper = {
         id: paperId,
         title: title || pendingItem.file.name.replace('.pdf', ''),
-        authors: authors || undefined,
+        authors: undefined,
         fileName: pendingItem.file.name,
         fileSize: pendingItem.file.size,
         tags: [],
