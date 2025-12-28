@@ -1359,17 +1359,26 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     </div>
                     <div className="relative flex items-center justify-center flex-shrink-0 mt-1.5">
                       {!p.isRead ? (
-                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                        <button
+                          onClick={(e) => togglePaperReadStatus(e, p)}
+                          className="relative w-3 h-3 flex items-center justify-center group/button"
+                          title="Mark as read"
+                        >
+                          {/* Outer circle with faint blue fill on hover (2x dot width = 3px) */}
+                          <div className="absolute inset-0 w-3 h-3 rounded-full bg-blue-500/10 group-hover/button:bg-blue-500/20 transition-colors" />
+                          {/* Inner blue dot */}
+                          <div className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-blue-500" />
+                        </button>
                       ) : (
                         <button
                           onClick={(e) => togglePaperReadStatus(e, p)}
-                          className="relative w-1.5 h-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="relative w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
                           title="Mark as unread"
                         >
-                          {/* Outer circle for better visual feedback */}
-                          <div className="absolute inset-0 w-2.5 h-2.5 -m-0.5 rounded-full border border-[var(--text-muted)]/30" />
-                          {/* Inner dot */}
-                          <div className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/40 hover:bg-[var(--text-muted)]/60 transition-colors" />
+                          {/* Outer circle with faint grey fill on hover (2x dot width = 3px) */}
+                          <div className="absolute inset-0 w-3 h-3 rounded-full bg-[var(--text-muted)]/5 group-hover/button:bg-[var(--text-muted)]/15 transition-colors" />
+                          {/* Inner grey dot */}
+                          <div className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
                         </button>
                       )}
                     </div>

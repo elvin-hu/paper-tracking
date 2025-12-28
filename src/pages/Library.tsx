@@ -48,14 +48,25 @@ export function Library() {
   const [isLoading, setIsLoading] = useState(true);
   const sortOptionSaveTimeoutRef = useRef<number | null>(null);
 
-  // Restore scroll position on mount
+  // Restore scroll position on mount and when navigating back
   useEffect(() => {
     const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
     if (savedPosition) {
-      setTimeout(() => {
+      // Use requestAnimationFrame for better scroll restoration
+      requestAnimationFrame(() => {
         window.scrollTo(0, parseInt(savedPosition, 10));
-      }, 100);
+      });
     }
+  }, []);
+
+  // Save scroll position as user scrolls
+  useEffect(() => {
+    const handleScroll = () => {
+      sessionStorage.setItem(SCROLL_POSITION_KEY, window.scrollY.toString());
+    };
+    
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -1210,17 +1221,26 @@ export function Library() {
                         <td className="pl-4 py-3 w-8">
                           <div className="relative flex items-center justify-center">
                             {isUnread ? (
-                              <div className="w-2 h-2 rounded-full bg-[#007AFF]" title="Unread" />
+                              <button
+                                onClick={(e) => togglePaperReadStatus(e, paper)}
+                                className="relative w-4 h-4 flex items-center justify-center group/button"
+                                title="Mark as read"
+                              >
+                                {/* Outer circle with faint blue fill on hover (2x dot width = 4px) */}
+                                <div className="absolute inset-0 w-4 h-4 rounded-full bg-blue-500/10 group-hover/button:bg-blue-500/20 transition-colors" />
+                                {/* Inner blue dot */}
+                                <div className="absolute inset-0 w-2 h-2 rounded-full bg-blue-500" />
+                              </button>
                             ) : (
                               <button
                                 onClick={(e) => togglePaperReadStatus(e, paper)}
-                                className="relative w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="relative w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
                                 title="Mark as unread"
                               >
-                                {/* Outer circle for better visual feedback */}
-                                <div className="absolute inset-0 w-3 h-3 -m-0.5 rounded-full border border-[var(--text-muted)]/30" />
-                                {/* Inner dot */}
-                                <div className="absolute inset-0 w-2 h-2 rounded-full bg-[var(--text-muted)]/40 hover:bg-[var(--text-muted)]/60 transition-colors" />
+                                {/* Outer circle with faint grey fill on hover (2x dot width = 4px) */}
+                                <div className="absolute inset-0 w-4 h-4 rounded-full bg-[var(--text-muted)]/5 group-hover/button:bg-[var(--text-muted)]/15 transition-colors" />
+                                {/* Inner grey dot */}
+                                <div className="absolute inset-0 w-2 h-2 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
                               </button>
                             )}
                           </div>
