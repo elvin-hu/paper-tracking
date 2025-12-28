@@ -981,13 +981,13 @@ export function Library() {
             )}
             {/* List View */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl overflow-hidden">
-              <table className="w-full">
+              <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b border-[var(--border-default)]">
-                    <th className="w-6"></th>
-                    <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3">Title</th>
-                    <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-40">Authors</th>
-                    <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-32">Tags</th>
+                    <th className="w-8"></th>
+                    <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '40%' }}>Title</th>
+                    <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '20%' }}>Authors</th>
+                    <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '15%' }}>Tags</th>
                     <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-24">Date</th>
                     <th className="w-20"></th>
                   </tr>
@@ -1012,13 +1012,13 @@ export function Library() {
                         style={{ animationDelay: `${delay}ms` }}
                       >
                         {/* Unread indicator */}
-                        <td className="pl-4 py-3 w-6">
+                        <td className="pl-4 py-3 w-8">
                           {isUnread && (
                             <div className="w-2 h-2 rounded-full bg-[#007AFF]" title="Unread" />
                           )}
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
+                        <td className="px-4 py-3 overflow-hidden">
+                          <div className="flex items-center gap-2 min-w-0">
                             <button
                               onClick={(e) => togglePaperSelection(e, paper.id)}
                               className={`p-1 rounded transition-all flex-shrink-0 ${
@@ -1034,11 +1034,11 @@ export function Library() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs text-[var(--text-muted)] truncate block">{paper.authors || '—'}</span>
+                        <td className="px-4 py-3 overflow-hidden">
+                          <span className="text-xs text-[var(--text-muted)] truncate block max-w-full">{paper.authors || '—'}</span>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1 flex-wrap">
+                        <td className="px-4 py-3 overflow-hidden">
+                          <div className="flex items-center gap-1 flex-wrap max-w-full">
                             {paper.tags.slice(0, 2).map((tag) => (
                               <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
                                 {tag}
