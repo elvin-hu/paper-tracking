@@ -648,15 +648,19 @@ export function Library() {
         data: fileData,
       });
 
+      // Close modal and reset form
       setShowUploadModal(false);
       setUploadTitle('');
       setUploadAuthors('');
       setUploadTags([]);
       setPendingFile(null);
       setNewTagInput('');
-      loadData();
+      
+      // Refresh the papers list
+      await loadData();
     } catch (err) {
       console.error('Failed to upload paper:', err);
+      alert('Failed to upload paper. Please check console for details.');
     } finally {
       setIsUploading(false);
     }
