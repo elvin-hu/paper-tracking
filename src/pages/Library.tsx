@@ -360,14 +360,18 @@ export function Library() {
       ));
       
       const fileData = await pendingItem.file.arrayBuffer();
+      
+      // Create copies - pdfjs may detach ArrayBuffers
+      const uploadCopy = fileData.slice(0);
+      const metadataCopy = fileData.slice(0);
 
       // Progress: extracting metadata
       setUploadQueue(prev => prev.map(item => 
         item.id === pendingItem.id ? { ...item, progress: 40 } : item
       ));
 
-      // Extract title from PDF (skip author detection)
-      const { title } = await extractPDFMetadata(fileData);
+      // Extract title from PDF using a copy
+      const { title } = await extractPDFMetadata(metadataCopy);
 
       // Progress: creating paper record
       setUploadQueue(prev => prev.map(item => 
@@ -391,10 +395,11 @@ export function Library() {
         item.id === pendingItem.id ? { ...item, progress: 80 } : item
       ));
 
+      // Use the upload copy (guaranteed to not be detached)
       await addPaperFile({
         id: uuidv4(),
         paperId,
-        data: fileData,
+        data: uploadCopy,
       });
 
       // Complete
