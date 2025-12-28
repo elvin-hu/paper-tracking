@@ -94,12 +94,18 @@ export function Library() {
   const sortMenuRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(async () => {
-    const [loadedPapers, tags, settings] = await Promise.all([getAllPapers(), getAllTags(), getSettings()]);
-    setPapers(loadedPapers);
-    setAllTags(tags);
-    // Load saved sort option
-    if (settings.sortOption) {
-      setSortOption(settings.sortOption);
+    try {
+      console.log('[Library] Loading papers...');
+      const [loadedPapers, tags, settings] = await Promise.all([getAllPapers(), getAllTags(), getSettings()]);
+      console.log(`[Library] Loaded ${loadedPapers.length} papers`);
+      setPapers(loadedPapers);
+      setAllTags(tags);
+      // Load saved sort option
+      if (settings.sortOption) {
+        setSortOption(settings.sortOption);
+      }
+    } catch (error) {
+      console.error('[Library] Error loading data:', error);
     }
   }, []);
 

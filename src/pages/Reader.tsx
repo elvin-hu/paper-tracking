@@ -27,6 +27,7 @@ import type { Paper, Highlight, Note, HighlightColor, SortOption } from '../type
 import {
   getPaper,
   getPaperFile,
+  getPaperFileUrl,
   getHighlightsByPaper,
   addHighlight,
   updateHighlight,
@@ -244,7 +245,7 @@ export function Reader() {
   const sourceRoute = (location.state as { from?: string } | null)?.from;
 
   const [paper, setPaper] = useState<Paper | null>(null);
-  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+  const [pdfData, setPdfData] = useState<ArrayBuffer | string | null>(null);
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState(1.0);
   const [fitToWidth, setFitToWidth] = useState(true);
@@ -297,12 +298,15 @@ export function Reader() {
   const loadData = useCallback(async () => {
     if (!paperId) return;
 
-    const [loadedPaper, file, loadedHighlights, loadedNotes] = await Promise.all([
+    const [loadedPaper, loadedHighlights, loadedNotes] = await Promise.all([
       getPaper(paperId),
-      getPaperFile(paperId),
       getHighlightsByPaper(paperId),
       getNotesByPaper(paperId),
     ]);
+    
+    // Get the public URL for the PDF (faster than downloading)
+    const pdfUrl = getPaperFileUrl(paperId);
+    console.log(`[Reader] Using PDF URL: ${pdfUrl}`);
 
     if (loadedPaper) {
       setPaper(loadedPaper);
@@ -351,33 +355,25 @@ export function Reader() {
         isInitialMetadataLoadRef.current = false;
       }, 100);
     }
-    if (file) {
-      // Reset all document states before loading new document
-      setDocumentReady(false);
-      setNumPages(0);
-      setPdfContainerReady(false);
-      // Reset references when switching papers
-      setReferences(new Map());
-      setReferencesLoaded(false);
-      
-      // Clear existing PDF data first to prevent ArrayBuffer detachment
-      setPdfData(null);
-      
-      // Increment documentKey to force Document component recreation
-      setDocumentKey(prev => prev + 1);
-      
-      // Use setTimeout to ensure the Document component is fully unmounted
-      // before providing new data, preventing ArrayBuffer conflicts
-      setTimeout(() => {
-        // Create a fresh copy of the ArrayBuffer for the Document component
-        const freshData = file.data.slice(0);
-        setPdfData(freshData);
-      }, 200);
-    } else {
-      // Clear PDF data if no file
-      setPdfData(null);
-      setDocumentKey(prev => prev + 1); // Also increment key when clearing
-    }
+    // Reset all document states before loading new document
+    setDocumentReady(false);
+    setNumPages(0);
+    setPdfContainerReady(false);
+    // Reset references when switching papers
+    setReferences(new Map());
+    setReferencesLoaded(false);
+    
+    // Clear existing PDF data first
+    setPdfData(null);
+    
+    // Increment documentKey to force Document component recreation
+    setDocumentKey(prev => prev + 1);
+    
+    // Use setTimeout to ensure the Document component is fully unmounted
+    setTimeout(() => {
+      // Use the URL directly - react-pdf can load from URLs
+      setPdfData(pdfUrl);
+    }, 100);
     setHighlights(loadedHighlights);
     setNotes(loadedNotes);
     

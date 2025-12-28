@@ -126,6 +126,9 @@ export async function deletePaper(id: string): Promise<void> {
 
 // Paper file operations - using Supabase Storage
 export async function getPaperFile(paperId: string): Promise<PaperFile | undefined> {
+  console.log(`[Database] Downloading PDF for paper ${paperId}...`);
+  const startTime = Date.now();
+  
   const { data, error } = await supabase.storage
     .from('pdfs')
     .download(`${paperId}.pdf`);
@@ -136,12 +139,27 @@ export async function getPaperFile(paperId: string): Promise<PaperFile | undefin
   }
   
   const arrayBuffer = await data.arrayBuffer();
+  console.log(`[Database] PDF downloaded in ${Date.now() - startTime}ms, size: ${arrayBuffer.byteLength} bytes`);
+  
+  if (arrayBuffer.byteLength === 0) {
+    console.warn(`[Database] Downloaded PDF is empty for paper ${paperId}`);
+    return undefined;
+  }
   
   return {
     id: paperId,
     paperId: paperId,
     data: arrayBuffer,
   };
+}
+
+// Get public URL for a PDF (faster for viewing)
+export function getPaperFileUrl(paperId: string): string {
+  const { data } = supabase.storage
+    .from('pdfs')
+    .getPublicUrl(`${paperId}.pdf`);
+  
+  return data.publicUrl;
 }
 
 export async function addPaperFile(file: PaperFile): Promise<void> {
