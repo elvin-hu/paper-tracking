@@ -441,6 +441,15 @@ input::placeholder, textarea::placeholder {
 /* Selection styling */
 ::selection {
   background: var(--accent-primary-muted);
+  color: inherit;
+}
+
+/* Better selection color for dark mode */
+@media (prefers-color-scheme: dark) {
+  ::selection {
+    background: rgba(10, 132, 255, 0.4); /* Blue selection color for dark mode */
+    color: inherit;
+  }
 }
 
 /* Line clamp utility */
