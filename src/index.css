@@ -283,9 +283,15 @@ textarea {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* General button styles - ensure all buttons have center-aligned text */
+/* General button styles - ensure button elements (not table cells) have center-aligned text */
 button {
   text-align: center;
+}
+
+/* Table cells should not inherit button text alignment */
+td,
+th {
+  text-align: left;
 }
 
 /* Custom button styles - Apple style with pill shape */
