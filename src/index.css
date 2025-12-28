@@ -408,8 +408,34 @@ input:focus, textarea:focus {
   background: var(--bg-card);
 }
 
+/* Metadata panel inputs - need better contrast in dark mode */
+@media (prefers-color-scheme: dark) {
+  input[class*="bg-[var(--bg-tertiary)]"], 
+  textarea[class*="bg-[var(--bg-tertiary)]"] {
+    background: rgba(255, 255, 255, 0.08) !important;
+  }
+  
+  input[class*="bg-[var(--bg-tertiary)]"]:focus, 
+  textarea[class*="bg-[var(--bg-tertiary)]"]:focus {
+    background: rgba(255, 255, 255, 0.12) !important;
+  }
+}
+
 input::placeholder, textarea::placeholder {
   color: var(--text-muted);
+}
+
+/* Metadata panel inputs - better contrast in dark mode */
+@media (prefers-color-scheme: dark) {
+  [data-sidebar="notes-metadata"] input[class*="bg-[var(--bg-tertiary)]"],
+  [data-sidebar="notes-metadata"] textarea[class*="bg-[var(--bg-tertiary)]"] {
+    background: rgba(255, 255, 255, 0.08) !important;
+  }
+  
+  [data-sidebar="notes-metadata"] input[class*="bg-[var(--bg-tertiary)]"]:focus,
+  [data-sidebar="notes-metadata"] textarea[class*="bg-[var(--bg-tertiary)]"]:focus {
+    background: rgba(255, 255, 255, 0.12) !important;
+  }
 }
 
 /* Selection styling */
