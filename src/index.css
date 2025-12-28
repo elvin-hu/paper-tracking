@@ -254,13 +254,8 @@ textarea {
 }
 
 /* General button styles - ensure all buttons have center-aligned text */
-button:not([class*="flex"]):not([class*="grid"]) {
+button {
   text-align: center;
-}
-
-button[class*="flex"],
-button.flex {
-  justify-content: center;
 }
 
 /* Custom button styles - Apple style with pill shape */
