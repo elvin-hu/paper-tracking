@@ -25,6 +25,7 @@ function rowToPaper(row: Record<string, unknown>): Paper {
     uploadedAt: row.created_at ? new Date(String(row.created_at)) : new Date(),
     lastOpenedAt: row.last_opened_at ? new Date(String(row.last_opened_at)) : undefined,
     isRead: Boolean(row.is_read),
+    isStarred: Boolean(row.is_starred),
     metadata: row.metadata as Paper['metadata'] || {},
     fileName: (metadata?.fileName as string) || `${row.id}.pdf`,
     fileSize: (metadata?.fileSize as number) || 0,
@@ -111,6 +112,7 @@ export async function addPaper(paper: Paper): Promise<void> {
     created_at: paper.uploadedAt.toISOString(),
     last_opened_at: paper.lastOpenedAt?.toISOString(),
     is_read: paper.isRead ?? false,
+    is_starred: paper.isStarred ?? false,
     metadata: {
       ...paper.metadata,
       fileName: paper.fileName,
@@ -133,6 +135,7 @@ export async function updatePaper(paper: Paper): Promise<void> {
       tags: tags, // Ensure it's always an array
       last_opened_at: paper.lastOpenedAt?.toISOString(),
       is_read: paper.isRead ?? false,
+      is_starred: paper.isStarred ?? false,
       metadata: paper.metadata || {},
     })
     .eq('id', paper.id);
@@ -157,6 +160,7 @@ export async function updatePapersBatch(papers: Paper[]): Promise<void> {
       tags: tags,
       last_opened_at: paper.lastOpenedAt?.toISOString(),
       is_read: paper.isRead ?? false,
+      is_starred: paper.isStarred ?? false,
       metadata: paper.metadata || {},
     };
   });

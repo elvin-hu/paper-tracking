@@ -20,6 +20,7 @@ import {
   Edit3,
   Tag,
   Check,
+  Star,
 } from 'lucide-react';
 import type { Paper, SortOption } from '../types';
 import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, updatePapersBatch, getSettings, updateSettings } from '../lib/database';
@@ -883,6 +884,23 @@ export function Library() {
     }
   };
 
+  const togglePaperStarred = async (e: React.MouseEvent, paper: Paper) => {
+    e.stopPropagation();
+    const updatedPaper = { ...paper, isStarred: !paper.isStarred };
+    
+    // Optimistically update local state immediately
+    setPapers(prev => prev.map(p => p.id === paper.id ? updatedPaper : p));
+    
+    // Save to database in background
+    try {
+      await updatePaper(updatedPaper);
+    } catch (error) {
+      console.error('Failed to update paper starred status:', error);
+      // Revert on error
+      setPapers(prev => prev.map(p => p.id === paper.id ? paper : p));
+    }
+  };
+
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
@@ -1256,6 +1274,17 @@ export function Library() {
                               }`}
                             >
                               {isSelected ? <Check className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                            </button>
+                            <button
+                              onClick={(e) => togglePaperStarred(e, paper)}
+                              className={`p-0.5 rounded transition-all flex-shrink-0 ${
+                                paper.isStarred
+                                  ? 'text-yellow-500'
+                                  : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
+                              }`}
+                              title={paper.isStarred ? "Unstar" : "Star"}
+                            >
+                              <Star className={`w-3.5 h-3.5 ${paper.isStarred ? 'fill-current' : ''}`} />
                             </button>
                             <span className={`text-sm line-clamp-2 ${isUnread ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-primary)]'}`}>
                               {paper.title}

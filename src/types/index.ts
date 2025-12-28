@@ -30,6 +30,7 @@ export interface Paper {
   lastOpenedAt?: Date;
   readingProgress?: number; // 0-100
   isRead?: boolean; // Whether the paper has been opened/read
+  isStarred?: boolean; // Whether the paper is starred/favorited
   metadata?: {
     firstAuthor?: string;
     venue?: string;

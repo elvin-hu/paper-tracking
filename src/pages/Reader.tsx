@@ -22,6 +22,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   FileText,
+  Star,
 } from 'lucide-react';
 import type { Paper, Highlight, Note, HighlightColor, SortOption } from '../types';
 import {
@@ -463,6 +464,42 @@ export function Reader() {
       await updatePaper(updatedPaper);
     } catch (error) {
       console.error('Failed to update paper read status:', error);
+      // Revert on error
+      setAllPapers(prev => {
+        const newMap = new Map(prev);
+        newMap.set(paper.id, paper);
+        return newMap;
+      });
+      if (paper.id === paperId && paper) {
+        setPaper(paper);
+        paperRef.current = paper;
+      }
+    }
+  }, [paperId]);
+
+  // Toggle paper starred status
+  const togglePaperStarred = useCallback(async (e: React.MouseEvent<HTMLButtonElement>, paper: Paper) => {
+    e.stopPropagation();
+    const updatedPaper = { ...paper, isStarred: !paper.isStarred };
+    
+    // Optimistically update local state immediately
+    setAllPapers(prev => {
+      const newMap = new Map(prev);
+      newMap.set(updatedPaper.id, updatedPaper);
+      return newMap;
+    });
+    
+    // Also update current paper if it's the one being toggled
+    if (paper.id === paperId && paper) {
+      setPaper(updatedPaper);
+      paperRef.current = updatedPaper;
+    }
+    
+    // Save to database in background
+    try {
+      await updatePaper(updatedPaper);
+    } catch (error) {
+      console.error('Failed to update paper starred status:', error);
       // Revert on error
       setAllPapers(prev => {
         const newMap = new Map(prev);
@@ -1344,13 +1381,26 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       p.id === paperId ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
                     }`} />
                     <div className="min-w-0 flex-1">
-                      <p className={`text-xs leading-snug line-clamp-2 ${
-                        p.id === paperId 
-                          ? 'text-[var(--text-primary)] font-semibold' 
-                          : 'text-[var(--text-primary)] font-normal opacity-80'
-                      }`}>
-                        {p.title}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p className={`text-xs leading-snug line-clamp-2 flex-1 ${
+                          p.id === paperId 
+                            ? 'text-[var(--text-primary)] font-semibold' 
+                            : 'text-[var(--text-primary)] font-normal opacity-80'
+                        }`}>
+                          {p.title}
+                        </p>
+                        <button
+                          onClick={(e) => togglePaperStarred(e, p)}
+                          className={`p-0.5 rounded transition-all flex-shrink-0 ${
+                            p.isStarred
+                              ? 'text-yellow-500'
+                              : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
+                          }`}
+                          title={p.isStarred ? "Unstar" : "Star"}
+                        >
+                          <Star className={`w-3 h-3 ${p.isStarred ? 'fill-current' : ''}`} />
+                        </button>
+                      </div>
                       {p.authors && (
                         <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate">
                           {p.authors.split(',')[0]}
