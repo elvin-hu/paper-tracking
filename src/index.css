@@ -1,0 +1,551 @@
+@import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&family=SF+Pro+Text:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+/* Light theme (default) - Apple monochrome */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f7;
+  --bg-tertiary: #e8e8ed;
+  --bg-card: #ffffff;
+  
+  --text-primary: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-muted: #86868b;
+  
+  --accent-primary: #1a1a2e;
+  --accent-primary-muted: rgba(26, 26, 46, 0.1);
+  --accent-green: #34c759;
+  --accent-orange: #ff9500;
+  --accent-red: #ff3b30;
+  --accent-purple: #af52de;
+  
+  --border-default: rgba(0, 0, 0, 0.08);
+  --border-muted: rgba(0, 0, 0, 0.04);
+  
+  /* Highlight colors - more vibrant for light mode */
+  --highlight-yellow: rgba(255, 230, 0, 0.45);
+  --highlight-green: rgba(52, 199, 89, 0.4);
+  --highlight-blue: rgba(0, 122, 255, 0.35);
+  --highlight-red: rgba(255, 59, 48, 0.35);
+  --highlight-purple: rgba(175, 82, 222, 0.35);
+  
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.04), 0 10px 15px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.06), 0 20px 48px rgba(0, 0, 0, 0.08);
+  
+  --blur-bg: rgba(255, 255, 255, 0.8);
+  
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+}
+
+/* Dark theme - Apple monochrome */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #000000;
+    --bg-secondary: #1c1c1e;
+    --bg-tertiary: #2c2c2e;
+    --bg-card: #1c1c1e;
+    
+    --text-primary: #f5f5f7;
+    --text-secondary: #a1a1a6;
+    --text-muted: #636366;
+    
+    --accent-primary: #e8e8ed;
+    --accent-primary-muted: rgba(232, 232, 237, 0.15);
+    --accent-green: #30d158;
+    --accent-orange: #ff9f0a;
+    --accent-red: #ff453a;
+    --accent-purple: #bf5af2;
+    
+    --border-default: rgba(255, 255, 255, 0.08);
+    --border-muted: rgba(255, 255, 255, 0.04);
+    
+    /* Highlight colors */
+    --highlight-yellow: rgba(255, 214, 10, 0.4);
+    --highlight-green: rgba(48, 209, 88, 0.4);
+    --highlight-blue: rgba(10, 132, 255, 0.4);
+    --highlight-red: rgba(255, 69, 58, 0.4);
+    --highlight-purple: rgba(191, 90, 242, 0.4);
+    
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.35), 0 16px 40px rgba(0, 0, 0, 0.3);
+    
+    --blur-bg: rgba(28, 28, 30, 0.8);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-y: scroll; /* Always show scrollbar to prevent layout shift */
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  line-height: 1.47059;
+  letter-spacing: -0.022em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'kern' 1;
+}
+
+/* Apple HIG Typography - letter-spacing adjustments */
+/* Apple uses tighter tracking for larger text, looser for smaller text */
+
+/* Large text - tight tracking */
+.text-3xl {
+  letter-spacing: -0.025em;
+}
+
+.text-2xl {
+  letter-spacing: -0.022em;
+}
+
+.text-xl {
+  letter-spacing: -0.019em;
+}
+
+.text-lg {
+  letter-spacing: -0.015em;
+}
+
+/* Medium text - slightly tight */
+.text-base {
+  letter-spacing: -0.011em;
+}
+
+/* Small text - neutral to slightly loose for readability */
+.text-sm {
+  letter-spacing: -0.006em;
+}
+
+/* Extra small text - looser tracking for legibility */
+.text-xs {
+  letter-spacing: 0.004em;
+}
+
+/* Tiny text - needs more space between letters */
+.text-\[11px\] {
+  letter-spacing: 0.008em;
+}
+
+.text-\[10px\] {
+  letter-spacing: 0.012em;
+}
+
+/* Uppercase text needs significantly more tracking */
+.uppercase {
+  letter-spacing: 0.06em;
+}
+
+/* Utility tracking classes */
+.tracking-tight {
+  letter-spacing: -0.025em;
+}
+
+.tracking-normal {
+  letter-spacing: 0;
+}
+
+.tracking-wide {
+  letter-spacing: 0.025em;
+}
+
+.tracking-wider {
+  letter-spacing: 0.05em;
+}
+
+.tracking-widest {
+  letter-spacing: 0.1em;
+}
+
+/* Scrollbar styling - minimal Apple style */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 4px;
+  opacity: 0.5;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Hide scrollbars for textareas */
+textarea::-webkit-scrollbar {
+  display: none;
+}
+
+textarea {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Animations - Apple-style spring */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  opacity: 0;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  opacity: 0;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  opacity: 0;
+}
+
+/* Glass morphism - Apple vibrancy style */
+.glass {
+  background: var(--blur-bg);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border-bottom: 0.5px solid var(--border-default);
+}
+
+/* Smooth transitions for interactive elements */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom button styles - Apple style with pill shape */
+.btn-primary {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  font-weight: 500;
+  padding: 0.5rem 1.25rem;
+  border-radius: 980px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.btn-primary:hover {
+  background: var(--text-primary);
+}
+
+.btn-primary:active {
+  opacity: 0.9;
+}
+
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 400;
+  padding: 0.5rem 1.25rem;
+  border-radius: 980px;
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-default);
+}
+
+/* Tag styles - Apple pill style */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 980px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.tag:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.tag.active {
+  background: var(--text-primary);
+  color: var(--bg-card);
+}
+
+/* Card styles - Apple card style */
+.paper-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.paper-card:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border-muted);
+}
+
+/* Input styles - Apple style */
+input, textarea {
+  background: var(--bg-secondary);
+  border: 1px solid transparent;
+  border-radius: 980px;
+  padding: 0.625rem 1rem;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+textarea {
+  border-radius: var(--radius-md);
+}
+
+input:hover, textarea:hover {
+  background: var(--bg-tertiary);
+}
+
+input:focus, textarea:focus {
+  outline: none;
+  border-color: var(--text-muted);
+  box-shadow: 0 0 0 3px var(--accent-primary-muted);
+  background: var(--bg-card);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* Selection styling */
+::selection {
+  background: var(--accent-primary-muted);
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Drop zone styles */
+.drop-zone {
+  border: 2px dashed var(--border-default);
+  border-radius: 16px;
+  transition: all 0.2s ease;
+  background: var(--bg-secondary);
+}
+
+.drop-zone.drag-over {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary-muted);
+}
+
+/* PDF Viewer - Hide annotation layer to prevent Apple Preview artifacts */
+/* Ensure PDF text layer appears above highlights */
+.react-pdf__Page__textContent {
+  position: relative;
+  z-index: 10 !important;
+}
+
+.react-pdf__Page__textContent span {
+  position: relative;
+  z-index: 10 !important;
+  background: transparent !important;
+}
+
+.react-pdf__Page__annotations {
+  display: none !important;
+}
+
+/* Inline color picker popup */
+.color-picker-popup {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  background: var(--bg-card);
+  border: 0.5px solid var(--border-default);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+}
+
+.color-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-btn:hover {
+  transform: scale(1.15);
+}
+
+.color-btn.selected {
+  border-color: var(--text-primary);
+}
+
+/* Segmented control - Apple style */
+.segmented-control {
+  display: inline-flex;
+  background: var(--bg-tertiary);
+  border-radius: 980px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.segmented-control button {
+  padding: 0.375rem 1rem;
+  border-radius: 980px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.segmented-control button:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.segmented-control button.active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Notes sidebar - Apple style */
+.notes-sidebar {
+  background: var(--bg-secondary);
+  border-left: 0.5px solid var(--border-default);
+}
+
+.note-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  padding: 0.875rem;
+  margin-bottom: 0.5rem;
+  box-shadow: var(--shadow-sm);
+  border: 0.5px solid var(--border-default);
+  transition: all 0.2s ease;
+}
+
+.note-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Toolbar - Apple style */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--bg-secondary);
+  border-radius: 980px;
+  border: 0.5px solid var(--border-default);
+}
+
+.toolbar-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.toolbar-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.toolbar-btn.active {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-default);
+  margin: 0 0.125rem;
+}
