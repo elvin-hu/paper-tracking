@@ -11,8 +11,6 @@ import {
   X,
   Loader2,
   StickyNote,
-  ChevronDown,
-  ChevronUp,
   ChevronRight,
   Download,
   ExternalLink,
@@ -31,7 +29,6 @@ import {
   getHighlightsByPaper,
   addHighlight,
   updateHighlight,
-  deleteHighlight,
   getNotesByPaper,
   addNote,
   deleteNote,
@@ -257,10 +254,11 @@ export function Reader() {
   const [selectionPage, setSelectionPage] = useState<number>(1);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [colorPickerPosition, setColorPickerPosition] = useState({ x: 0, y: 0 });
-  const [selectedHighlight, setSelectedHighlight] = useState<Highlight | null>(null);
+  const [editingHighlight, setEditingHighlight] = useState<Highlight | null>(null); // Highlight being edited for a new note
+  const [hoveredNoteHighlightId, setHoveredNoteHighlightId] = useState<string | null>(null); // Highlight ID being hovered in sidebar
+  const [pulsingHighlightId, setPulsingHighlightId] = useState<string | null>(null); // Highlight that should pulse
   const [noteInput, setNoteInput] = useState('');
   const [citationNoteInput, setCitationNoteInput] = useState('');
-  const [expandedHighlights, setExpandedHighlights] = useState<Set<string>>(new Set());
   const [references, setReferences] = useState<Map<string, string>>(new Map());
   const [referencesLoaded, setReferencesLoaded] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'notes' | 'reading'>('notes');
@@ -597,16 +595,10 @@ export function Reader() {
     if (highlightId && pdfContainerReady && highlights.length > 0) {
       const targetHighlight = highlights.find(h => h.id === highlightId);
       if (targetHighlight) {
-        // Scroll to the page containing the highlight
-        const pageEl = pageRefs.current.get(targetHighlight.pageNumber);
-        if (pageEl) {
-          setTimeout(() => {
-            pageEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            // Select the highlight to show it in the sidebar
-            setSelectedHighlight(targetHighlight);
-            setExpandedHighlights(prev => new Set([...prev, targetHighlight.id]));
-          }, 200);
-        }
+        // Scroll to the highlight and center it with pulse animation
+        setTimeout(() => {
+          scrollToHighlight(targetHighlight);
+        }, 200);
       }
     }
   }, [searchParams, pdfContainerReady, highlights]);
@@ -920,24 +912,13 @@ export function Reader() {
     window.getSelection()?.removeAllRanges();
   };
 
-  const handleDeleteHighlight = async (highlightId: string) => {
-    await deleteHighlight(highlightId);
-    setHighlights((prev) => prev.filter((h) => h.id !== highlightId));
-    setReadingList((prev) => prev.filter((h) => h.id !== highlightId));
-    const relatedNotes = notes.filter((n) => n.highlightId === highlightId);
-    for (const note of relatedNotes) {
-      await deleteNote(note.id);
-    }
-    setNotes((prev) => prev.filter((n) => n.highlightId !== highlightId));
-    setSelectedHighlight(null);
-  };
 
   const handleAddNote = async () => {
-    if (!selectedHighlight || !noteInput.trim() || !paperId) return;
+    if (!editingHighlight || !noteInput.trim() || !paperId) return;
 
     const note: Note = {
       id: uuidv4(),
-      highlightId: selectedHighlight.id,
+      highlightId: editingHighlight.id,
       paperId,
       content: noteInput.trim(),
       createdAt: new Date(),
@@ -947,6 +928,7 @@ export function Reader() {
     await addNote(note);
     setNotes((prev) => [...prev, note]);
     setNoteInput('');
+    setEditingHighlight(null); // Close the editor after saving
   };
 
   const handleDeleteNote = async (noteId: string) => {
@@ -1223,17 +1205,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
     }
   };
 
-  const toggleHighlightExpanded = (highlightId: string) => {
-    setExpandedHighlights((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(highlightId)) {
-        newSet.delete(highlightId);
-      } else {
-        newSet.add(highlightId);
-      }
-      return newSet;
-    });
-  };
 
   const getHighlightBg = (color: HighlightColor, isFurtherReading?: boolean) => {
     // Force purple for further reading items if they were previously blue
@@ -1256,6 +1227,38 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
     }
   };
 
+  // Scroll to a specific highlight and center it on screen with a pulse animation
+  const scrollToHighlight = (highlight: Highlight) => {
+    const pageEl = pageRefs.current.get(highlight.pageNumber);
+    if (!pageEl || !containerRef.current) return;
+
+    // Calculate the center of the first rect of the highlight
+    const firstRect = highlight.rects[0];
+    if (!firstRect) return;
+
+    const highlightTop = firstRect.y * effectiveScale;
+    const highlightHeight = firstRect.height * effectiveScale;
+    const pageOffsetTop = pageEl.offsetTop;
+    const containerHeight = containerRef.current.clientHeight;
+
+    // Calculate scroll position to center the highlight
+    const scrollTarget = pageOffsetTop + highlightTop + (highlightHeight / 2) - (containerHeight / 2);
+
+    containerRef.current.scrollTo({
+      top: Math.max(0, scrollTarget),
+      behavior: 'smooth',
+    });
+
+    // Trigger pulse animation after scroll completes
+    setTimeout(() => {
+      setPulsingHighlightId(highlight.id);
+      // Clear pulse after animation
+      setTimeout(() => {
+        setPulsingHighlightId(null);
+      }, 1500);
+    }, 400);
+  };
+
   const handleDownloadPDF = async () => {
     if (!pdfData || !paper) return;
     
@@ -1271,7 +1274,12 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
     URL.revokeObjectURL(url);
   };
 
-  const groupedHighlights = highlights.reduce(
+  // Only show highlights with notes in the sidebar (no pure highlights)
+  const highlightsWithNotes = highlights.filter(h => 
+    notes.some(n => n.highlightId === h.id)
+  );
+  
+  const groupedHighlights = highlightsWithNotes.reduce(
     (acc, highlight) => {
       const pageNum = highlight.pageNumber;
       if (!acc[pageNum]) acc[pageNum] = [];
@@ -1539,29 +1547,41 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       renderAnnotationLayer={false}
                     />
                     {/* Highlight Overlays - rendered with lower z-index to appear under text */}
-                    {pageHighlights.map((highlight) => (
-                      <div key={highlight.id}>
-                        {highlight.rects.map((rect, idx) => (
-                          <div
-                            key={idx}
-                            className="absolute cursor-pointer transition-opacity hover:opacity-75"
-                            style={{
-                              left: rect.x * effectiveScale,
-                              top: rect.y * effectiveScale,
-                              width: rect.width * effectiveScale,
-                              height: rect.height * effectiveScale,
-                              backgroundColor: getHighlightBg(highlight.color, highlight.isFurtherReading),
-                              zIndex: 1,
-                              mixBlendMode: 'multiply',
-                            }}
-                            onClick={() => {
-                              setSelectedHighlight(highlight);
-                              setExpandedHighlights((prev) => new Set([...prev, highlight.id]));
-                            }}
-                          />
-                        ))}
-                      </div>
-                    ))}
+                    {pageHighlights.map((highlight) => {
+                      const isHovered = hoveredNoteHighlightId === highlight.id;
+                      const isPulsing = pulsingHighlightId === highlight.id;
+                      
+                      return (
+                        <div key={highlight.id}>
+                          {highlight.rects.map((rect, idx) => (
+                            <div
+                              key={idx}
+                              className={`absolute cursor-pointer transition-all duration-300 ${
+                                isPulsing ? 'animate-highlight-pulse' : ''
+                              }`}
+                              style={{
+                                left: rect.x * effectiveScale,
+                                top: rect.y * effectiveScale,
+                                width: rect.width * effectiveScale,
+                                height: rect.height * effectiveScale,
+                                backgroundColor: getHighlightBg(highlight.color, highlight.isFurtherReading),
+                                zIndex: isHovered || isPulsing ? 2 : 1,
+                                mixBlendMode: 'multiply',
+                                opacity: isHovered ? 1 : 0.85,
+                                filter: isHovered ? 'saturate(1.5) brightness(0.95)' : 'none',
+                                boxShadow: isPulsing ? `0 0 12px 4px ${getHighlightBg(highlight.color, highlight.isFurtherReading)}` : 'none',
+                              }}
+                              onClick={() => {
+                                // Open note editor for this highlight
+                                setEditingHighlight(highlight);
+                                setNoteInput('');
+                                setSidebarTab('notes');
+                              }}
+                            />
+                          ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -1698,11 +1718,83 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               {/* Notes Tab */}
               {sidebarTab === 'notes' && (
                 <>
-                  {Object.keys(groupedHighlights).length === 0 ? (
+                  {/* Note Editor - shown when a highlight is clicked */}
+                  {editingHighlight && (() => {
+                    const editColorInfo = HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(editingHighlight));
+                    return (
+                      <div 
+                        className="mb-4 rounded-lg overflow-hidden animate-fade-in"
+                        style={{
+                          backgroundColor: editColorInfo?.bg || '#fef9c3',
+                          boxShadow: `0 2px 8px ${editColorInfo?.shadow || 'rgba(251, 191, 36, 0.2)'}`,
+                        }}
+                      >
+                        <div className="p-3 border-b" style={{ borderColor: `${editColorInfo?.border}40` }}>
+                          <p 
+                            className="text-[10px] italic line-clamp-3"
+                            style={{ color: editColorInfo?.dark || '#78350f' }}
+                          >
+                            "{editingHighlight.text}"
+                          </p>
+                        </div>
+                        <div className="p-3">
+                          <textarea
+                            value={noteInput}
+                            onChange={(e) => setNoteInput(e.target.value)}
+                            placeholder="Add your note..."
+                            rows={3}
+                            autoFocus
+                            className="w-full text-xs py-2 px-3 mb-2 resize-none bg-white/80 border-0 focus:ring-2 focus:ring-offset-0"
+                            style={{ 
+                              borderRadius: '8px',
+                              color: editColorInfo?.dark || '#78350f',
+                              outline: 'none',
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                e.preventDefault();
+                                if (noteInput.trim()) {
+                                  handleAddNote();
+                                }
+                              } else if (e.key === 'Escape') {
+                                setEditingHighlight(null);
+                                setNoteInput('');
+                              }
+                            }}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingHighlight(null);
+                                setNoteInput('');
+                              }}
+                              className="flex-1 text-xs py-1.5 px-3 rounded-full bg-white/50 hover:bg-white/80 transition-colors"
+                              style={{ color: editColorInfo?.dark || '#78350f' }}
+                            >
+                              Discard
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (noteInput.trim()) {
+                                  handleAddNote();
+                                }
+                              }}
+                              disabled={!noteInput.trim()}
+                              className="flex-1 btn-primary text-xs py-1.5 px-3 disabled:opacity-50"
+                            >
+                              Save Note
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {Object.keys(groupedHighlights).length === 0 && !editingHighlight ? (
                     <div className="text-center py-8">
                       <StickyNote className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-2" />
                       <p className="text-[var(--text-muted)] text-xs">
-                        Select text to highlight
+                        Click on a highlight to add a note
                       </p>
                     </div>
                   ) : (
@@ -1721,24 +1813,26 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                               const highlightNotes = notes.filter(
                                 (n) => n.highlightId === highlight.id
                               );
-                              const isExpanded = expandedHighlights.has(highlight.id);
 
                               const highlightColorInfo = HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(highlight));
                               
                               return (
                                 <Fragment key={highlight.id}>
                                   {/* Render each note as a separate sticky card */}
+                                  {/* Render each note as a separate sticky card */}
                                   {highlightNotes.map((note) => (
                                     <div
                                       key={note.id}
-                                      className="rounded-lg mb-3 transition-all cursor-pointer group overflow-hidden relative"
+                                      className="rounded-lg mb-3 transition-all cursor-pointer group overflow-hidden relative hover:scale-[1.02] hover:shadow-lg"
                                       style={{
                                         backgroundColor: highlightColorInfo?.bg || '#fef9c3',
                                         boxShadow: `0 1px 3px ${highlightColorInfo?.shadow || 'rgba(251, 191, 36, 0.15)'}, 0 1px 2px ${highlightColorInfo?.shadow || 'rgba(251, 191, 36, 0.15)'}`,
+                                        transformOrigin: 'center center',
                                       }}
+                                      onMouseEnter={() => setHoveredNoteHighlightId(highlight.id)}
+                                      onMouseLeave={() => setHoveredNoteHighlightId(null)}
                                       onClick={() => {
-                                        setSelectedHighlight(highlight);
-                                        scrollToPage(highlight.pageNumber);
+                                        scrollToHighlight(highlight);
                                       }}
                                     >
                                       {/* Delete button - top right */}
@@ -1757,7 +1851,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                       <div className="p-3 pb-2 pr-8">
                                         {/* Quoted highlight text - dark readable color */}
                                         <p 
-                                          className="text-[10px] italic line-clamp-3 mb-2"
+                                          className="text-[10px] italic line-clamp-2 mb-2"
                                           style={{ color: highlightColorInfo?.dark || '#78350f' }}
                                         >
                                           "{highlight.text}"
@@ -1787,94 +1881,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                       </div>
                                     </div>
                                   ))}
-                                  
-                                  {/* Highlight without notes - show compact card */}
-                                  {highlightNotes.length === 0 && (
-                                    <div
-                                      className="rounded-lg mb-3 transition-all cursor-pointer overflow-hidden group relative"
-                                      style={{
-                                        backgroundColor: highlightColorInfo?.bg || '#fef9c3',
-                                        boxShadow: `0 1px 3px ${highlightColorInfo?.shadow || 'rgba(251, 191, 36, 0.15)'}, 0 1px 2px ${highlightColorInfo?.shadow || 'rgba(251, 191, 36, 0.15)'}`,
-                                      }}
-                                      onClick={() => {
-                                        setSelectedHighlight(highlight);
-                                        toggleHighlightExpanded(highlight.id);
-                                        scrollToPage(highlight.pageNumber);
-                                      }}
-                                    >
-                                      {/* Delete button - top right */}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeleteHighlight(highlight.id);
-                                        }}
-                                        className="absolute top-2 right-2 p-1 rounded-full hover:text-[var(--accent-red)] hover:bg-white/50 opacity-0 group-hover:opacity-100 transition-all"
-                                        style={{ color: highlightColorInfo?.accent || '#ca8a04' }}
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                      
-                                      {/* Main content */}
-                                      <div className="p-3 pb-2 pr-8">
-                                        <p 
-                                          className="text-xs line-clamp-3"
-                                          style={{ color: highlightColorInfo?.dark || '#78350f' }}
-                                        >
-                                          {highlight.text}
-                                        </p>
-                                      </div>
-                                      
-                                      {/* Footer with darker tint */}
-                                      <div 
-                                        className="px-3 py-2 flex items-center justify-between"
-                                        style={{ backgroundColor: `${highlightColorInfo?.border || '#fbbf24'}20` }}
-                                      >
-                                        <span 
-                                          className="text-[9px] font-medium"
-                                          style={{ color: highlightColorInfo?.dark || '#78350f' }}
-                                        >
-                                          Page {highlight.pageNumber}
-                                        </span>
-                                        <span 
-                                          className="p-0.5 rounded"
-                                          style={{ color: highlightColorInfo?.accent || '#ca8a04' }}
-                                        >
-                                          {isExpanded ? (
-                                            <ChevronUp className="w-3.5 h-3.5" />
-                                          ) : (
-                                            <ChevronDown className="w-3.5 h-3.5" />
-                                          )}
-                                        </span>
-                                      </div>
-
-                                      {isExpanded && (
-                                        <div 
-                                          className="px-3 pb-3"
-                                          style={{ backgroundColor: `${highlightColorInfo?.border || '#fbbf24'}10` }}
-                                        >
-                                          <div className="pt-2" onClick={(e) => e.stopPropagation()}>
-                                            <textarea
-                                              value={noteInput}
-                                              onChange={(e) => setNoteInput(e.target.value)}
-                                              placeholder="Add note..."
-                                              rows={2}
-                                              className="w-full text-xs py-2 px-3 mb-1.5 resize-none bg-white/70"
-                                              style={{ 
-                                                borderRadius: '10px',
-                                                color: highlightColorInfo?.dark || '#78350f',
-                                              }}
-                                            />
-                                            <button
-                                              onClick={handleAddNote}
-                                              className="btn-primary text-xs px-3 py-1.5 w-full"
-                                            >
-                                              Save
-                                            </button>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
                                 </Fragment>
                               );
                             })}

@@ -312,6 +312,34 @@ body {
   opacity: 0;
 }
 
+/* Highlight pulse animation - Apple-style attention grabber */
+@keyframes highlightPulse {
+  0% {
+    transform: scale(1);
+    filter: saturate(1) brightness(1);
+  }
+  25% {
+    transform: scale(1.02);
+    filter: saturate(1.8) brightness(1.1);
+  }
+  50% {
+    transform: scale(1);
+    filter: saturate(2) brightness(1.15);
+  }
+  75% {
+    transform: scale(1.01);
+    filter: saturate(1.5) brightness(1.05);
+  }
+  100% {
+    transform: scale(1);
+    filter: saturate(1) brightness(1);
+  }
+}
+
+.animate-highlight-pulse {
+  animation: highlightPulse 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
 /* Glass morphism - Apple vibrancy style */
 .glass {
   background: var(--blur-bg);
