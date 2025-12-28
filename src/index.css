@@ -283,12 +283,7 @@ textarea {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* General button styles - ensure button elements (not table cells) have center-aligned text */
-button {
-  text-align: center;
-}
-
-/* Table cells should not inherit button text alignment */
+/* Table cells should have left-aligned text */
 td,
 th {
   text-align: left;
@@ -600,7 +595,7 @@ input::placeholder, textarea::placeholder {
   /* Add safe area padding for fixed elements at bottom */
   .fixed.bottom-6 {
     bottom: max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)));
-  }
+}
   
   /* Ensure content doesn't get cut off on notched devices */
   body {
@@ -625,8 +620,8 @@ input::placeholder, textarea::placeholder {
   body {
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
-  }
-  
+}
+
   /* Fix for flex containers that might overflow */
   .flex.flex-col {
     min-height: 0;
