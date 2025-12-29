@@ -1315,12 +1315,15 @@ export function Library() {
                                 onClick={(e) => togglePaperSelection(e, paper.id)}
                                 className={`p-1 rounded transition-all ${
                                   isSelected 
-                                    ? 'bg-[var(--accent-primary)]' 
+                                    ? '' 
                                     : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]'
                                 }`}
-                                style={isSelected ? { color: 'white' } : undefined}
+                                style={isSelected ? { 
+                                  backgroundColor: '#3b82f6',
+                                  color: '#ffffff'
+                                } : undefined}
                               >
-                                {isSelected ? <Check className="w-3.5 h-3.5" style={{ color: 'white' }} /> : <FileText className="w-3.5 h-3.5" />}
+                                {isSelected ? <Check className="w-3.5 h-3.5" style={{ color: '#ffffff' }} /> : <FileText className="w-3.5 h-3.5" />}
                               </button>
                               <button
                                 onClick={(e) => togglePaperStarred(e, paper)}
@@ -1610,11 +1613,14 @@ export function Library() {
           </button>
           <button
             onClick={openBatchEditModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--accent-primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
-            style={{ color: 'white' }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
+            style={{ 
+              backgroundColor: '#3b82f6',
+              color: '#ffffff'
+            }}
           >
-            <Tag className="w-3.5 h-3.5" style={{ color: 'white' }} />
-            <span style={{ color: 'white' }}>Edit Tags</span>
+            <Tag className="w-3.5 h-3.5" style={{ color: '#ffffff' }} />
+            <span style={{ color: '#ffffff' }}>Edit Tags</span>
           </button>
           <button
             onClick={deleteSelectedPapers}

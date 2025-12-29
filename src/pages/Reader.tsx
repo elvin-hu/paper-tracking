@@ -1527,28 +1527,27 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             >
               <ArrowLeft className="w-[18px] h-[18px]" />
             </button>
-            <div className="min-w-0">
-              <h1 className="text-sm font-semibold text-[var(--text-primary)] truncate max-w-[300px]">
+            <div className="min-w-0 flex items-center gap-2">
+              <h1 className="text-sm font-semibold text-[var(--text-primary)] truncate max-w-[500px]">
                 {displayTitle}
               </h1>
-              {displayAuthors && (
-                <p className="text-xs text-[var(--text-muted)] truncate">{displayAuthors}</p>
+              {/* Info Button */}
+              {paper && (
+                <button
+                  onClick={openEditModal}
+                  className="toolbar-btn flex-shrink-0"
+                  title="Edit paper info"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
               )}
             </div>
+            {displayAuthors && (
+              <p className="text-xs text-[var(--text-muted)] truncate hidden md:block">{displayAuthors}</p>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Info Button */}
-            {paper && (
-              <button
-                onClick={openEditModal}
-                className="toolbar-btn"
-                title="Edit paper info"
-              >
-                <Info className="w-4 h-4" />
-              </button>
-            )}
-            
             {/* Panel Toggle Buttons */}
             <div className="toolbar">
               <button
