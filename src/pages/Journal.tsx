@@ -152,8 +152,8 @@ Papers and Notes:
 ${notesText}
 
 Please provide:
-1. A synthesis paragraph (2-4 sentences) that connects the key themes and learnings across these papers. Be direct and specific.
-2. A list of 3-6 bullet points with actionable insights, potential research directions, or important takeaways.
+1. A synthesis paragraph (2-4 sentences) that connects the key themes and learnings across these papers. Write in first person as if I'm writing my own research journal (use "my research", "I noticed", etc.). Be direct and specific.
+2. A list of 3-6 bullet points with actionable insights, potential research directions, or important takeaways. Also in first person.
 
 Respond in this exact JSON format:
 {
@@ -172,7 +172,7 @@ Respond in this exact JSON format:
           messages: [
             {
               role: 'system',
-              content: 'You are a seasoned CHI paper author and reviewer helping synthesize research reading notes. Be direct and insightful. Respond with valid JSON only.',
+              content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Be direct and insightful like a seasoned CHI paper author. Respond with valid JSON only.',
             },
             {
               role: 'user',
