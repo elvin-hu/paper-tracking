@@ -23,7 +23,7 @@ import {
   getAllNotes,
 } from '../lib/database';
 
-// Group papers by the dates their notes were created/updated
+// Group papers by the dates their notes were created
 function groupPapersByNotes(
   papers: Paper[],
   notes: Note[]
@@ -32,8 +32,9 @@ function groupPapersByNotes(
   const paperMap = new Map(papers.map(p => [p.id, p]));
 
   notes.forEach(note => {
-    // Use the note's updatedAt date for grouping
-    const dateStr = new Date(note.updatedAt).toISOString().split('T')[0]; // YYYY-MM-DD
+    // Use the note's createdAt date for grouping (convert to local date)
+    const noteDate = new Date(note.createdAt);
+    const dateStr = `${noteDate.getFullYear()}-${String(noteDate.getMonth() + 1).padStart(2, '0')}-${String(noteDate.getDate()).padStart(2, '0')}`;
     const paper = paperMap.get(note.paperId);
 
     if (!paper) return;
