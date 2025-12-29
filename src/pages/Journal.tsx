@@ -155,20 +155,20 @@ export default function Journal() {
         ? `\n\nMy Research Context:\n${settings.researchContext}`
         : '';
 
-      const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Synthesize my learnings and extract key insights.
+      const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Summarize what I learned.
 ${researchContext}
 
 Papers I Read:
 ${papersText}
 
 Please provide:
-1. A synthesis paragraph (4-6 sentences) that: (a) provides a brief recap of what each paper was about (methodology, findings, etc.), and (b) connects the key themes and learnings across these papers. Write in first person as if I'm writing my own research journal (use "my research", "I noticed", etc.). Be direct and specific.
-2. A list of 3-6 bullet points with actionable insights, potential research directions, or important takeaways. Also in first person.
+1. A synthesis paragraph (4-6 sentences) that: (a) briefly recaps what each paper was about (methodology, findings), and (b) connects key themes across papers. Write in first person. Be plain and succinct—avoid filler words like "insightful", "compelling", "profound", "fascinating".
+2. A list of 3-6 bullet points with actionable takeaways or research directions. For each insight, end with the paper title in parentheses so I can trace it back (e.g., "I could apply X approach — (Paper Title)").
 
 Respond in this exact JSON format:
 {
   "synthesis": "...",
-  "keyInsights": ["insight 1", "insight 2", ...]
+  "keyInsights": ["insight 1 — (Paper Title)", "insight 2 — (Paper Title)", ...]
 }`;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -182,7 +182,7 @@ Respond in this exact JSON format:
           messages: [
             {
               role: 'system',
-              content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Be direct and insightful like a seasoned CHI paper author. Respond with valid JSON only.',
+              content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Use plain, succinct language—avoid dramatic or filler words like "insightful", "compelling", "profound", "fascinating", "exciting". Just state facts and observations directly. Respond with valid JSON only.',
             },
             {
               role: 'user',
@@ -294,7 +294,7 @@ ${researchContext}
 Papers I Read:
 ${papersText}
 
-Write a synthesis paragraph (4-6 sentences) that: (a) provides a brief recap of what each paper was about (methodology, findings, etc.), and (b) connects the key themes and learnings across these papers. Write in first person as if I'm writing my own research journal (use "my research", "I noticed", etc.). Be direct and specific.
+Write a synthesis paragraph (4-6 sentences) that: (a) briefly recaps what each paper was about (methodology, findings), and (b) connects key themes across papers. Write in first person. Be plain and succinct—avoid filler words like "insightful", "compelling", "profound", "fascinating".
 
 Respond with ONLY the synthesis paragraph, no JSON, no bullet points, just the paragraph text.`;
 
@@ -309,7 +309,7 @@ Respond with ONLY the synthesis paragraph, no JSON, no bullet points, just the p
           messages: [
             {
               role: 'system',
-              content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Be direct and insightful like a seasoned CHI paper author. Respond with only the synthesis paragraph text, no JSON, no formatting.',
+              content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Use plain, succinct language—avoid dramatic or filler words like "insightful", "compelling", "profound", "fascinating", "exciting". Just state facts and observations directly. Respond with only the synthesis paragraph text, no JSON, no formatting.',
             },
             {
               role: 'user',
