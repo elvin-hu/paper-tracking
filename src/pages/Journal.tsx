@@ -226,7 +226,11 @@ Respond in this exact JSON format:
       };
 
       await addJournalEntry(entry);
-      setJournalEntries(prev => new Map(prev).set(dateStr, entry));
+      setJournalEntries(prev => {
+        const newMap = new Map(prev);
+        newMap.set(dateStr, entry);
+        return newMap;
+      });
     } catch (error) {
       console.error('Error generating journal entry:', error);
       alert('Failed to generate entry. Please try again.');
@@ -368,7 +372,11 @@ Respond in this exact JSON format:
       };
 
       await updateJournalEntry(updated);
-      setJournalEntries(prev => new Map(prev).set(dateStr, updated));
+      setJournalEntries(prev => {
+        const newMap = new Map(prev);
+        newMap.set(dateStr, updated);
+        return newMap;
+      });
     } catch (error) {
       console.error('Error refreshing synthesis:', error);
       alert('Failed to refresh synthesis. Please try again.');
@@ -397,7 +405,11 @@ Respond in this exact JSON format:
     };
 
     await updateJournalEntry(updated);
-    setJournalEntries(prev => new Map(prev).set(editingDate, updated));
+    setJournalEntries(prev => {
+      const newMap = new Map(prev);
+      newMap.set(editingDate, updated);
+      return newMap;
+    });
     setEditingDate(null);
   };
 
@@ -566,8 +578,8 @@ Respond in this exact JSON format:
                             <div className="space-y-2">
                               {editingInsights.map((insight, idx) => (
                                 <div key={insight.id} className="flex items-start gap-2">
-                                  <span className={`mt-2 ${insight.isManual ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'}`}>
-                                    {insight.isManual ? '✎' : '•'}
+                                  <span className={`mt-2 ${insight.isManual ? 'text-[var(--text-muted)]' : 'text-[var(--accent-primary)]'}`}>
+                                    {insight.isManual ? '•' : '✦'}
                                   </span>
                                   <input
                                     type="text"
@@ -650,8 +662,8 @@ Respond in this exact JSON format:
                               <ul className="space-y-2">
                                 {entry.keyInsights.map((insight) => (
                                   <li key={insight.id} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
-                                    <span className={`mt-0.5 ${insight.isManual ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'}`}>
-                                      {insight.isManual ? '✎' : '•'}
+                                    <span className={`mt-0.5 ${insight.isManual ? 'text-[var(--text-muted)]' : 'text-[var(--accent-primary)]'}`}>
+                                      {insight.isManual ? '•' : '✦'}
                                     </span>
                                     <span>{insight.text}</span>
                                   </li>
