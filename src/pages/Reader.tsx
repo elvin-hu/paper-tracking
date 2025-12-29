@@ -1421,14 +1421,22 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             <div className="toolbar">
               <button
                 onClick={() => setShowPaperList(!showPaperList)}
-                className={`toolbar-btn ${showPaperList ? 'text-blue-500 bg-blue-500/10' : 'text-[var(--text-muted)]'}`}
+                className="toolbar-btn"
+                style={{
+                  color: showPaperList ? '#3b82f6' : 'var(--text-muted)',
+                  backgroundColor: showPaperList ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                }}
                 title={showPaperList ? 'Hide paper list' : 'Show paper list'}
               >
                 <PanelLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setShowRightPanel(!showRightPanel)}
-                className={`toolbar-btn ${showRightPanel ? 'text-blue-500 bg-blue-500/10' : 'text-[var(--text-muted)]'}`}
+                className="toolbar-btn"
+                style={{
+                  color: showRightPanel ? '#3b82f6' : 'var(--text-muted)',
+                  backgroundColor: showRightPanel ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                }}
                 title={showRightPanel ? 'Hide notes panel' : 'Show notes panel'}
               >
                 <PanelRight className="w-4 h-4" />
