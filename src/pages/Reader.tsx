@@ -2553,7 +2553,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     }, 500);
                   }}
                   placeholder="Paper title"
-                  className="w-full text-sm"
+                  className="w-full text-sm p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
                 />
               </div>
 
@@ -2567,7 +2567,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                   value={metadata.firstAuthor}
                   onChange={(e) => setMetadata(prev => ({ ...prev, firstAuthor: e.target.value }))}
                   placeholder="First author name"
-                  className="w-full text-sm"
+                  className="w-full text-sm p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
                 />
               </div>
 
@@ -2581,7 +2581,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                   value={metadata.date}
                   onChange={(e) => setMetadata(prev => ({ ...prev, date: e.target.value }))}
                   placeholder="Publication date"
-                  className="w-full text-sm"
+                  className="w-full text-sm p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
                 />
               </div>
 
@@ -2595,7 +2595,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                   value={metadata.venue}
                   onChange={(e) => setMetadata(prev => ({ ...prev, venue: e.target.value }))}
                   placeholder="Conference, Journal, etc."
-                  className="w-full text-sm"
+                  className="w-full text-sm p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
                 />
               </div>
 
@@ -2606,38 +2606,41 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                 </label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {paper.tags.map((tag) => (
-                    <span key={tag} className="tag active flex items-center gap-1">
+                    <span 
+                      key={tag} 
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all text-xs"
+                    >
                       {tag}
                       <button
                         onClick={() => removeTag(tag)}
-                        className="hover:text-[var(--accent-red)]"
+                        className="hover:text-[var(--accent-red)] transition-colors"
                       >
-                        <X className="w-2.5 h-2.5" />
+                        <X className="w-3 h-3" />
                       </button>
                     </span>
                   ))}
                 </div>
-                <div className="relative flex gap-2">
-                  <input
-                    ref={tagInputRef}
-                    type="text"
-                    value={newTagInput}
-                    onChange={(e) => {
-                      setNewTagInput(e.target.value);
-                      setShowTagSuggestions(true);
-                    }}
-                    onFocus={() => setShowTagSuggestions(true)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addTag();
-                      } else if (e.key === 'Escape') {
-                        setShowTagSuggestions(false);
-                      }
-                    }}
-                    placeholder="Add tag..."
-                    className="flex-1 text-sm"
-                  />
+                  <div className="relative flex gap-2">
+                    <input
+                      ref={tagInputRef}
+                      type="text"
+                      value={newTagInput}
+                      onChange={(e) => {
+                        setNewTagInput(e.target.value);
+                        setShowTagSuggestions(true);
+                      }}
+                      onFocus={() => setShowTagSuggestions(true)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addTag();
+                        } else if (e.key === 'Escape') {
+                          setShowTagSuggestions(false);
+                        }
+                      }}
+                      placeholder="Add tag..."
+                      className="flex-1 text-sm p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
+                    />
                   <button onClick={() => addTag()} className="btn-secondary px-2.5">
                     <Plus className="w-4 h-4" />
                   </button>
