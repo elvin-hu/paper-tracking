@@ -919,18 +919,27 @@ export function Reader() {
       currentRects = Array.from(range.getClientRects());
     }
 
+    // Use the page container directly for positioning
     const containerRect = pageContainer.getBoundingClientRect();
-    
-    // Account for visual viewport offset on mobile devices (fixes iPadOS issues)
-    const visualViewportOffsetX = window.visualViewport?.offsetLeft || 0;
-    const visualViewportOffsetY = window.visualViewport?.offsetTop || 0;
 
+    // Convert viewport coords to page-relative coords, then to PDF units
     const rawRects = currentRects.map((rect) => ({
-      x: (rect.x - containerRect.x + visualViewportOffsetX) / effectiveScale,
-      y: (rect.y - containerRect.y + visualViewportOffsetY) / effectiveScale,
+      x: (rect.x - containerRect.x) / effectiveScale,
+      y: (rect.y - containerRect.y) / effectiveScale,
       width: rect.width / effectiveScale,
       height: rect.height / effectiveScale,
     }));
+    
+    // Debug logging for iPadOS issues
+    if (currentRects.length > 0) {
+      console.log('[Highlight Debug]', {
+        effectiveScale,
+        containerRect: { x: containerRect.x, y: containerRect.y, width: containerRect.width, height: containerRect.height },
+        firstSelectionRect: { x: currentRects[0].x, y: currentRects[0].y, width: currentRects[0].width, height: currentRects[0].height },
+        firstOutputRect: rawRects[0],
+        devicePixelRatio: window.devicePixelRatio,
+      });
+    }
     
     // Merge overlapping rects to prevent double-highlighting
     const rects = mergeOverlappingRects(rawRects);
