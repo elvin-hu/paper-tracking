@@ -296,6 +296,8 @@ export function Reader() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const pulseTimeoutRef = useRef<number | null>(null);
+  const isMountedRef = useRef(true);
 
   const loadData = useCallback(async () => {
     if (!paperId) return;
@@ -406,6 +408,23 @@ export function Reader() {
     loadData();
   }, [loadData]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // Clear any pending timeouts
+      if (pulseTimeoutRef.current) {
+        clearTimeout(pulseTimeoutRef.current);
+      }
+      if (metadataSaveTimeoutRef.current) {
+        clearTimeout(metadataSaveTimeoutRef.current);
+      }
+      // Clear page refs to free memory
+      pageRefs.current.clear();
+    };
+  }, []);
+
   // Load all papers for reading list (needed to show paper info) and settings
   const loadAllPapers = useCallback(async () => {
     const [papers, settings] = await Promise.all([
@@ -438,6 +457,9 @@ export function Reader() {
     setDocumentReady(false);
     setNumPages(0);
     setPdfContainerReady(false);
+    
+    // Clear page refs to prevent memory leak
+    pageRefs.current.clear();
     
     // Navigate to the new paper, preserving the source route
     navigate(`/reader/${targetPaperId}`, { state: { from: sourceRoute }, replace: true });
@@ -1338,11 +1360,18 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
       behavior: 'smooth',
     });
 
+    // Clear any existing pulse timeout
+    if (pulseTimeoutRef.current) {
+      clearTimeout(pulseTimeoutRef.current);
+    }
+
     // Trigger pulse animation after scroll completes
-    setTimeout(() => {
+    pulseTimeoutRef.current = window.setTimeout(() => {
+      if (!isMountedRef.current) return;
       setPulsingHighlightId(highlight.id);
       // Clear pulse after animation
-      setTimeout(() => {
+      pulseTimeoutRef.current = window.setTimeout(() => {
+        if (!isMountedRef.current) return;
         setPulsingHighlightId(null);
       }, 1500);
     }, 400);
