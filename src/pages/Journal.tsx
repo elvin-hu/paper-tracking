@@ -11,6 +11,7 @@ import {
   Edit3,
   Check,
   X,
+  RefreshCw,
 } from 'lucide-react';
 import type { Paper, JournalEntry } from '../types';
 import {
@@ -66,6 +67,7 @@ export default function Journal() {
   const [journalEntries, setJournalEntries] = useState<Map<string, JournalEntry>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [generatingDate, setGeneratingDate] = useState<string | null>(null);
+  const [refreshingSynthesisDate, setRefreshingSynthesisDate] = useState<string | null>(null);
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [editingSynthesis, setEditingSynthesis] = useState('');
   const [editingInsights, setEditingInsights] = useState<string[]>([]);
@@ -215,6 +217,109 @@ Respond in this exact JSON format:
       alert('Failed to generate entry. Please try again.');
     } finally {
       setGeneratingDate(null);
+    }
+  };
+
+  const refreshSynthesis = async (dateStr: string, datePapers: Paper[]) => {
+    setRefreshingSynthesisDate(dateStr);
+    
+    try {
+      const settings = await getSettings();
+      if (!settings.openaiApiKey) {
+        alert('Please add your OpenAI API key in Settings to use AI synthesis.');
+        setRefreshingSynthesisDate(null);
+        return;
+      }
+
+      const entry = journalEntries.get(dateStr);
+      if (!entry) return;
+
+      // Collect all notes from papers read that day
+      const paperNotes: { title: string; notes: string }[] = [];
+      datePapers.forEach(paper => {
+        if (paper.metadata?.notes) {
+          paperNotes.push({
+            title: paper.title,
+            notes: paper.metadata.notes,
+          });
+        }
+      });
+
+      if (paperNotes.length === 0) {
+        alert('No notes available for synthesis. Add notes to papers using the AI autofill feature in the Reader view.');
+        setRefreshingSynthesisDate(null);
+        return;
+      }
+
+      // Build prompt - only for synthesis
+      const notesText = paperNotes
+        .map(pn => `Paper: "${pn.title}"\nNotes: ${pn.notes}`)
+        .join('\n\n---\n\n');
+
+      const researchContext = settings.researchContext
+        ? `\n\nMy Research Context:\n${settings.researchContext}`
+        : '';
+
+      const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Based on the notes I took, write a synthesis paragraph that connects the key themes and learnings across these papers.
+${researchContext}
+
+Papers and Notes:
+${notesText}
+
+Write a synthesis paragraph (2-4 sentences) in first person as if I'm writing my own research journal (use "my research", "I noticed", etc.). Be direct and specific. Connect the key themes and learnings across these papers.
+
+Respond with ONLY the synthesis paragraph, no JSON, no bullet points, just the paragraph text.`;
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${settings.openaiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Be direct and insightful like a seasoned CHI paper author. Respond with only the synthesis paragraph text, no JSON, no formatting.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.3,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices[0]?.message?.content;
+      
+      if (!content) {
+        throw new Error('No response from AI');
+      }
+
+      // Extract just the synthesis text (remove any markdown formatting)
+      const synthesis = content.trim().replace(/^```[\w]*\n?|\n?```$/g, '').trim();
+
+      // Update entry with new synthesis, keeping existing keyInsights
+      const updated: JournalEntry = {
+        ...entry,
+        synthesis,
+        updatedAt: new Date(),
+      };
+
+      await updateJournalEntry(updated);
+      setJournalEntries(prev => new Map(prev).set(dateStr, updated));
+    } catch (error) {
+      console.error('Error refreshing synthesis:', error);
+      alert('Failed to refresh synthesis. Please try again.');
+    } finally {
+      setRefreshingSynthesisDate(null);
     }
   };
 
@@ -445,16 +550,33 @@ Respond in this exact JSON format:
                         /* Display state */
                         <div className="p-6">
                           <div className="flex items-start justify-between mb-4">
-                            <p className="text-sm text-[var(--text-primary)] leading-relaxed flex-1">
-                              {entry.synthesis}
-                            </p>
-                            <button
-                              onClick={() => startEditing(entry)}
-                              className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors ml-4 flex-shrink-0"
-                              title="Edit entry"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
+                            {refreshingSynthesisDate === dateStr ? (
+                              <div className="flex-1 flex items-center gap-2 text-sm text-[var(--text-muted)]">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Refreshing synthesis...</span>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-[var(--text-primary)] leading-relaxed flex-1">
+                                {entry.synthesis}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-1 ml-4 flex-shrink-0">
+                              <button
+                                onClick={() => refreshSynthesis(dateStr, datePapers)}
+                                disabled={refreshingSynthesisDate === dateStr}
+                                className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Refresh synthesis"
+                              >
+                                <RefreshCw className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => startEditing(entry)}
+                                className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
+                                title="Edit entry"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
 
                           {entry.keyInsights.length > 0 && (
