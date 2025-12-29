@@ -456,11 +456,12 @@ function rowToJournalEntry(row: Record<string, unknown>): JournalEntry {
         return { id: `legacy-${index}`, text: item, isManual: false };
       } else if (typeof item === 'object' && item !== null) {
         // New format: KeyInsight object
-        const obj = item as { id?: string; text?: string; isManual?: boolean };
+        const obj = item as { id?: string; text?: string; isManual?: boolean; paperId?: string };
         return {
           id: obj.id || `insight-${index}`,
-          text: obj.text || '',
+          text: obj.text || String(obj) || '',
           isManual: Boolean(obj.isManual),
+          paperId: obj.paperId,
         };
       }
       return { id: `unknown-${index}`, text: String(item), isManual: false };

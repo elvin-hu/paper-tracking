@@ -71,6 +71,7 @@ export default function Journal() {
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [editingSynthesis, setEditingSynthesis] = useState('');
   const [editingInsights, setEditingInsights] = useState<KeyInsight[]>([]);
+  const [hoveredPaperId, setHoveredPaperId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -135,11 +136,11 @@ export default function Journal() {
         });
       });
 
-      // Build prompt with full paper information
+      // Build prompt with full paper information (indexed)
       const papersText = paperData
-        .map(p => {
+        .map((p, idx) => {
           const parts: string[] = [];
-          parts.push(`Paper: "${p.title}"`);
+          parts.push(`[Paper ${idx}] "${p.title}"`);
           if (p.authors) parts.push(`Authors: ${p.authors}`);
           if (p.venue) parts.push(`Venue: ${p.venue}`);
           if (p.date) parts.push(`Date: ${p.date}`);
@@ -158,17 +159,20 @@ export default function Journal() {
       const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Summarize what I learned.
 ${researchContext}
 
-Papers I Read:
+Papers I Read (indexed 0 to ${datePapers.length - 1}):
 ${papersText}
 
 Please provide:
 1. A synthesis paragraph (4-6 sentences) that: (a) briefly recaps what each paper was about (methodology, findings), and (b) connects key themes across papers. Write in first person. Be plain and succinct—avoid filler words like "insightful", "compelling", "profound", "fascinating".
-2. A list of 3-6 bullet points with actionable takeaways or research directions. Vary the phrasing—use different sentence structures and avoid repetitive patterns like "I could...". Each insight should feel distinct. For each insight, end with the paper title in parentheses so I can trace it back (e.g., "X approach shows promise for Y — (Paper Title)" or "The study found Z, which suggests W — (Paper Title)").
+2. A list of 3-6 key insights with actionable takeaways or research directions. Vary the phrasing—use different sentence structures. Do NOT include the paper title in the text—provide the paperIndex (0-based) separately.
 
 Respond in this exact JSON format:
 {
   "synthesis": "...",
-  "keyInsights": ["insight 1 — (Paper Title)", "insight 2 — (Paper Title)", ...]
+  "keyInsights": [
+    { "text": "insight text here", "paperIndex": 0 },
+    { "text": "another insight", "paperIndex": 1 }
+  ]
 }`;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -208,11 +212,20 @@ Respond in this exact JSON format:
       const parsed = JSON.parse(content.replace(/```json\n?|\n?```/g, '').trim());
 
       // Convert AI-generated insights to KeyInsight objects
-      const aiInsights: KeyInsight[] = (parsed.keyInsights || []).map((text: string) => ({
-        id: uuidv4(),
-        text,
-        isManual: false,
-      }));
+      const aiInsights: KeyInsight[] = (parsed.keyInsights || []).map((insight: { text: string; paperIndex?: number } | string) => {
+        // Handle both old string format and new object format
+        if (typeof insight === 'string') {
+          return { id: uuidv4(), text: insight, isManual: false };
+        }
+        const paperIndex = insight.paperIndex ?? 0;
+        const paperId = datePapers[paperIndex]?.id;
+        return {
+          id: uuidv4(),
+          text: insight.text,
+          isManual: false,
+          paperId,
+        };
+      });
 
       const entry: JournalEntry = {
         id: uuidv4(),
@@ -279,11 +292,11 @@ Respond in this exact JSON format:
         });
       });
 
-      // Build prompt with full paper information - only for synthesis
+      // Build prompt with full paper information (indexed)
       const papersText = paperData
-        .map(p => {
+        .map((p, idx) => {
           const parts: string[] = [];
-          parts.push(`Paper: "${p.title}"`);
+          parts.push(`[Paper ${idx}] "${p.title}"`);
           if (p.authors) parts.push(`Authors: ${p.authors}`);
           if (p.venue) parts.push(`Venue: ${p.venue}`);
           if (p.date) parts.push(`Date: ${p.date}`);
@@ -302,17 +315,20 @@ Respond in this exact JSON format:
       const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Summarize what I learned.
 ${researchContext}
 
-Papers I Read:
+Papers I Read (indexed 0 to ${datePapers.length - 1}):
 ${papersText}
 
 Please provide:
 1. A synthesis paragraph (4-6 sentences) that: (a) briefly recaps what each paper was about (methodology, findings), and (b) connects key themes across papers. Write in first person. Be plain and succinct—avoid filler words like "insightful", "compelling", "profound", "fascinating".
-2. A list of 3-6 bullet points with actionable takeaways or research directions. Vary the phrasing—use different sentence structures and avoid repetitive patterns like "I could...". Each insight should feel distinct. For each insight, end with the paper title in parentheses so I can trace it back (e.g., "X approach shows promise for Y — (Paper Title)" or "The study found Z, which suggests W — (Paper Title)").
+2. A list of 3-6 key insights with actionable takeaways or research directions. Vary the phrasing—use different sentence structures. Do NOT include the paper title in the text—provide the paperIndex (0-based) separately.
 
 Respond in this exact JSON format:
 {
   "synthesis": "...",
-  "keyInsights": ["insight 1 — (Paper Title)", "insight 2 — (Paper Title)", ...]
+  "keyInsights": [
+    { "text": "insight text here", "paperIndex": 0 },
+    { "text": "another insight", "paperIndex": 1 }
+  ]
 }`;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -353,11 +369,20 @@ Respond in this exact JSON format:
       const synthesis = parsed.synthesis || '';
 
       // Convert AI-generated insights to KeyInsight objects
-      const newAiInsights: KeyInsight[] = (parsed.keyInsights || []).map((text: string) => ({
-        id: uuidv4(),
-        text,
-        isManual: false,
-      }));
+      const newAiInsights: KeyInsight[] = (parsed.keyInsights || []).map((insight: { text: string; paperIndex?: number } | string) => {
+        // Handle both old string format and new object format
+        if (typeof insight === 'string') {
+          return { id: uuidv4(), text: insight, isManual: false };
+        }
+        const paperIndex = insight.paperIndex ?? 0;
+        const paperId = datePapers[paperIndex]?.id;
+        return {
+          id: uuidv4(),
+          text: insight.text,
+          isManual: false,
+          paperId,
+        };
+      });
 
       // Preserve manual insights, replace AI-generated ones
       const manualInsights = entry.keyInsights.filter(insight => insight.isManual);
@@ -512,7 +537,11 @@ Respond in this exact JSON format:
                         <button
                           key={paper.id}
                           onClick={() => navigate(`/reader/${paper.id}`, { state: { from: '/journal' } })}
-                          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all text-xs ${
+                            hoveredPaperId === paper.id
+                              ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/30'
+                              : 'bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                          }`}
                         >
                           <FileText className="w-3 h-3" />
                           <span className="truncate max-w-[200px]">{paper.title}</span>
@@ -661,7 +690,15 @@ Respond in this exact JSON format:
                               </h4>
                               <ul className="space-y-2">
                                 {entry.keyInsights.map((insight) => (
-                                  <li key={insight.id} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
+                                  <li
+                                    key={insight.id}
+                                    className={`flex items-start gap-2 text-sm text-[var(--text-secondary)] ${
+                                      insight.paperId ? 'cursor-pointer hover:text-[var(--text-primary)] transition-colors' : ''
+                                    }`}
+                                    onMouseEnter={() => insight.paperId && setHoveredPaperId(insight.paperId)}
+                                    onMouseLeave={() => setHoveredPaperId(null)}
+                                    onClick={() => insight.paperId && navigate(`/reader/${insight.paperId}`, { state: { from: '/journal' } })}
+                                  >
                                     <span className={`mt-0.5 text-xs ${insight.isManual ? 'text-[var(--text-muted)]' : 'text-[var(--accent-primary)]/60'}`}>
                                       {insight.isManual ? '•' : '✦'}
                                     </span>

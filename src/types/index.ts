@@ -83,6 +83,7 @@ export interface KeyInsight {
   id: string;
   text: string;
   isManual: boolean; // true if added manually by user, false if AI-generated
+  paperId?: string; // Optional: links the insight to a specific paper
 }
 
 export interface JournalEntry {
