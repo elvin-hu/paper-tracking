@@ -1494,10 +1494,15 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Paper List */}
         <div 
-          className={`flex flex-col bg-[var(--bg-secondary)] border-r border-[var(--border-default)] transition-all duration-200 ease-out ${
+          className={`flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-out ${
             showPaperList ? 'w-64' : 'w-0'
-          } overflow-hidden flex-shrink-0`}
+          }`}
         >
+          <div 
+            className={`w-64 h-full flex flex-col bg-[var(--bg-secondary)] border-r border-[var(--border-default)] transition-transform duration-200 ease-out ${
+              showPaperList ? 'translate-x-0' : '-translate-x-full'
+            }`}
+          >
           <div className="p-3 border-b border-[var(--border-default)] flex-shrink-0">
             <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Papers</span>
           </div>
@@ -1585,6 +1590,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                   </div>
                 </button>
               ))}
+          </div>
           </div>
         </div>
 
@@ -1930,11 +1936,16 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
         {/* Right Sidebar - Notes and Metadata */}
         <div 
-          className={`flex flex-col h-full overflow-hidden flex-shrink-0 border-l border-[var(--border-default)] relative transition-all duration-200 ease-out ${
+          className={`flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-out ${
             showRightPanel ? 'w-80' : 'w-0'
           }`}
-          data-sidebar="notes-metadata"
         >
+          <div 
+            className={`w-80 h-full flex flex-col border-l border-[var(--border-default)] relative transition-transform duration-200 ease-out ${
+              showRightPanel ? 'translate-x-0' : 'translate-x-full'
+            }`}
+            data-sidebar="notes-metadata"
+          >
           {/* Loading overlay for right sidebar */}
           {isLoading && (
             <div className="absolute inset-0 z-40 bg-[var(--bg-primary)] flex items-center justify-center">
@@ -2361,6 +2372,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>
