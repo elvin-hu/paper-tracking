@@ -163,7 +163,7 @@ ${papersText}
 
 Please provide:
 1. A synthesis paragraph (4-6 sentences) that: (a) briefly recaps what each paper was about (methodology, findings), and (b) connects key themes across papers. Write in first person. Be plain and succinct—avoid filler words like "insightful", "compelling", "profound", "fascinating".
-2. A list of 3-6 bullet points with actionable takeaways or research directions. For each insight, end with the paper title in parentheses so I can trace it back (e.g., "I could apply X approach — (Paper Title)").
+2. A list of 3-6 bullet points with actionable takeaways or research directions. Vary the phrasing—use different sentence structures and avoid repetitive patterns like "I could...". Each insight should feel distinct. For each insight, end with the paper title in parentheses so I can trace it back (e.g., "X approach shows promise for Y — (Paper Title)" or "The study found Z, which suggests W — (Paper Title)").
 
 Respond in this exact JSON format:
 {
@@ -307,7 +307,7 @@ ${papersText}
 
 Please provide:
 1. A synthesis paragraph (4-6 sentences) that: (a) briefly recaps what each paper was about (methodology, findings), and (b) connects key themes across papers. Write in first person. Be plain and succinct—avoid filler words like "insightful", "compelling", "profound", "fascinating".
-2. A list of 3-6 bullet points with actionable takeaways or research directions. For each insight, end with the paper title in parentheses so I can trace it back (e.g., "I could apply X approach — (Paper Title)").
+2. A list of 3-6 bullet points with actionable takeaways or research directions. Vary the phrasing—use different sentence structures and avoid repetitive patterns like "I could...". Each insight should feel distinct. For each insight, end with the paper title in parentheses so I can trace it back (e.g., "X approach shows promise for Y — (Paper Title)" or "The study found Z, which suggests W — (Paper Title)").
 
 Respond in this exact JSON format:
 {
@@ -578,7 +578,7 @@ Respond in this exact JSON format:
                             <div className="space-y-2">
                               {editingInsights.map((insight, idx) => (
                                 <div key={insight.id} className="flex items-start gap-2">
-                                  <span className={`mt-2 ${insight.isManual ? 'text-[var(--text-muted)]' : 'text-[var(--accent-primary)]'}`}>
+                                    <span className={`mt-2 text-xs ${insight.isManual ? 'text-[var(--text-muted)]' : 'text-[var(--accent-primary)]/60'}`}>
                                     {insight.isManual ? '•' : '✦'}
                                   </span>
                                   <input
@@ -662,7 +662,7 @@ Respond in this exact JSON format:
                               <ul className="space-y-2">
                                 {entry.keyInsights.map((insight) => (
                                   <li key={insight.id} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
-                                    <span className={`mt-0.5 ${insight.isManual ? 'text-[var(--text-muted)]' : 'text-[var(--accent-primary)]'}`}>
+                                    <span className={`mt-0.5 text-xs ${insight.isManual ? 'text-[var(--text-muted)]' : 'text-[var(--accent-primary)]/60'}`}>
                                       {insight.isManual ? '•' : '✦'}
                                     </span>
                                     <span>{insight.text}</span>
