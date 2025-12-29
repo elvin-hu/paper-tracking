@@ -13,28 +13,40 @@ import {
   X,
   RefreshCw,
 } from 'lucide-react';
-import type { Paper, JournalEntry, KeyInsight } from '../types';
+import type { Paper, JournalEntry, KeyInsight, Note } from '../types';
 import {
   getAllPapers,
   getAllJournalEntries,
   addJournalEntry,
   updateJournalEntry,
   getSettings,
+  getAllNotes,
 } from '../lib/database';
 
-// Group papers by the date they were read (lastOpenedAt or uploadedAt)
-function groupPapersByDate(papers: Paper[]): Map<string, Paper[]> {
+// Group papers by the dates their notes were created/updated
+function groupPapersByNotes(
+  papers: Paper[],
+  notes: Note[]
+): Map<string, Paper[]> {
   const groups = new Map<string, Paper[]>();
+  const paperMap = new Map(papers.map(p => [p.id, p]));
 
-  papers.forEach(paper => {
-    // Use lastOpenedAt if available, otherwise uploadedAt
-    const date = paper.lastOpenedAt || paper.uploadedAt;
-    const dateStr = new Date(date).toISOString().split('T')[0]; // YYYY-MM-DD
+  notes.forEach(note => {
+    // Use the note's updatedAt date for grouping
+    const dateStr = new Date(note.updatedAt).toISOString().split('T')[0]; // YYYY-MM-DD
+    const paper = paperMap.get(note.paperId);
+
+    if (!paper) return;
 
     if (!groups.has(dateStr)) {
       groups.set(dateStr, []);
     }
-    groups.get(dateStr)!.push(paper);
+
+    // Avoid duplicates: only add if not already in that day's list
+    const dayPapers = groups.get(dateStr)!;
+    if (!dayPapers.some(p => p.id === paper.id)) {
+      dayPapers.push(paper);
+    }
   });
 
   return groups;
@@ -64,6 +76,7 @@ function formatDate(dateStr: string): string {
 export default function Journal() {
   const navigate = useNavigate();
   const [papers, setPapers] = useState<Paper[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [journalEntries, setJournalEntries] = useState<Map<string, JournalEntry>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [generatingDate, setGeneratingDate] = useState<string | null>(null);
@@ -76,14 +89,14 @@ export default function Journal() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [loadedPapers, entries] = await Promise.all([
+      const [loadedPapers, entries, loadedNotes] = await Promise.all([
         getAllPapers(),
         getAllJournalEntries(),
+        getAllNotes(),
       ]);
 
-      // Only include papers that have been read
-      const readPapers = loadedPapers.filter(p => p.isRead);
-      setPapers(readPapers);
+      setPapers(loadedPapers);
+      setNotes(loadedNotes);
 
       const entryMap = new Map<string, JournalEntry>();
       entries.forEach(e => entryMap.set(e.date, e));
@@ -464,9 +477,9 @@ Respond in this exact JSON format:
     setEditingInsights(editingInsights.filter((_, i) => i !== index));
   };
 
-  // Group papers by date
-  const papersByDate = groupPapersByDate(papers);
-  const sortedDates = Array.from(papersByDate.keys()).sort((a, b) => b.localeCompare(a));
+  // Group papers by date based on note activity
+  const papersByDate = groupPapersByNotes(papers, notes);
+  const sortedDates = Array.from(papersByDate.keys()).sort((a: string, b: string) => b.localeCompare(a));
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
