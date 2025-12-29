@@ -1460,6 +1460,23 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             >
               <Download className="w-4 h-4" />
             </button>
+
+            {/* Panel Toggle Buttons */}
+            <div className="toolbar-divider" />
+            <button
+              onClick={() => setShowPaperList(!showPaperList)}
+              className={`toolbar-btn ${showPaperList ? 'active' : ''}`}
+              title={showPaperList ? 'Hide paper list' : 'Show paper list'}
+            >
+              <PanelLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowRightPanel(!showRightPanel)}
+              className={`toolbar-btn ${showRightPanel ? 'active' : ''}`}
+              title={showRightPanel ? 'Hide notes panel' : 'Show notes panel'}
+            >
+              <PanelLeftClose className="w-4 h-4" style={{ transform: 'scaleX(-1)' }} />
+            </button>
           </div>
         </div>
       </header>
@@ -1472,15 +1489,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             showPaperList ? 'w-64' : 'w-0'
           } overflow-hidden flex-shrink-0`}
         >
-          <div className="p-3 border-b border-[var(--border-default)] flex items-center justify-between flex-shrink-0">
+          <div className="p-3 border-b border-[var(--border-default)] flex-shrink-0">
             <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Papers</span>
-            <button
-              onClick={() => setShowPaperList(false)}
-              className="p-1 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-              title="Hide paper list"
-            >
-              <PanelLeftClose className="w-4 h-4" />
-            </button>
           </div>
           <div className="flex-1 overflow-y-auto">
             {Array.from(allPapers.values())
@@ -1568,17 +1578,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               ))}
           </div>
         </div>
-
-        {/* Paper List Toggle (when collapsed) */}
-        {!showPaperList && (
-          <button
-            onClick={() => setShowPaperList(true)}
-            className="flex-shrink-0 p-2 border-r border-[var(--border-default)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-            title="Show paper list"
-          >
-            <PanelLeft className="w-4 h-4" />
-          </button>
-        )}
 
         {/* PDF Viewer */}
         <div 
@@ -1920,17 +1919,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           })()}
         </div>
 
-        {/* Right Panel Toggle Button (when collapsed) */}
-        {!showRightPanel && (
-          <button
-            onClick={() => setShowRightPanel(true)}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-30 p-2 bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-l-lg hover:bg-[var(--bg-tertiary)] transition-colors"
-            title="Show notes panel"
-          >
-            <PanelLeft className="w-4 h-4 text-[var(--text-secondary)]" />
-          </button>
-        )}
-
         {/* Right Sidebar - Notes and Metadata */}
         <div 
           className={`flex flex-col h-full overflow-hidden flex-shrink-0 border-l border-[var(--border-default)] relative transition-all duration-200 ease-out ${
@@ -1948,17 +1936,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           <div className="flex flex-col overflow-hidden" style={{ height: `calc(100% - ${metadataPanelHeight}px)` }}>
             {/* Tab Header */}
             <div className="p-2 border-b border-[var(--border-default)] flex-shrink-0">
-              {/* Collapse button */}
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-[var(--text-secondary)]">Notes & Reading</span>
-                <button
-                  onClick={() => setShowRightPanel(false)}
-                  className="p-1 rounded hover:bg-[var(--bg-tertiary)] transition-colors"
-                  title="Hide panel"
-                >
-                  <PanelLeftClose className="w-4 h-4 text-[var(--text-muted)]" style={{ transform: 'scaleX(-1)' }} />
-                </button>
-              </div>
               <div className="segmented-control w-full justify-center">
                 <button
                   onClick={() => setSidebarTab('notes')}
