@@ -915,12 +915,17 @@ export function Reader() {
     const wrapperRect = pageContainer.getBoundingClientRect();
 
     // Convert viewport coords to wrapper-relative, then divide by scale
-    const rawRects = currentRects.map((rect) => ({
-      x: (rect.x - wrapperRect.x) / effectiveScale,
-      y: (rect.y - wrapperRect.y) / effectiveScale,
-      width: rect.width / effectiveScale,
-      height: rect.height / effectiveScale,
-    }));
+    // Filter out tiny rects (invisible whitespace, line breaks, etc.)
+    const rawRects = currentRects
+      .filter((rect) => rect.width > 5 && rect.height > 5)
+      .map((rect) => ({
+        x: (rect.x - wrapperRect.x) / effectiveScale,
+        y: (rect.y - wrapperRect.y) / effectiveScale,
+        width: rect.width / effectiveScale,
+        height: rect.height / effectiveScale,
+      }));
+    
+    if (rawRects.length === 0) return;
     
     // Merge overlapping rects to prevent double-highlighting
     const rects = mergeOverlappingRects(rawRects);
@@ -1708,11 +1713,14 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                               }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // Calculate position for the floating popup - use bounding box of ALL rects
-                                const allRects = highlight.rects;
-                                const minX = Math.min(...allRects.map(r => r.x));
-                                const maxX = Math.max(...allRects.map(r => r.x + r.width));
-                                const minY = Math.min(...allRects.map(r => r.y));
+                                // Calculate position for the floating popup - use bounding box of VALID rects only
+                                // Filter out tiny rects (invisible whitespace, line breaks, etc.)
+                                const validRects = highlight.rects.filter(r => r.width > 5 && r.height > 5);
+                                if (validRects.length === 0) return;
+                                
+                                const minX = Math.min(...validRects.map(r => r.x));
+                                const maxX = Math.max(...validRects.map(r => r.x + r.width));
+                                const minY = Math.min(...validRects.map(r => r.y));
                                 
                                 // Center horizontally across the highlight's bounding box
                                 const popupX = ((minX + maxX) / 2) * effectiveScale;
@@ -2034,12 +2042,12 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                       onMouseLeave={() => setHoveredNoteHighlightId(null)}
                                       onClick={() => {
                                         scrollToHighlight(highlight);
-                                        // Calculate position for floating editor - use bounding box of ALL rects
-                                        const allRects = highlight.rects;
-                                        if (allRects.length > 0) {
-                                          const minX = Math.min(...allRects.map(r => r.x));
-                                          const maxX = Math.max(...allRects.map(r => r.x + r.width));
-                                          const minY = Math.min(...allRects.map(r => r.y));
+                                        // Calculate position for floating editor - use bounding box of VALID rects only
+                                        const validRects = highlight.rects.filter(r => r.width > 5 && r.height > 5);
+                                        if (validRects.length > 0) {
+                                          const minX = Math.min(...validRects.map(r => r.x));
+                                          const maxX = Math.max(...validRects.map(r => r.x + r.width));
+                                          const minY = Math.min(...validRects.map(r => r.y));
                                           const popupX = ((minX + maxX) / 2) * effectiveScale;
                                           const popupY = minY * effectiveScale - 10;
                                           setEditingHighlightPosition({ x: popupX, y: popupY });
