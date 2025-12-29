@@ -228,6 +228,8 @@ body {
   transition: scrollbar-color 0.3s ease;
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
   overflow: auto;
+  /* Prevent pinch-zoom on iOS which can cause coordinate issues */
+  touch-action: pan-x pan-y;
 }
 
 /* Hide scrollbar on touch devices (iPadOS/iOS) while keeping scroll functionality */
@@ -239,6 +241,20 @@ body {
   .pdf-viewer-container::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* PDF page container - ensure proper touch handling */
+.pdf-viewer-container .react-pdf__Page {
+  touch-action: pan-x pan-y;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Text layer needs to be selectable on touch */
+.pdf-viewer-container .react-pdf__Page__textContent {
+  touch-action: auto;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .pdf-viewer-container::-webkit-scrollbar {

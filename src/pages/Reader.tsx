@@ -910,11 +910,24 @@ export function Reader() {
     const pageContainer = pageRefs.current.get(selectionPage);
     if (!pageContainer) return;
 
-    const containerRect = pageContainer.getBoundingClientRect();
+    // Get fresh selection rects at the moment of creation (fixes iPadOS offset issues)
+    const selection = window.getSelection();
+    let currentRects = selectionRects;
+    
+    if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      currentRects = Array.from(range.getClientRects());
+    }
 
-    const rawRects = selectionRects.map((rect) => ({
-      x: (rect.x - containerRect.x) / effectiveScale,
-      y: (rect.y - containerRect.y) / effectiveScale,
+    const containerRect = pageContainer.getBoundingClientRect();
+    
+    // Account for visual viewport offset on mobile devices (fixes iPadOS issues)
+    const visualViewportOffsetX = window.visualViewport?.offsetLeft || 0;
+    const visualViewportOffsetY = window.visualViewport?.offsetTop || 0;
+
+    const rawRects = currentRects.map((rect) => ({
+      x: (rect.x - containerRect.x + visualViewportOffsetX) / effectiveScale,
+      y: (rect.y - containerRect.y + visualViewportOffsetY) / effectiveScale,
       width: rect.width / effectiveScale,
       height: rect.height / effectiveScale,
     }));
