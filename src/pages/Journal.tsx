@@ -605,26 +605,32 @@ Respond in this exact JSON format:
                               Key Insights
                             </label>
                             <div className="space-y-2">
-                              {editingInsights.map((insight, idx) => (
-                                <div key={insight.id} className="flex items-start gap-2">
-                                    <span className={`mt-2 text-xs ${insight.isManual ? 'text-[var(--text-muted)]' : 'text-[var(--accent-primary)]/60'}`}>
-                                    {insight.isManual ? '•' : '✦'}
-                                  </span>
-                                  <input
-                                    type="text"
-                                    value={insight.text}
-                                    onChange={(e) => updateInsight(idx, e.target.value)}
-                                    className="flex-1 text-sm p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)]"
-                                    placeholder={insight.isManual ? "Your insight..." : ""}
-                                  />
-                                  <button
-                                    onClick={() => removeInsight(idx)}
-                                    className="p-2 text-[var(--text-muted)] hover:text-red-500 transition-colors"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              ))}
+                              {editingInsights.map((insight, idx) => {
+                                const insightText = typeof insight === 'string' ? insight : (insight.text || '');
+                                const isManual = typeof insight === 'object' && insight.isManual;
+                                const insightId = typeof insight === 'object' ? insight.id : `edit-${idx}`;
+                                
+                                return (
+                                  <div key={insightId} className="flex items-start gap-2">
+                                    <span className={`mt-2 text-xs ${isManual ? 'text-[var(--text-muted)]' : 'text-[var(--accent-primary)]/60'}`}>
+                                      {isManual ? '•' : '✦'}
+                                    </span>
+                                    <input
+                                      type="text"
+                                      value={insightText}
+                                      onChange={(e) => updateInsight(idx, e.target.value)}
+                                      className="flex-1 text-sm p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)]"
+                                      placeholder={isManual ? "Your insight..." : ""}
+                                    />
+                                    <button
+                                      onClick={() => removeInsight(idx)}
+                                      className="p-2 text-[var(--text-muted)] hover:text-red-500 transition-colors"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                );
+                              })}
                               <button
                                 onClick={addInsight}
                                 className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
@@ -689,22 +695,32 @@ Respond in this exact JSON format:
                                 Key Insights
                               </h4>
                               <ul className="space-y-2">
-                                {entry.keyInsights.map((insight) => (
-                                  <li
-                                    key={insight.id}
-                                    className={`flex items-start gap-2 text-sm text-[var(--text-secondary)] ${
-                                      insight.paperId ? 'cursor-pointer hover:text-[var(--text-primary)] transition-colors' : ''
-                                    }`}
-                                    onMouseEnter={() => insight.paperId && setHoveredPaperId(insight.paperId)}
-                                    onMouseLeave={() => setHoveredPaperId(null)}
-                                    onClick={() => insight.paperId && navigate(`/reader/${insight.paperId}`, { state: { from: '/journal' } })}
-                                  >
-                                    <span className={`mt-0.5 text-xs ${insight.isManual ? 'text-[var(--text-muted)]' : 'text-[var(--accent-primary)]/60'}`}>
-                                      {insight.isManual ? '•' : '✦'}
-                                    </span>
-                                    <span>{insight.text}</span>
-                                  </li>
-                                ))}
+                                {entry.keyInsights.map((insight) => {
+                                  // Handle case where insight might be malformed or a string
+                                  const insightText = typeof insight === 'string' 
+                                    ? insight 
+                                    : (insight.text || '');
+                                  const isManual = typeof insight === 'object' && insight.isManual;
+                                  const paperId = typeof insight === 'object' ? insight.paperId : undefined;
+                                  const insightId = typeof insight === 'object' ? insight.id : String(insight);
+                                  
+                                  return (
+                                    <li
+                                      key={insightId}
+                                      className={`flex items-start gap-2 text-sm text-[var(--text-secondary)] ${
+                                        paperId ? 'cursor-pointer hover:text-[var(--text-primary)] transition-colors' : ''
+                                      }`}
+                                      onMouseEnter={() => paperId && setHoveredPaperId(paperId)}
+                                      onMouseLeave={() => setHoveredPaperId(null)}
+                                      onClick={() => paperId && navigate(`/reader/${paperId}`, { state: { from: '/journal' } })}
+                                    >
+                                      <span className={`mt-0.5 text-xs ${isManual ? 'text-[var(--text-muted)]' : 'text-[var(--accent-primary)]/60'}`}>
+                                        {isManual ? '•' : '✦'}
+                                      </span>
+                                      <span>{insightText}</span>
+                                    </li>
+                                  );
+                                })}
                               </ul>
                             </div>
                           )}

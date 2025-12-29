@@ -444,28 +444,57 @@ export async function deleteFurtherReading(id: string): Promise<void> {
 }
 
 // Journal Entry operations
+function parseKeyInsight(item: unknown, index: number): KeyInsight {
+  // Handle stringified JSON objects
+  let parsed = item;
+  
+  if (typeof item === 'string') {
+    // Check if it's a JSON string that looks like an object
+    const trimmed = item.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        parsed = JSON.parse(trimmed);
+      } catch {
+        // Not valid JSON, treat as plain text
+        return { id: `legacy-${index}`, text: item, isManual: false };
+      }
+    } else {
+      // Old format: plain string - treat as AI-generated
+      return { id: `legacy-${index}`, text: item, isManual: false };
+    }
+  }
+  
+  if (typeof parsed === 'object' && parsed !== null) {
+    const obj = parsed as Record<string, unknown>;
+    
+    // Extract text - handle various formats
+    let text = '';
+    if (typeof obj.text === 'string') {
+      text = obj.text;
+    } else if (typeof obj.text === 'object' && obj.text !== null) {
+      // Nested object case - recurse
+      const nestedResult = parseKeyInsight(obj.text, index);
+      text = nestedResult.text;
+    }
+    
+    return {
+      id: (typeof obj.id === 'string' ? obj.id : null) || `insight-${index}`,
+      text,
+      isManual: Boolean(obj.isManual),
+      paperId: typeof obj.paperId === 'string' ? obj.paperId : undefined,
+    };
+  }
+  
+  return { id: `unknown-${index}`, text: String(item), isManual: false };
+}
+
 function rowToJournalEntry(row: Record<string, unknown>): JournalEntry {
   // Handle migration from old string[] format to new KeyInsight[] format
   const rawInsights = row.key_insights as unknown[];
   let keyInsights: KeyInsight[] = [];
   
   if (Array.isArray(rawInsights)) {
-    keyInsights = rawInsights.map((item, index) => {
-      if (typeof item === 'string') {
-        // Old format: plain string - treat as AI-generated
-        return { id: `legacy-${index}`, text: item, isManual: false };
-      } else if (typeof item === 'object' && item !== null) {
-        // New format: KeyInsight object
-        const obj = item as { id?: string; text?: string; isManual?: boolean; paperId?: string };
-        return {
-          id: obj.id || `insight-${index}`,
-          text: obj.text || String(obj) || '',
-          isManual: Boolean(obj.isManual),
-          paperId: obj.paperId,
-        };
-      }
-      return { id: `unknown-${index}`, text: String(item), isManual: false };
-    });
+    keyInsights = rawInsights.map((item, index) => parseKeyInsight(item, index));
   }
   
   return {
