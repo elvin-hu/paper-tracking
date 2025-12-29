@@ -5,7 +5,6 @@ import { pdfjs } from 'react-pdf';
 import {
   Upload,
   Search,
-  ArrowUpDown,
   FileText,
   Trash2,
   Settings,
@@ -22,9 +21,12 @@ import {
   Tag,
   Check,
   Star,
+  MessageSquare,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
-import type { Paper, SortOption } from '../types';
-import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, updatePapersBatch, getSettings, updateSettings } from '../lib/database';
+import type { Paper, SortOption, Note } from '../types';
+import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, updatePapersBatch, getSettings, updateSettings, getAllNotes } from '../lib/database';
 
 // Setup pdfjs worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -43,12 +45,17 @@ const SCROLL_POSITION_KEY = 'library-page-scroll';
 export function Library() {
   const navigate = useNavigate();
   const [papers, setPapers] = useState<Paper[]>([]);
+  const [allNotes, setAllNotes] = useState<Note[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('date-desc');
   const [isLoading, setIsLoading] = useState(true);
   const sortOptionSaveTimeoutRef = useRef<number | null>(null);
+  
+  // Filter states
+  const [showStarredOnly, setShowStarredOnly] = useState(false);
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
   // Restore scroll position on mount and when navigating back
   useEffect(() => {
@@ -103,18 +110,21 @@ export function Library() {
   const [batchRemoveTags, setBatchRemoveTags] = useState<string[]>([]);
   const [batchNewTagInput, setBatchNewTagInput] = useState('');
   
-  // Sort menu state
-  const [showSortMenu, setShowSortMenu] = useState(false);
-  const sortMenuRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       console.log('[Library] Loading papers...');
-      const [loadedPapers, tags, settings] = await Promise.all([getAllPapers(), getAllTags(), getSettings()]);
-      console.log(`[Library] Loaded ${loadedPapers.length} papers`);
+      const [loadedPapers, tags, settings, notes] = await Promise.all([
+        getAllPapers(), 
+        getAllTags(), 
+        getSettings(),
+        getAllNotes()
+      ]);
+      console.log(`[Library] Loaded ${loadedPapers.length} papers, ${notes.length} notes`);
       setPapers(loadedPapers);
       setAllTags(tags);
+      setAllNotes(notes);
       // Load saved sort option
       if (settings.sortOption) {
         setSortOption(settings.sortOption);
@@ -920,37 +930,35 @@ export function Library() {
     setUploadTags((prev) => prev.filter((t) => t !== tag));
   };
 
-  const getSortLabel = () => {
-    switch (sortOption) {
-      case 'title-asc': return 'A → Z';
-      case 'title-desc': return 'Z → A';
-      case 'date-asc': return 'Oldest';
-      case 'date-desc': return 'Recent';
+  // Helper to get note count for a paper
+  const getNoteCountForPaper = useCallback((paperId: string): number => {
+    return allNotes.filter(note => note.paperId === paperId).length;
+  }, [allNotes]);
+
+  // Helper to get latest update date for a paper (lastOpenedAt or most recent note)
+  const getLastUpdatedDate = useCallback((paper: Paper): Date => {
+    // Get notes for this paper
+    const paperNotes = allNotes.filter(n => n.paperId === paper.id);
+    const latestNoteDate = paperNotes.length > 0 
+      ? Math.max(...paperNotes.map(n => new Date(n.updatedAt).getTime()))
+      : 0;
+    
+    const lastOpenedTime = paper.lastOpenedAt ? new Date(paper.lastOpenedAt).getTime() : 0;
+    const uploadedTime = new Date(paper.uploadedAt).getTime();
+    
+    // Return the most recent date
+    const latestTime = Math.max(latestNoteDate, lastOpenedTime, uploadedTime);
+    return new Date(latestTime);
+  }, [allNotes]);
+
+  // Toggle sort direction for a column
+  const toggleSort = (column: 'title' | 'date') => {
+    if (column === 'title') {
+      setSortOption(prev => prev === 'title-asc' ? 'title-desc' : 'title-asc');
+    } else {
+      setSortOption(prev => prev === 'date-desc' ? 'date-asc' : 'date-desc');
     }
   };
-
-  const getSortOptionLabel = (option: SortOption): string => {
-    switch (option) {
-      case 'title-asc': return 'Title (A → Z)';
-      case 'title-desc': return 'Title (Z → A)';
-      case 'date-asc': return 'Date (Oldest First)';
-      case 'date-desc': return 'Date (Recent First)';
-    }
-  };
-
-  // Close sort menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target as Node)) {
-        setShowSortMenu(false);
-      }
-    };
-
-    if (showSortMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showSortMenu]);
 
   const filteredAndSortedPapers = papers
     .filter((paper) => {
@@ -963,7 +971,10 @@ export function Library() {
         selectedTags.length === 0 ||
         selectedTags.every((tag) => paper.tags.includes(tag));
 
-      return matchesSearch && matchesTags;
+      const matchesStarred = !showStarredOnly || paper.isStarred;
+      const matchesUnread = !showUnreadOnly || !paper.isRead;
+
+      return matchesSearch && matchesTags && matchesStarred && matchesUnread;
     })
     .sort((a, b) => {
       switch (sortOption) {
@@ -972,10 +983,10 @@ export function Library() {
         case 'title-desc':
           return b.title.localeCompare(a.title);
         case 'date-asc':
-          return new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime();
+          return getLastUpdatedDate(a).getTime() - getLastUpdatedDate(b).getTime();
         case 'date-desc':
         default:
-          return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+          return getLastUpdatedDate(b).getTime() - getLastUpdatedDate(a).getTime();
       }
     });
 
@@ -1059,6 +1070,35 @@ export function Library() {
                 </div>
               </div>
 
+              {/* Quick Filters */}
+              <div className="mb-6">
+                <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">Filters</h3>
+                <div className="flex flex-col gap-1">
+                  <button
+                    onClick={() => setShowStarredOnly(!showStarredOnly)}
+                    className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${
+                      showStarredOnly 
+                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium' 
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
+                    }`}
+                  >
+                    <Star className={`w-3.5 h-3.5 ${showStarredOnly ? 'fill-current' : ''}`} />
+                    Starred
+                  </button>
+                  <button
+                    onClick={() => setShowUnreadOnly(!showUnreadOnly)}
+                    className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${
+                      showUnreadOnly 
+                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium' 
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
+                    }`}
+                  >
+                    <div className={`w-2 h-2 rounded-full ${showUnreadOnly ? 'bg-[var(--bg-primary)]' : 'bg-blue-500'}`} />
+                    Unread
+                  </button>
+                </div>
+              </div>
+
               {/* Tags Filter */}
               {allTags.length > 0 && (
                 <div className="mb-6">
@@ -1077,17 +1117,23 @@ export function Library() {
                         {tag}
                       </button>
                     ))}
-                    <button
-                      onClick={() => setSelectedTags([])}
-                      className={`text-left px-3 py-1.5 text-xs text-[var(--accent-red)] hover:underline transition-opacity ${
-                        selectedTags.length > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                      }`}
-                    >
-                      Clear filters
-                    </button>
                   </div>
                 </div>
               )}
+
+              {/* Clear Filters */}
+              <button
+                onClick={() => {
+                  setSelectedTags([]);
+                  setShowStarredOnly(false);
+                  setShowUnreadOnly(false);
+                }}
+                className={`text-left px-3 py-1.5 text-xs text-[var(--accent-red)] hover:underline transition-opacity mb-6 ${
+                  selectedTags.length > 0 || showStarredOnly || showUnreadOnly ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+              >
+                Clear all filters
+              </button>
 
               {/* Upload Button */}
               <label className="btn-primary flex items-center justify-center gap-1.5 cursor-pointer text-sm w-full">
@@ -1111,40 +1157,6 @@ export function Library() {
               <span className="text-sm text-[var(--text-muted)] min-w-[80px]">
                 {filteredAndSortedPapers.length} {filteredAndSortedPapers.length === 1 ? 'paper' : 'papers'}
               </span>
-              
-              <div className="flex items-center gap-2">
-                {/* Sort Menu */}
-                <div className="relative" ref={sortMenuRef}>
-                  <button
-                    onClick={() => setShowSortMenu(!showSortMenu)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors"
-                  >
-                    <ArrowUpDown className="w-3.5 h-3.5" />
-                    {getSortLabel()}
-                    <ChevronDown className={`w-3 h-3 transition-transform ${showSortMenu ? 'rotate-180' : ''}`} />
-                  </button>
-                  
-                  {showSortMenu && (
-                    <div className="absolute top-full right-0 mt-2 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg shadow-lg py-2 z-50 min-w-[180px]">
-                      {(['date-desc', 'date-asc', 'title-asc', 'title-desc'] as SortOption[]).map((option) => (
-                        <button
-                          key={option}
-                          onClick={() => {
-                            setSortOption(option);
-                            setShowSortMenu(false);
-                          }}
-                          className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-[var(--bg-secondary)] transition-colors ${
-                            sortOption === option ? 'text-[var(--text-primary)] font-medium' : 'text-[var(--text-secondary)]'
-                          }`}
-                        >
-                          <span>{getSortOptionLabel(option)}</span>
-                          {sortOption === option && <Check className="w-4 h-4" />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
 
         {/* Papers List */}
@@ -1217,10 +1229,35 @@ export function Library() {
                 <thead>
                   <tr className="border-b border-[var(--border-default)]">
                     <th className="w-8"></th>
-                    <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '40%' }}>Title</th>
+                    <th 
+                      className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none" 
+                      style={{ width: '40%' }}
+                      onClick={() => toggleSort('title')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Title
+                        {(sortOption === 'title-asc' || sortOption === 'title-desc') && (
+                          sortOption === 'title-asc' 
+                            ? <ArrowUp className="w-3 h-3" />
+                            : <ArrowDown className="w-3 h-3" />
+                        )}
+                      </div>
+                    </th>
                     <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '20%' }}>Authors</th>
                     <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '15%' }}>Tags</th>
-                    <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-24">Date</th>
+                    <th 
+                      className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-24 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
+                      onClick={() => toggleSort('date')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Updated
+                        {(sortOption === 'date-asc' || sortOption === 'date-desc') && (
+                          sortOption === 'date-asc' 
+                            ? <ArrowUp className="w-3 h-3" />
+                            : <ArrowDown className="w-3 h-3" />
+                        )}
+                      </div>
+                    </th>
                     <th className="w-20"></th>
                   </tr>
                 </thead>
@@ -1272,28 +1309,30 @@ export function Library() {
                           </div>
                         </td>
                         <td className="px-4 py-3 overflow-hidden">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <button
-                              onClick={(e) => togglePaperSelection(e, paper.id)}
-                              className={`p-1 rounded transition-all flex-shrink-0 ${
-                                isSelected 
-                                  ? 'bg-[var(--accent-primary)] text-white' 
-                                  : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]'
-                              }`}
-                            >
-                              {isSelected ? <Check className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-                            </button>
-                            <button
-                              onClick={(e) => togglePaperStarred(e, paper)}
-                              className={`p-0.5 rounded transition-all flex-shrink-0 ${
-                                paper.isStarred
-                                  ? 'text-yellow-500'
-                                  : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
-                              }`}
-                              title={paper.isStarred ? "Unstar" : "Star"}
-                            >
-                              <Star className={`w-3.5 h-3.5 ${paper.isStarred ? 'fill-current' : ''}`} />
-                            </button>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <button
+                                onClick={(e) => togglePaperSelection(e, paper.id)}
+                                className={`p-1 rounded transition-all ${
+                                  isSelected 
+                                    ? 'bg-[var(--accent-primary)] text-white' 
+                                    : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]'
+                                }`}
+                              >
+                                {isSelected ? <Check className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                              </button>
+                              <button
+                                onClick={(e) => togglePaperStarred(e, paper)}
+                                className={`p-1 rounded transition-all ${
+                                  paper.isStarred
+                                    ? 'text-yellow-500'
+                                    : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
+                                }`}
+                                title={paper.isStarred ? "Unstar" : "Star"}
+                              >
+                                <Star className={`w-3.5 h-3.5 ${paper.isStarred ? 'fill-current' : ''}`} />
+                              </button>
+                            </div>
                             <span className={`text-sm line-clamp-2 ${isUnread ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-primary)]'}`}>
                               {paper.title}
                             </span>
@@ -1315,7 +1354,15 @@ export function Library() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="text-xs text-[var(--text-muted)]">{formatDate(paper.uploadedAt)}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-[var(--text-muted)]">{formatDate(getLastUpdatedDate(paper))}</span>
+                            {getNoteCountForPaper(paper.id) > 0 && (
+                              <span className="flex items-center gap-0.5 text-[10px] text-[var(--text-muted)]" title={`${getNoteCountForPaper(paper.id)} notes`}>
+                                <MessageSquare className="w-3 h-3" />
+                                {getNoteCountForPaper(paper.id)}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
