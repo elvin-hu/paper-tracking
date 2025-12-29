@@ -919,50 +919,15 @@ export function Reader() {
       currentRects = Array.from(range.getClientRects());
     }
 
-    // Get positions of all relevant elements for debugging
-    const textLayer = pageContainer.querySelector('.react-pdf__Page__textContent');
-    const pageElement = pageContainer.querySelector('.react-pdf__Page');
-    
     const wrapperRect = pageContainer.getBoundingClientRect();
 
-    // Simple calculation: convert viewport coords to wrapper-relative, then divide by scale
+    // Convert viewport coords to wrapper-relative, then divide by scale
     const rawRects = currentRects.map((rect) => ({
       x: (rect.x - wrapperRect.x) / effectiveScale,
       y: (rect.y - wrapperRect.y) / effectiveScale,
       width: rect.width / effectiveScale,
       height: rect.height / effectiveScale,
     }));
-    
-    // Debug logging for iPadOS issues
-    if (currentRects.length > 0) {
-      const pageRect = pageElement?.getBoundingClientRect();
-      const textRect = textLayer?.getBoundingClientRect();
-      const renderedX = rawRects[0].x * effectiveScale;
-      const renderedY = rawRects[0].y * effectiveScale;
-      
-      // This should be 0 if positioning is correct
-      const offsetError = {
-        x: (wrapperRect.x + renderedX) - currentRects[0].x,
-        y: (wrapperRect.y + renderedY) - currentRects[0].y,
-      };
-      
-      console.log('[Highlight Debug]', {
-        selectionPage,
-        effectiveScale,
-        wrapperRect: { x: wrapperRect.x, y: wrapperRect.y },
-        pageElementRect: pageRect ? { x: pageRect.x, y: pageRect.y } : null,
-        textLayerRect: textRect ? { x: textRect.x, y: textRect.y } : null,
-        firstSelectionRect: { x: currentRects[0].x, y: currentRects[0].y },
-        storedCoords: rawRects[0],
-        highlightWillRenderAt: { x: wrapperRect.x + renderedX, y: wrapperRect.y + renderedY },
-        offsetError, // Should be {x: 0, y: 0} if working correctly
-      });
-      
-      // If there's an offset error, log a warning
-      if (Math.abs(offsetError.x) > 1 || Math.abs(offsetError.y) > 1) {
-        console.warn('[Highlight Warning] Position mismatch detected!', offsetError);
-      }
-    }
     
     // Merge overlapping rects to prevent double-highlighting
     const rects = mergeOverlappingRects(rawRects);

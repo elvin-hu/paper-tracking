@@ -582,44 +582,47 @@ input::placeholder, textarea::placeholder {
 /* PDF Viewer - Hide annotation layer to prevent Apple Preview artifacts */
 /* Ensure PDF text layer appears above highlights */
 .react-pdf__Page__textContent {
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
   z-index: 10 !important;
-  /* Critical for iOS: prevent any transforms that could cause offset */
-  transform: none !important;
-  -webkit-transform: none !important;
-  /* Ensure text layer matches canvas size exactly */
-  width: 100% !important;
-  height: 100% !important;
+  /* Let react-pdf handle positioning - don't override */
 }
 
 .react-pdf__Page__textContent span {
-  position: absolute !important;
   z-index: 10 !important;
   background: transparent !important;
-  /* Prevent text from being offset */
-  white-space: pre !important;
   /* Ensure proper touch selection on iOS */
   -webkit-user-select: text !important;
   user-select: text !important;
-}
-
-/* Fix for iOS text layer positioning - ensure the Page wrapper has correct position context */
-.react-pdf__Page {
-  position: relative !important;
-  /* Prevent any inherited transforms */
-  transform: none !important;
-  -webkit-transform: none !important;
+  /* Improve touch target on iOS */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Ensure canvas and text layer are aligned */
+.react-pdf__Page {
+  position: relative !important;
+}
+
 .react-pdf__Page canvas {
   display: block !important;
 }
 
 .react-pdf__Page__annotations {
   display: none !important;
+}
+
+/* iOS text layer fix - the text layer in PDF.js uses transforms 
+   that can be misaligned on iOS. This attempts to improve alignment. */
+@supports (-webkit-touch-callout: none) {
+  .react-pdf__Page__textContent {
+    /* On iOS, ensure the text layer origin matches canvas */
+    transform-origin: 0 0 !important;
+    -webkit-transform-origin: 0 0 !important;
+  }
+  
+  .react-pdf__Page__textContent span {
+    /* Prevent iOS from adjusting text size */
+    -webkit-text-size-adjust: 100% !important;
+    text-size-adjust: 100% !important;
+  }
 }
 
 /* Inline color picker popup */
