@@ -2507,7 +2507,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setShowMetadataModal(false)}
           />
-          <div className="relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-md animate-scale-in shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-md animate-scale-in shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-semibold text-[var(--text-primary)]">
                 Paper Metadata
