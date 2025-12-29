@@ -42,21 +42,44 @@ interface UploadItem {
 }
 
 const SCROLL_POSITION_KEY = 'library-page-scroll';
+const FILTER_STATE_KEY = 'library-filter-state';
+
+// Helper to load filter state from sessionStorage
+function loadFilterState(): { selectedTags: string[]; searchQuery: string; showStarredOnly: boolean; showUnreadOnly: boolean } {
+  try {
+    const saved = sessionStorage.getItem(FILTER_STATE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        selectedTags: Array.isArray(parsed.selectedTags) ? parsed.selectedTags : [],
+        searchQuery: typeof parsed.searchQuery === 'string' ? parsed.searchQuery : '',
+        showStarredOnly: Boolean(parsed.showStarredOnly),
+        showUnreadOnly: Boolean(parsed.showUnreadOnly),
+      };
+    }
+  } catch (e) {
+    console.warn('[Library] Failed to load filter state:', e);
+  }
+  return { selectedTags: [], searchQuery: '', showStarredOnly: false, showUnreadOnly: false };
+}
 
 export function Library() {
   const navigate = useNavigate();
   const [papers, setPapers] = useState<Paper[]>([]);
   const [allNotes, setAllNotes] = useState<Note[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+
+  // Initialize filter states from sessionStorage
+  const initialFilterState = loadFilterState();
+  const [selectedTags, setSelectedTags] = useState<string[]>(initialFilterState.selectedTags);
+  const [searchQuery, setSearchQuery] = useState(initialFilterState.searchQuery);
   const [sortOption, setSortOption] = useState<SortOption>('date-desc');
   const [isLoading, setIsLoading] = useState(true);
   const sortOptionSaveTimeoutRef = useRef<number | null>(null);
 
-  // Filter states
-  const [showStarredOnly, setShowStarredOnly] = useState(false);
-  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+  // Filter states (initialized from sessionStorage)
+  const [showStarredOnly, setShowStarredOnly] = useState(initialFilterState.showStarredOnly);
+  const [showUnreadOnly, setShowUnreadOnly] = useState(initialFilterState.showUnreadOnly);
 
   // Restore scroll position on mount and when navigating back
   useEffect(() => {
@@ -78,6 +101,16 @@ export function Library() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Save filter state when it changes
+  useEffect(() => {
+    sessionStorage.setItem(FILTER_STATE_KEY, JSON.stringify({
+      selectedTags,
+      searchQuery,
+      showStarredOnly,
+      showUnreadOnly,
+    }));
+  }, [selectedTags, searchQuery, showStarredOnly, showUnreadOnly]);
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadTitle, setUploadTitle] = useState('');
@@ -1047,8 +1080,8 @@ export function Library() {
                   <button
                     onClick={() => setShowStarredOnly(!showStarredOnly)}
                     className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${showStarredOnly
-                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
-                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
+                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
                       }`}
                   >
                     <Star className={`w-3.5 h-3.5 ${showStarredOnly ? 'fill-current' : ''}`} />
@@ -1057,8 +1090,8 @@ export function Library() {
                   <button
                     onClick={() => setShowUnreadOnly(!showUnreadOnly)}
                     className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${showUnreadOnly
-                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
-                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
+                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
                       }`}
                   >
                     <div className={`w-2 h-2 rounded-full ${showUnreadOnly ? 'bg-[var(--bg-primary)]' : 'bg-blue-500'}`} />
@@ -1077,8 +1110,8 @@ export function Library() {
                         key={tag}
                         onClick={() => toggleTag(tag)}
                         className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${selectedTags.includes(tag)
-                            ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
+                          ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
+                          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
                           }`}
                       >
                         {tag}
@@ -1279,8 +1312,8 @@ export function Library() {
                                   <button
                                     onClick={(e) => togglePaperSelection(e, paper.id)}
                                     className={`p-1 rounded transition-all ${isSelected
-                                        ? ''
-                                        : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]'
+                                      ? ''
+                                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]'
                                       }`}
                                     style={isSelected ? {
                                       backgroundColor: '#3b82f6',
@@ -1292,8 +1325,8 @@ export function Library() {
                                   <button
                                     onClick={(e) => togglePaperStarred(e, paper)}
                                     className={`p-1 rounded transition-all ${paper.isStarred
-                                        ? 'text-yellow-500'
-                                        : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
+                                      ? 'text-yellow-500'
+                                      : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
                                       }`}
                                     title={paper.isStarred ? "Unstar" : "Star"}
                                   >
@@ -1676,8 +1709,8 @@ export function Library() {
                         key={tag}
                         onClick={() => toggleBatchRemoveTag(tag)}
                         className={`tag transition-all ${batchRemoveTags.includes(tag)
-                            ? 'bg-[var(--accent-red)]/20 text-[var(--accent-red)] line-through'
-                            : ''
+                          ? 'bg-[var(--accent-red)]/20 text-[var(--accent-red)] line-through'
+                          : ''
                           }`}
                       >
                         {tag}

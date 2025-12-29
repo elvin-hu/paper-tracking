@@ -35,6 +35,16 @@ function groupPapersByNotes(
     // Use the note's createdAt date for grouping (convert to local date)
     const noteDate = new Date(note.createdAt);
     const dateStr = `${noteDate.getFullYear()}-${String(noteDate.getMonth() + 1).padStart(2, '0')}-${String(noteDate.getDate()).padStart(2, '0')}`;
+
+    // Debug: log first few notes to verify date conversion
+    if (groups.size < 3) {
+      console.log('[Journal] Note date conversion:', {
+        rawCreatedAt: note.createdAt,
+        parsedDate: noteDate.toString(),
+        localDateStr: dateStr,
+      });
+    }
+
     const paper = paperMap.get(note.paperId);
 
     if (!paper) return;
@@ -50,6 +60,7 @@ function groupPapersByNotes(
     }
   });
 
+  console.log('[Journal] Grouped dates:', Array.from(groups.keys()));
   return groups;
 }
 
