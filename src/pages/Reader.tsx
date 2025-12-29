@@ -1520,8 +1520,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           className="pdf-viewer-container flex-1 overflow-auto relative"
           style={{ background: 'var(--bg-tertiary)' }}
           onClick={(e) => {
-            // Dismiss floating editor when clicking on background
-            if (editingHighlight && e.target === e.currentTarget) {
+            // Dismiss floating editor when clicking on background (only if no text entered)
+            if (editingHighlight && !noteInput.trim()) {
               setEditingHighlight(null);
               setEditingHighlightPosition(null);
               setNoteInput('');
@@ -1572,6 +1572,14 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     }}
                     data-page={pageNum}
                     className="relative mb-4"
+                    onClick={(e) => {
+                      // Dismiss floating editor when clicking on page background (only if no text entered)
+                      if (editingHighlight && !noteInput.trim() && e.target === e.currentTarget) {
+                        setEditingHighlight(null);
+                        setEditingHighlightPosition(null);
+                        setNoteInput('');
+                      }
+                    }}
                   >
                     <Page
                       pageNumber={pageNum}
