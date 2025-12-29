@@ -816,21 +816,14 @@ export function Reader() {
   }, [citationNoteInput]);
 
   useEffect(() => {
-    // Listen to both mouse and touch events for text selection
+    // Only show color picker after selection is complete (mouseup/touchend)
+    // Don't use selectionchange as it fires during selection and interrupts the user
     document.addEventListener('mouseup', handleTextSelection);
     document.addEventListener('touchend', handleTextSelection);
-    
-    // Handle real-time selection changes (for touch/pencil drag)
-    const handleSelectionChange = () => {
-      // Check selection immediately for responsive feedback
-      handleTextSelection();
-    };
-    document.addEventListener('selectionchange', handleSelectionChange);
     
     return () => {
       document.removeEventListener('mouseup', handleTextSelection);
       document.removeEventListener('touchend', handleTextSelection);
-      document.removeEventListener('selectionchange', handleSelectionChange);
     };
   }, [handleTextSelection]);
 
