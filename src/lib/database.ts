@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Paper, PaperFile, Highlight, Note, Riff, FurtherReading, AppSettings, HighlightColor, JournalEntry } from '../types';
+import type { Paper, PaperFile, Highlight, Note, Riff, FurtherReading, AppSettings, HighlightColor, JournalEntry, KeyInsight } from '../types';
 
 // Helper to convert database row to Paper type
 function rowToPaper(row: Record<string, unknown>): Paper {
@@ -445,12 +445,34 @@ export async function deleteFurtherReading(id: string): Promise<void> {
 
 // Journal Entry operations
 function rowToJournalEntry(row: Record<string, unknown>): JournalEntry {
+  // Handle migration from old string[] format to new KeyInsight[] format
+  const rawInsights = row.key_insights as unknown[];
+  let keyInsights: KeyInsight[] = [];
+  
+  if (Array.isArray(rawInsights)) {
+    keyInsights = rawInsights.map((item, index) => {
+      if (typeof item === 'string') {
+        // Old format: plain string - treat as AI-generated
+        return { id: `legacy-${index}`, text: item, isManual: false };
+      } else if (typeof item === 'object' && item !== null) {
+        // New format: KeyInsight object
+        const obj = item as { id?: string; text?: string; isManual?: boolean };
+        return {
+          id: obj.id || `insight-${index}`,
+          text: obj.text || '',
+          isManual: Boolean(obj.isManual),
+        };
+      }
+      return { id: `unknown-${index}`, text: String(item), isManual: false };
+    });
+  }
+  
   return {
     id: row.id as string,
     date: row.date as string,
     paperIds: (row.paper_ids as string[]) || [],
     synthesis: (row.synthesis as string) || '',
-    keyInsights: (row.key_insights as string[]) || [],
+    keyInsights,
     isGenerated: Boolean(row.is_generated),
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),

@@ -13,7 +13,7 @@ import {
   X,
   RefreshCw,
 } from 'lucide-react';
-import type { Paper, JournalEntry } from '../types';
+import type { Paper, JournalEntry, KeyInsight } from '../types';
 import {
   getAllPapers,
   getAllJournalEntries,
@@ -70,7 +70,7 @@ export default function Journal() {
   const [refreshingSynthesisDate, setRefreshingSynthesisDate] = useState<string | null>(null);
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [editingSynthesis, setEditingSynthesis] = useState('');
-  const [editingInsights, setEditingInsights] = useState<string[]>([]);
+  const [editingInsights, setEditingInsights] = useState<KeyInsight[]>([]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -207,12 +207,19 @@ Respond in this exact JSON format:
       // Parse JSON response
       const parsed = JSON.parse(content.replace(/```json\n?|\n?```/g, '').trim());
 
+      // Convert AI-generated insights to KeyInsight objects
+      const aiInsights: KeyInsight[] = (parsed.keyInsights || []).map((text: string) => ({
+        id: uuidv4(),
+        text,
+        isManual: false,
+      }));
+
       const entry: JournalEntry = {
         id: uuidv4(),
         date: dateStr,
         paperIds: datePapers.map(p => p.id),
         synthesis: parsed.synthesis || '',
-        keyInsights: parsed.keyInsights || [],
+        keyInsights: aiInsights,
         isGenerated: true,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -288,15 +295,21 @@ Respond in this exact JSON format:
         ? `\n\nMy Research Context:\n${settings.researchContext}`
         : '';
 
-      const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Write a synthesis paragraph.
+      const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Summarize what I learned.
 ${researchContext}
 
 Papers I Read:
 ${papersText}
 
-Write a synthesis paragraph (4-6 sentences) that: (a) briefly recaps what each paper was about (methodology, findings), and (b) connects key themes across papers. Write in first person. Be plain and succinct—avoid filler words like "insightful", "compelling", "profound", "fascinating".
+Please provide:
+1. A synthesis paragraph (4-6 sentences) that: (a) briefly recaps what each paper was about (methodology, findings), and (b) connects key themes across papers. Write in first person. Be plain and succinct—avoid filler words like "insightful", "compelling", "profound", "fascinating".
+2. A list of 3-6 bullet points with actionable takeaways or research directions. For each insight, end with the paper title in parentheses so I can trace it back (e.g., "I could apply X approach — (Paper Title)").
 
-Respond with ONLY the synthesis paragraph, no JSON, no bullet points, just the paragraph text.`;
+Respond in this exact JSON format:
+{
+  "synthesis": "...",
+  "keyInsights": ["insight 1 — (Paper Title)", "insight 2 — (Paper Title)", ...]
+}`;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -309,7 +322,7 @@ Respond with ONLY the synthesis paragraph, no JSON, no bullet points, just the p
           messages: [
             {
               role: 'system',
-              content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Use plain, succinct language—avoid dramatic or filler words like "insightful", "compelling", "profound", "fascinating", "exciting". Just state facts and observations directly. Respond with only the synthesis paragraph text, no JSON, no formatting.',
+              content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Use plain, succinct language—avoid dramatic or filler words like "insightful", "compelling", "profound", "fascinating", "exciting". Just state facts and observations directly. Respond with valid JSON only.',
             },
             {
               role: 'user',
@@ -331,13 +344,26 @@ Respond with ONLY the synthesis paragraph, no JSON, no bullet points, just the p
         throw new Error('No response from AI');
       }
 
-      // Extract just the synthesis text (remove any markdown formatting)
-      const synthesis = content.trim().replace(/^```[\w]*\n?|\n?```$/g, '').trim();
+      // Parse JSON response
+      const parsed = JSON.parse(content.replace(/```json\n?|\n?```/g, '').trim());
+      const synthesis = parsed.synthesis || '';
 
-      // Update entry with new synthesis, keeping existing keyInsights
+      // Convert AI-generated insights to KeyInsight objects
+      const newAiInsights: KeyInsight[] = (parsed.keyInsights || []).map((text: string) => ({
+        id: uuidv4(),
+        text,
+        isManual: false,
+      }));
+
+      // Preserve manual insights, replace AI-generated ones
+      const manualInsights = entry.keyInsights.filter(insight => insight.isManual);
+      const combinedInsights = [...newAiInsights, ...manualInsights];
+
+      // Update entry with new synthesis and refreshed insights
       const updated: JournalEntry = {
         ...entry,
         synthesis,
+        keyInsights: combinedInsights,
         updatedAt: new Date(),
       };
 
@@ -366,7 +392,7 @@ Respond with ONLY the synthesis paragraph, no JSON, no bullet points, just the p
     const updated: JournalEntry = {
       ...entry,
       synthesis: editingSynthesis,
-      keyInsights: editingInsights.filter(i => i.trim()),
+      keyInsights: editingInsights.filter(i => i.text.trim()),
       updatedAt: new Date(),
     };
 
@@ -383,12 +409,18 @@ Respond with ONLY the synthesis paragraph, no JSON, no bullet points, just the p
 
   const updateInsight = (index: number, value: string) => {
     const newInsights = [...editingInsights];
-    newInsights[index] = value;
+    newInsights[index] = { ...newInsights[index], text: value };
     setEditingInsights(newInsights);
   };
 
   const addInsight = () => {
-    setEditingInsights([...editingInsights, '']);
+    // Manually added insights are marked as manual
+    const newInsight: KeyInsight = {
+      id: uuidv4(),
+      text: '',
+      isManual: true,
+    };
+    setEditingInsights([...editingInsights, newInsight]);
   };
 
   const removeInsight = (index: number) => {
@@ -533,13 +565,16 @@ Respond with ONLY the synthesis paragraph, no JSON, no bullet points, just the p
                             </label>
                             <div className="space-y-2">
                               {editingInsights.map((insight, idx) => (
-                                <div key={idx} className="flex items-start gap-2">
-                                  <span className="text-[var(--text-muted)] mt-2">•</span>
+                                <div key={insight.id} className="flex items-start gap-2">
+                                  <span className={`mt-2 ${insight.isManual ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'}`}>
+                                    {insight.isManual ? '✎' : '•'}
+                                  </span>
                                   <input
                                     type="text"
-                                    value={insight}
+                                    value={insight.text}
                                     onChange={(e) => updateInsight(idx, e.target.value)}
                                     className="flex-1 text-sm p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)]"
+                                    placeholder={insight.isManual ? "Your insight..." : ""}
                                   />
                                   <button
                                     onClick={() => removeInsight(idx)}
@@ -613,10 +648,12 @@ Respond with ONLY the synthesis paragraph, no JSON, no bullet points, just the p
                                 Key Insights
                               </h4>
                               <ul className="space-y-2">
-                                {entry.keyInsights.map((insight, idx) => (
-                                  <li key={idx} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
-                                    <span className="text-[var(--accent-primary)] mt-0.5">•</span>
-                                    <span>{insight}</span>
+                                {entry.keyInsights.map((insight) => (
+                                  <li key={insight.id} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
+                                    <span className={`mt-0.5 ${insight.isManual ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'}`}>
+                                      {insight.isManual ? '✎' : '•'}
+                                    </span>
+                                    <span>{insight.text}</span>
                                   </li>
                                 ))}
                               </ul>

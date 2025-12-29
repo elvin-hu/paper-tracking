@@ -79,12 +79,18 @@ export interface FurtherReading {
 
 export type SortOption = 'title-asc' | 'title-desc' | 'date-asc' | 'date-desc';
 
+export interface KeyInsight {
+  id: string;
+  text: string;
+  isManual: boolean; // true if added manually by user, false if AI-generated
+}
+
 export interface JournalEntry {
   id: string;
   date: string; // YYYY-MM-DD format
   paperIds: string[]; // Papers read that day
   synthesis: string; // AI-generated synthesis of notes
-  keyInsights: string[]; // Bullet points of key ideas
+  keyInsights: KeyInsight[]; // Bullet points of key ideas with source tracking
   isGenerated: boolean; // Whether AI has generated content
   createdAt: Date;
   updatedAt: Date;
