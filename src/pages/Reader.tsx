@@ -22,6 +22,7 @@ import {
   FileText,
   Star,
   Trash2,
+  Info,
 } from 'lucide-react';
 import type { Paper, Highlight, Note, HighlightColor, SortOption } from '../types';
 import {
@@ -306,6 +307,9 @@ export function Reader() {
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const tagInputRef = useRef<HTMLInputElement>(null);
   const tagSuggestionsRef = useRef<HTMLDivElement>(null);
+  
+  // Metadata modal state
+  const [showMetadataModal, setShowMetadataModal] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -1562,10 +1566,20 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             >
               <ArrowLeft className="w-[18px] h-[18px]" />
             </button>
-            <div className="min-w-0">
+            <div className="min-w-0 flex items-center gap-2">
               <h1 className="text-sm font-semibold text-[var(--text-primary)] truncate max-w-[500px]">
                 {displayTitle}
               </h1>
+              {/* Info Button */}
+              {paper && (
+                <button
+                  onClick={() => setShowMetadataModal(true)}
+                  className="toolbar-btn flex-shrink-0"
+                  title="Edit paper metadata"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              )}
             </div>
             {displayAuthors && (
               <p className="text-xs text-[var(--text-muted)] truncate hidden md:block">{displayAuthors}</p>
@@ -2399,14 +2413,14 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             </div>
           </div>
 
-          {/* Metadata Panel */}
+          {/* Insight Panel */}
           <div 
             className="flex-shrink-0 bg-[var(--bg-card)] overflow-hidden flex flex-col"
             style={{ height: `${metadataPanelHeight}px` }}
           >
             <div className="p-3 overflow-y-auto flex-1">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-semibold text-[var(--text-primary)]">Metadata</h3>
+                <h3 className="text-xs font-semibold text-[var(--text-primary)]">Insight</h3>
                 <button
                   onClick={handleAIAutofill}
                   disabled={isAIAutofilling}
@@ -2479,160 +2493,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     rows={5}
                   />
                 </div>
-
-                {/* First Author */}
-                <div>
-                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
-                    First Author
-                  </label>
-                  <input
-                    type="text"
-                    value={metadata.firstAuthor}
-                    onChange={(e) => setMetadata(prev => ({ ...prev, firstAuthor: e.target.value }))}
-                    placeholder="First author name"
-                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
-                  />
-                </div>
-
-                {/* Date */}
-                <div>
-                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
-                    Date
-                  </label>
-                  <input
-                    type="text"
-                    value={metadata.date}
-                    onChange={(e) => setMetadata(prev => ({ ...prev, date: e.target.value }))}
-                    placeholder="Publication date"
-                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
-                  />
-                </div>
-
-                {/* Venue */}
-                <div>
-                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
-                    Venue
-                  </label>
-                  <input
-                    type="text"
-                    value={metadata.venue}
-                    onChange={(e) => setMetadata(prev => ({ ...prev, venue: e.target.value }))}
-                    placeholder="Conference, Journal, etc."
-                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
-                  />
-                </div>
-
-                {/* Title */}
-                <div>
-                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    value={paper?.title || ''}
-                    onChange={(e) => {
-                      if (!paper) return;
-                      const newTitle = e.target.value;
-                      const updatedPaper = { ...paper, title: newTitle };
-                      setPaper(updatedPaper);
-                      paperRef.current = updatedPaper;
-                      
-                      // Autosave title changes
-                      if (metadataSaveTimeoutRef.current) {
-                        clearTimeout(metadataSaveTimeoutRef.current);
-                      }
-                      metadataSaveTimeoutRef.current = window.setTimeout(async () => {
-                        try {
-                          await updatePaper(updatedPaper);
-                          // Also update in allPapers map for sidebar
-                          setAllPapers(prev => {
-                            const newMap = new Map(prev);
-                            newMap.set(updatedPaper.id, updatedPaper);
-                            return newMap;
-                          });
-                        } catch (err) {
-                          console.error('Failed to save title:', err);
-                        }
-                      }, 500);
-                    }}
-                    placeholder="Paper title..."
-                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
-                  />
-                </div>
-
-                {/* Tags */}
-                <div className="relative">
-                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
-                    Tags
-                  </label>
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {paper?.tags.map((tag) => (
-                      <span key={tag} className="tag active flex items-center gap-1">
-                        {tag}
-                        <button
-                          onClick={() => removeTag(tag)}
-                          className="hover:text-[var(--accent-red)]"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="relative flex gap-2">
-                    <input
-                      ref={tagInputRef}
-                      type="text"
-                      value={newTagInput}
-                      onChange={(e) => {
-                        setNewTagInput(e.target.value);
-                        setShowTagSuggestions(true);
-                      }}
-                      onFocus={() => setShowTagSuggestions(true)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          addTag();
-                        } else if (e.key === 'Escape') {
-                          setShowTagSuggestions(false);
-                        }
-                      }}
-                      placeholder="Add tag..."
-                      className="flex-1 text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
-                    />
-                    <button onClick={() => addTag()} className="btn-secondary px-2.5">
-                      <Plus className="w-3 h-3" />
-                    </button>
-                    
-                    {/* Tag Suggestions Popup */}
-                    {showTagSuggestions && availableTags.length > 0 && (
-                      <div
-                        ref={tagSuggestionsRef}
-                        className="absolute top-full left-0 right-10 mt-1 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto"
-                      >
-                        {availableTags
-                          .filter(tag => 
-                            !paper?.tags.includes(tag) && 
-                            (newTagInput.trim() === '' || tag.toLowerCase().includes(newTagInput.toLowerCase()))
-                          )
-                          .slice(0, 10)
-                          .map((tag) => (
-                            <button
-                              key={tag}
-                              onClick={() => addTag(tag)}
-                              className="w-full text-left px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                            >
-                              {tag}
-                            </button>
-                          ))}
-                        {availableTags.filter(tag => !paper?.tags.includes(tag) && (newTagInput.trim() === '' || tag.toLowerCase().includes(newTagInput.toLowerCase()))).length === 0 && (
-                          <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
-                            No suggestions
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -2640,6 +2500,182 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
         </div>
       </div>
 
+      {/* Metadata Modal */}
+      {showMetadataModal && paper && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowMetadataModal(false)}
+          />
+          <div className="relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-md animate-scale-in shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                Paper Metadata
+              </h2>
+              <button
+                onClick={() => setShowMetadataModal(false)}
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Title */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                  Title
+                </label>
+                <input
+                  type="text"
+                  value={paper.title}
+                  onChange={(e) => {
+                    const newTitle = e.target.value;
+                    const updatedPaper = { ...paper, title: newTitle };
+                    setPaper(updatedPaper);
+                    paperRef.current = updatedPaper;
+                    
+                    // Autosave title changes
+                    if (metadataSaveTimeoutRef.current) {
+                      clearTimeout(metadataSaveTimeoutRef.current);
+                    }
+                    metadataSaveTimeoutRef.current = window.setTimeout(async () => {
+                      try {
+                        await updatePaper(updatedPaper);
+                        setAllPapers(prev => {
+                          const newMap = new Map(prev);
+                          newMap.set(updatedPaper.id, updatedPaper);
+                          return newMap;
+                        });
+                      } catch (err) {
+                        console.error('Failed to save title:', err);
+                      }
+                    }, 500);
+                  }}
+                  placeholder="Paper title"
+                  className="w-full text-sm"
+                />
+              </div>
+
+              {/* First Author */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                  First Author
+                </label>
+                <input
+                  type="text"
+                  value={metadata.firstAuthor}
+                  onChange={(e) => setMetadata(prev => ({ ...prev, firstAuthor: e.target.value }))}
+                  placeholder="First author name"
+                  className="w-full text-sm"
+                />
+              </div>
+
+              {/* Date */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                  Date
+                </label>
+                <input
+                  type="text"
+                  value={metadata.date}
+                  onChange={(e) => setMetadata(prev => ({ ...prev, date: e.target.value }))}
+                  placeholder="Publication date"
+                  className="w-full text-sm"
+                />
+              </div>
+
+              {/* Venue */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                  Venue
+                </label>
+                <input
+                  type="text"
+                  value={metadata.venue}
+                  onChange={(e) => setMetadata(prev => ({ ...prev, venue: e.target.value }))}
+                  placeholder="Conference, Journal, etc."
+                  className="w-full text-sm"
+                />
+              </div>
+
+              {/* Tags */}
+              <div className="relative">
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                  Tags
+                </label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {paper.tags.map((tag) => (
+                    <span key={tag} className="tag active flex items-center gap-1">
+                      {tag}
+                      <button
+                        onClick={() => removeTag(tag)}
+                        className="hover:text-[var(--accent-red)]"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="relative flex gap-2">
+                  <input
+                    ref={tagInputRef}
+                    type="text"
+                    value={newTagInput}
+                    onChange={(e) => {
+                      setNewTagInput(e.target.value);
+                      setShowTagSuggestions(true);
+                    }}
+                    onFocus={() => setShowTagSuggestions(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addTag();
+                      } else if (e.key === 'Escape') {
+                        setShowTagSuggestions(false);
+                      }
+                    }}
+                    placeholder="Add tag..."
+                    className="flex-1 text-sm"
+                  />
+                  <button onClick={() => addTag()} className="btn-secondary px-2.5">
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  
+                  {/* Tag Suggestions Popup */}
+                  {showTagSuggestions && availableTags.length > 0 && (
+                    <div
+                      ref={tagSuggestionsRef}
+                      className="absolute top-full left-0 right-10 mt-1 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto"
+                    >
+                      {availableTags
+                        .filter(tag => 
+                          !paper.tags.includes(tag) && 
+                          (newTagInput.trim() === '' || tag.toLowerCase().includes(newTagInput.toLowerCase()))
+                        )
+                        .slice(0, 10)
+                        .map((tag) => (
+                          <button
+                            key={tag}
+                            onClick={() => addTag(tag)}
+                            className="w-full text-left px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      {availableTags.filter(tag => !paper.tags.includes(tag) && (newTagInput.trim() === '' || tag.toLowerCase().includes(newTagInput.toLowerCase()))).length === 0 && (
+                        <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
+                          No suggestions
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
