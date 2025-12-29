@@ -28,8 +28,13 @@ function groupPapersByNotes(
   papers: Paper[],
   notes: Note[]
 ): Map<string, Paper[]> {
+  console.log('[Journal] groupPapersByNotes called with', papers.length, 'papers,', notes.length, 'notes');
+
   const groups = new Map<string, Paper[]>();
   const paperMap = new Map(papers.map(p => [p.id, p]));
+
+  let matchedCount = 0;
+  let unmatchedCount = 0;
 
   notes.forEach(note => {
     // Use the note's createdAt date for grouping (convert to local date)
@@ -47,7 +52,15 @@ function groupPapersByNotes(
 
     const paper = paperMap.get(note.paperId);
 
-    if (!paper) return;
+    if (!paper) {
+      unmatchedCount++;
+      if (unmatchedCount <= 3) {
+        console.log('[Journal] Note has no matching paper:', { noteId: note.id, paperId: note.paperId });
+      }
+      return;
+    }
+
+    matchedCount++;
 
     if (!groups.has(dateStr)) {
       groups.set(dateStr, []);
@@ -60,6 +73,7 @@ function groupPapersByNotes(
     }
   });
 
+  console.log('[Journal] Matched', matchedCount, 'notes, unmatched', unmatchedCount, 'notes');
   console.log('[Journal] Grouped dates:', Array.from(groups.keys()));
   return groups;
 }
