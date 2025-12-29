@@ -3,27 +3,30 @@
 
 /* Mobile Safari fixes */
 @supports (-webkit-touch-callout: none) {
+
   /* Fix viewport height on iOS Safari - use dvh (dynamic viewport height) when available */
   .h-screen {
     height: 100vh;
-    height: 100dvh; /* Dynamic viewport height for mobile browsers */
-    height: -webkit-fill-available; /* Fallback for older iOS */
+    height: 100dvh;
+    /* Dynamic viewport height for mobile browsers */
+    height: -webkit-fill-available;
+    /* Fallback for older iOS */
   }
-  
+
   /* Fix min-height viewport on iOS Safari */
   .min-h-screen {
     min-height: 100vh;
     min-height: 100dvh;
     min-height: -webkit-fill-available;
   }
-  
+
   /* Fix overflow issues with tables on mobile */
   table {
     display: table;
     width: 100%;
     table-layout: fixed;
   }
-  
+
   /* Prevent text size adjustment on orientation change */
   html {
     -webkit-text-size-adjust: 100%;
@@ -39,34 +42,34 @@
   --bg-tertiary: #e8e8ed;
   --bg-card: #ffffff;
   --bg-input: var(--bg-secondary);
-  
+
   --text-primary: #1d1d1f;
   --text-secondary: #6e6e73;
   --text-muted: #86868b;
-  
+
   --accent-primary: #1a1a2e;
   --accent-primary-muted: rgba(26, 26, 46, 0.1);
   --accent-green: #34c759;
   --accent-orange: #ff9500;
   --accent-red: #ff3b30;
   --accent-purple: #af52de;
-  
+
   --border-default: rgba(0, 0, 0, 0.08);
   --border-muted: rgba(0, 0, 0, 0.04);
-  
+
   /* Highlight colors - more vibrant for light mode */
   --highlight-yellow: rgba(255, 230, 0, 0.45);
   --highlight-green: rgba(52, 199, 89, 0.4);
   --highlight-blue: rgba(0, 122, 255, 0.35);
   --highlight-red: rgba(255, 59, 48, 0.35);
   --highlight-purple: rgba(175, 82, 222, 0.35);
-  
+
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.04), 0 10px 15px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.06), 0 20px 48px rgba(0, 0, 0, 0.08);
-  
+
   --blur-bg: rgba(255, 255, 255, 0.8);
-  
+
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -79,34 +82,34 @@
     --bg-primary: #000000;
     --bg-secondary: #1c1c1e;
     --bg-tertiary: #2c2c2e;
-    --bg-card: #1c1c1e;
+    --bg-card: #141414;
     --bg-input: var(--bg-tertiary);
-    
+
     --text-primary: #f5f5f7;
     --text-secondary: #a1a1a6;
     --text-muted: #636366;
-    
+
     --accent-primary: #e8e8ed;
     --accent-primary-muted: rgba(232, 232, 237, 0.15);
     --accent-green: #30d158;
     --accent-orange: #ff9f0a;
     --accent-red: #ff453a;
     --accent-purple: #bf5af2;
-    
+
     --border-default: rgba(255, 255, 255, 0.08);
     --border-muted: rgba(255, 255, 255, 0.04);
-    
+
     /* Highlight colors */
     --highlight-yellow: rgba(255, 214, 10, 0.4);
     --highlight-green: rgba(48, 209, 88, 0.4);
     --highlight-blue: rgba(10, 132, 255, 0.4);
     --highlight-red: rgba(255, 69, 58, 0.4);
     --highlight-purple: rgba(191, 90, 242, 0.4);
-    
+
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.2);
     --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.25);
     --shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.35), 0 16px 40px rgba(0, 0, 0, 0.3);
-    
+
     --blur-bg: rgba(28, 28, 30, 0.8);
   }
 }
@@ -116,7 +119,8 @@
 }
 
 html {
-  overflow-y: auto; /* Allow scrolling but hide scrollbar */
+  overflow-y: auto;
+  /* Allow scrolling but hide scrollbar */
 }
 
 body {
@@ -225,11 +229,14 @@ body {
 
 /* Elegant scrollbar for PDF viewer - auto-hide when not scrolling */
 .pdf-viewer-container {
-  scrollbar-width: thin; /* Firefox */
-  -ms-overflow-style: auto; /* IE and Edge */
+  scrollbar-width: thin;
+  /* Firefox */
+  -ms-overflow-style: auto;
+  /* IE and Edge */
   scrollbar-color: transparent transparent;
   transition: scrollbar-color 0.3s ease;
-  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
+  /* Smooth scrolling on iOS */
   overflow: auto;
   /* Prevent pinch-zoom on iOS which can cause coordinate issues */
   touch-action: pan-x pan-y;
@@ -241,6 +248,7 @@ body {
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
+
   .pdf-viewer-container::-webkit-scrollbar {
     display: none;
   }
@@ -295,6 +303,7 @@ body {
 }
 
 @media (prefers-color-scheme: dark) {
+
   .pdf-viewer-container:hover,
   .pdf-viewer-container.is-scrolling,
   .pdf-viewer-container:focus-within {
@@ -305,23 +314,51 @@ body {
 
 /* Animations - Apple-style spring */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .animate-fade-in {
@@ -350,18 +387,22 @@ body {
     transform: scale(1);
     filter: saturate(1) brightness(1);
   }
+
   25% {
     transform: scale(1.02);
     filter: saturate(1.8) brightness(1.1);
   }
+
   50% {
     transform: scale(1);
     filter: saturate(2) brightness(1.15);
   }
+
   75% {
     transform: scale(1.01);
     filter: saturate(1.5) brightness(1.05);
   }
+
   100% {
     transform: scale(1);
     filter: saturate(1) brightness(1);
@@ -484,7 +525,8 @@ th {
 }
 
 /* Input styles - Apple style */
-input, textarea {
+input,
+textarea {
   background: var(--bg-input);
   border: 1px solid transparent;
   border-radius: 980px;
@@ -504,11 +546,13 @@ textarea {
   will-change: scroll-position;
 }
 
-input:hover, textarea:hover {
+input:hover,
+textarea:hover {
   background: var(--bg-tertiary);
 }
 
-input:focus, textarea:focus {
+input:focus,
+textarea:focus {
   outline: none;
   border-color: var(--text-muted);
   box-shadow: 0 0 0 3px var(--accent-primary-muted);
@@ -517,18 +561,20 @@ input:focus, textarea:focus {
 
 /* Metadata panel inputs - need better contrast in dark mode */
 @media (prefers-color-scheme: dark) {
-  input[class*="bg-[var(--bg-tertiary)]"], 
+
+  input[class*="bg-[var(--bg-tertiary)]"],
   textarea[class*="bg-[var(--bg-tertiary)]"] {
     background: rgba(255, 255, 255, 0.08) !important;
   }
-  
-  input[class*="bg-[var(--bg-tertiary)]"]:focus, 
+
+  input[class*="bg-[var(--bg-tertiary)]"]:focus,
   textarea[class*="bg-[var(--bg-tertiary)]"]:focus {
     background: rgba(255, 255, 255, 0.12) !important;
   }
 }
 
-input::placeholder, textarea::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: var(--text-muted);
 }
 
@@ -545,11 +591,12 @@ input::placeholder, textarea::placeholder {
 
 /* Metadata panel inputs - better contrast in dark mode */
 @media (prefers-color-scheme: dark) {
+
   [data-sidebar="notes-metadata"] input,
   [data-sidebar="notes-metadata"] textarea {
     background: rgba(255, 255, 255, 0.08) !important;
   }
-  
+
   [data-sidebar="notes-metadata"] input:focus,
   [data-sidebar="notes-metadata"] textarea:focus {
     background: rgba(255, 255, 255, 0.12) !important;
@@ -565,7 +612,8 @@ input::placeholder, textarea::placeholder {
 /* Better selection color for dark mode */
 @media (prefers-color-scheme: dark) {
   ::selection {
-    background: rgba(10, 132, 255, 0.4); /* Blue selection color for dark mode */
+    background: rgba(10, 132, 255, 0.4);
+    /* Blue selection color for dark mode */
     color: inherit;
   }
 }
@@ -636,7 +684,7 @@ input::placeholder, textarea::placeholder {
     transform-origin: 0 0 !important;
     -webkit-transform-origin: 0 0 !important;
   }
-  
+
   .react-pdf__Page__textContent span {
     /* Prevent iOS from adjusting text size */
     -webkit-text-size-adjust: 100% !important;
@@ -776,22 +824,23 @@ input::placeholder, textarea::placeholder {
 
 /* Mobile Safari safe area support */
 @supports (padding: max(0px)) {
+
   /* Add safe area padding for fixed elements at bottom */
   .fixed.bottom-6 {
     bottom: max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)));
-}
-  
+  }
+
   /* Ensure content doesn't get cut off on notched devices */
   body {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
-  
+
   /* Fix for sticky headers on mobile */
   .sticky.top-0 {
     top: env(safe-area-inset-top);
   }
-  
+
   /* Add bottom padding to main content to account for safe area */
   main {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
@@ -800,41 +849,42 @@ input::placeholder, textarea::placeholder {
 
 /* Fix for mobile Safari overflow issues */
 @supports (-webkit-touch-callout: none) {
+
   /* Prevent rubber band scrolling issues */
   body {
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
-}
+  }
 
   /* Fix for flex containers that might overflow */
   .flex.flex-col {
     min-height: 0;
   }
-  
+
   /* Fix table overflow on mobile */
   table {
     -webkit-overflow-scrolling: touch;
   }
-  
+
   /* Ensure fixed elements stay in viewport */
   .fixed {
     position: fixed;
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
   }
-  
+
   /* Fix for table rows at bottom - ensure they're visible */
   tbody tr:last-child {
     margin-bottom: env(safe-area-inset-bottom, 0);
   }
-  
+
   /* Fix overflow container issues */
   .overflow-auto,
   .overflow-y-auto {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
-  
+
   /* Prevent bottom rows from being cut off */
   .rounded-xl.overflow-hidden {
     padding-bottom: env(safe-area-inset-bottom, 0);
