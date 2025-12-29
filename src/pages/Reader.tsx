@@ -1227,7 +1227,7 @@ export function Reader() {
       });
 
       const userNotesSection = allUserNotes.length > 0
-        ? `\n\nMy Existing Notes on This Paper:\n${allUserNotes.join('\n\n')}\n\nPlease consider these notes when generating the "notes" field and suggest connections.`
+        ? `\n\nMy Existing Notes on This Paper:\n${allUserNotes.join('\n\n')}\n\nIMPORTANT: In the "notes" field, directly address any TODOs, questions, or potential connections I've mentioned above.`
         : '';
 
       // Build the prompt
@@ -1245,14 +1245,14 @@ Paper Text (all ${pagesToExtract} pages):
 ${fullText}
 
 Please extract and return a JSON object with the following fields:
-- title: The full title of the paper (extract the complete, official title from the paper)
-- firstAuthor: The first author's name (e.g., "Smith, J." or "John Smith")
-- venue: The publication venue (conference, journal, workshop, etc.) where this paper was published
-- date: The publication date (year is sufficient, e.g., "2023")
-- methodology: A brief summary of the research methodology used (2-3 sentences)
-- conclusion: Key conclusions or findings from the paper (2-3 sentences)
-- limitation: Limitations mentioned in the paper or obvious limitations (2-3 sentences)
-- notes: Practical learnings or insights from this paper that could be applied to research, potential connections between this research and my research context, and how this work relates to the notes I've already taken (3-4 sentences, focusing on actionable insights and connections)
+- title: The full official title of the paper
+- firstAuthor: First author's name (e.g., "Smith, J." or "John Smith")
+- venue: Publication venue (CHI, UIST, journal name, etc.)
+- date: Publication year (e.g., "2023")
+- methodology: Research methodology—be direct, no filler phrases (2-3 sentences)
+- conclusion: Key findings—go straight to the point (2-3 sentences)
+- limitation: Stated or obvious limitations (2-3 sentences)
+- notes: Practical learnings and actionable insights. Pay special attention to any TODOs, questions, or potential connections I've already noted—address those specifically. Suggest connections to my research context. Be direct. (3-4 sentences)
 
 Return ONLY a valid JSON object, no other text. If a field cannot be determined, use an empty string. Format:
 {
@@ -1278,7 +1278,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           messages: [
             {
               role: 'system',
-              content: 'You are a helpful research assistant that extracts structured metadata from academic papers. Always respond with valid JSON only, no markdown formatting or additional text.',
+              content: 'You are a seasoned CHI (ACM Conference on Human Factors in Computing Systems) paper author and reviewer with deep expertise in HCI research. You extract structured metadata from academic papers. Be direct and concise—avoid filler phrases like "The research reveals that" or "This paper demonstrates." Always respond with valid JSON only, no markdown formatting or additional text.',
             },
             {
               role: 'user',
@@ -2179,7 +2179,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                           className="text-[9px] font-medium"
                                           style={{ color: highlightColorInfo?.dark || '#78350f' }}
                                         >
-                                          Page {highlight.pageNumber}
+                                          {new Date(note.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                         </span>
                                         <ChevronRight 
                                           className="w-3.5 h-3.5" 
