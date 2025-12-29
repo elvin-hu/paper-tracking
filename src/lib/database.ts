@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Paper, PaperFile, Highlight, Note, Riff, FurtherReading, AppSettings, HighlightColor } from '../types';
+import type { Paper, PaperFile, Highlight, Note, Riff, FurtherReading, AppSettings, HighlightColor, JournalEntry } from '../types';
 
 // Helper to convert database row to Paper type
 function rowToPaper(row: Record<string, unknown>): Paper {
@@ -441,6 +441,88 @@ export async function updateFurtherReading(_item: FurtherReading): Promise<void>
 
 export async function deleteFurtherReading(id: string): Promise<void> {
   await deleteHighlight(id);
+}
+
+// Journal Entry operations
+function rowToJournalEntry(row: Record<string, unknown>): JournalEntry {
+  return {
+    id: row.id as string,
+    date: row.date as string,
+    paperIds: (row.paper_ids as string[]) || [],
+    synthesis: (row.synthesis as string) || '',
+    keyInsights: (row.key_insights as string[]) || [],
+    isGenerated: Boolean(row.is_generated),
+    createdAt: new Date(row.created_at as string),
+    updatedAt: new Date(row.updated_at as string),
+  };
+}
+
+export async function getAllJournalEntries(): Promise<JournalEntry[]> {
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .select('*')
+    .order('date', { ascending: false });
+  
+  if (error) {
+    console.error('[Database] Error fetching journal entries:', error);
+    return [];
+  }
+  
+  return (data || []).map(rowToJournalEntry);
+}
+
+export async function getJournalEntry(date: string): Promise<JournalEntry | undefined> {
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .select('*')
+    .eq('date', date)
+    .single();
+  
+  if (error) {
+    if (error.code === 'PGRST116') return undefined; // Not found
+    console.error('[Database] Error fetching journal entry:', error);
+    return undefined;
+  }
+  return data ? rowToJournalEntry(data) : undefined;
+}
+
+export async function addJournalEntry(entry: JournalEntry): Promise<void> {
+  const { error } = await supabase.from('journal_entries').insert({
+    id: entry.id,
+    date: entry.date,
+    paper_ids: entry.paperIds,
+    synthesis: entry.synthesis,
+    key_insights: entry.keyInsights,
+    is_generated: entry.isGenerated,
+    created_at: entry.createdAt.toISOString(),
+    updated_at: entry.updatedAt.toISOString(),
+  });
+  
+  if (error) throw error;
+}
+
+export async function updateJournalEntry(entry: JournalEntry): Promise<void> {
+  const { error } = await supabase
+    .from('journal_entries')
+    .update({
+      paper_ids: entry.paperIds,
+      synthesis: entry.synthesis,
+      key_insights: entry.keyInsights,
+      is_generated: entry.isGenerated,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', entry.id);
+  
+  if (error) throw error;
+}
+
+export async function deleteJournalEntry(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('journal_entries')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
 }
 
 // Settings operations

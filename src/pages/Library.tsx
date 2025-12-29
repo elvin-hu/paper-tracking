@@ -10,6 +10,7 @@ import {
   Trash2,
   Settings,
   BookMarked,
+  BookOpen,
   StickyNote,
   X,
   Plus,
@@ -1012,6 +1013,13 @@ export function Library() {
               >
                 <StickyNote className="w-4 h-4" />
                 <span className="font-medium">Notes</span>
+              </button>
+              <button
+                onClick={() => navigate('/journal')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm"
+              >
+                <BookOpen className="w-4 h-4" />
+                <span className="font-medium">Journal</span>
               </button>
               <button
                 onClick={() => navigate('/further-reading')}

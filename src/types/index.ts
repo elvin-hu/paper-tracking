@@ -79,6 +79,17 @@ export interface FurtherReading {
 
 export type SortOption = 'title-asc' | 'title-desc' | 'date-asc' | 'date-desc';
 
+export interface JournalEntry {
+  id: string;
+  date: string; // YYYY-MM-DD format
+  paperIds: string[]; // Papers read that day
+  synthesis: string; // AI-generated synthesis of notes
+  keyInsights: string[]; // Bullet points of key ideas
+  isGenerated: boolean; // Whether AI has generated content
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface AppSettings {
   openaiApiKey?: string;
   defaultHighlightColor: HighlightColor;
