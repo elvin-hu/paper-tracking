@@ -17,8 +17,8 @@ import {
   Check,
   Sparkles,
   Plus,
-  PanelLeftClose,
   PanelLeft,
+  PanelRight,
   FileText,
   Star,
   Trash2,
@@ -1417,7 +1417,25 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Zoom / Fit Controls */}
+            {/* Panel Toggle Buttons */}
+            <div className="toolbar">
+              <button
+                onClick={() => setShowPaperList(!showPaperList)}
+                className={`toolbar-btn ${showPaperList ? 'active' : ''}`}
+                title={showPaperList ? 'Hide paper list' : 'Show paper list'}
+              >
+                <PanelLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setShowRightPanel(!showRightPanel)}
+                className={`toolbar-btn ${showRightPanel ? 'active' : ''}`}
+                title={showRightPanel ? 'Hide notes panel' : 'Show notes panel'}
+              >
+                <PanelRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Zoom Controls */}
             <div className="toolbar">
               <button
                 onClick={() => {
@@ -1442,15 +1460,16 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
-              <div className="toolbar-divider" />
-              <button
-                onClick={() => setFitToWidth(!fitToWidth)}
-                className={`toolbar-btn ${fitToWidth ? 'active' : ''}`}
-                title="Fit to Width"
-              >
-                <Maximize2 className="w-4 h-4" />
-              </button>
             </div>
+
+            {/* Fit to Width - subtle toggle */}
+            <button
+              onClick={() => setFitToWidth(!fitToWidth)}
+              className={`toolbar-btn ${fitToWidth ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}
+              title="Fit to Width"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
 
             {/* Download Button */}
             <button
@@ -1459,23 +1478,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               title="Download PDF"
             >
               <Download className="w-4 h-4" />
-            </button>
-
-            {/* Panel Toggle Buttons */}
-            <div className="toolbar-divider" />
-            <button
-              onClick={() => setShowPaperList(!showPaperList)}
-              className={`toolbar-btn ${showPaperList ? 'active' : ''}`}
-              title={showPaperList ? 'Hide paper list' : 'Show paper list'}
-            >
-              <PanelLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setShowRightPanel(!showRightPanel)}
-              className={`toolbar-btn ${showRightPanel ? 'active' : ''}`}
-              title={showRightPanel ? 'Hide notes panel' : 'Show notes panel'}
-            >
-              <PanelLeftClose className="w-4 h-4" style={{ transform: 'scaleX(-1)' }} />
             </button>
           </div>
         </div>
