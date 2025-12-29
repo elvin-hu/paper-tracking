@@ -1713,18 +1713,34 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                               }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // Calculate position for the floating popup - use bounding box of VALID rects only
-                                // Filter out tiny rects (invisible whitespace, line breaks, etc.)
+                                
+                                // Get click position relative to the page container
+                                const pageEl = pageRefs.current.get(pageNum);
+                                if (!pageEl) return;
+                                const pageRect = pageEl.getBoundingClientRect();
+                                const clickX = e.clientX - pageRect.left;
+                                const clickY = e.clientY - pageRect.top;
+                                
+                                // Find the rect closest to the click position
                                 const validRects = highlight.rects.filter(r => r.width > 5 && r.height > 5);
                                 if (validRects.length === 0) return;
                                 
-                                const minX = Math.min(...validRects.map(r => r.x));
-                                const maxX = Math.max(...validRects.map(r => r.x + r.width));
-                                const minY = Math.min(...validRects.map(r => r.y));
+                                // Find which rect was clicked (or closest to click)
+                                let closestRect = validRects[0];
+                                let minDist = Infinity;
+                                for (const rect of validRects) {
+                                  const rectCenterX = (rect.x + rect.width / 2) * effectiveScale;
+                                  const rectCenterY = (rect.y + rect.height / 2) * effectiveScale;
+                                  const dist = Math.abs(rectCenterY - clickY) + Math.abs(rectCenterX - clickX) * 0.5;
+                                  if (dist < minDist) {
+                                    minDist = dist;
+                                    closestRect = rect;
+                                  }
+                                }
                                 
-                                // Center horizontally across the highlight's bounding box
-                                const popupX = ((minX + maxX) / 2) * effectiveScale;
-                                const popupY = minY * effectiveScale - 10;
+                                // Position popup above the clicked rect, centered on click X
+                                const popupX = clickX;
+                                const popupY = closestRect.y * effectiveScale - 10;
                                 setEditingHighlightPosition({ x: popupX, y: popupY });
                                 setEditingHighlight(highlight);
                                 setNoteInput('');
