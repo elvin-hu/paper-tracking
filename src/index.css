@@ -489,11 +489,16 @@ input, textarea {
   color: var(--text-primary);
   font-family: inherit;
   font-size: 0.875rem;
-  transition: all 0.2s ease;
+  /* Only transition specific properties - avoid 'all' for performance */
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 textarea {
   border-radius: var(--radius-md);
+  /* Optimize scroll performance for trackpad */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
 }
 
 input:hover, textarea:hover {
@@ -522,6 +527,17 @@ input:focus, textarea:focus {
 
 input::placeholder, textarea::placeholder {
   color: var(--text-muted);
+}
+
+/* Metadata panel - optimize scroll performance */
+[data-sidebar="notes-metadata"] {
+  /* Isolate compositing to improve scroll perf */
+  contain: layout style;
+}
+
+[data-sidebar="notes-metadata"] .overflow-y-auto {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Metadata panel inputs - better contrast in dark mode */
