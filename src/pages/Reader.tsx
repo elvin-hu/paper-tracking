@@ -939,14 +939,23 @@ export function Reader() {
     // Debug logging for iPadOS issues
     if (currentRects.length > 0) {
       const containerRect = pageContainer.getBoundingClientRect();
+      const renderedX = rawRects[0].x * effectiveScale;
+      const renderedY = rawRects[0].y * effectiveScale;
       console.log('[Highlight Debug]', {
+        selectionPage,
         effectiveScale,
-        wrapperRect: { x: containerRect.x, y: containerRect.y },
+        wrapperRect: { x: containerRect.x, y: containerRect.y, width: containerRect.width, height: containerRect.height },
+        pageElementFound: !!pageElement,
         pageElementRect: { x: referenceRect.x, y: referenceRect.y },
-        offsetFromWrapper: { x: referenceRect.x - containerRect.x, y: referenceRect.y - containerRect.y },
         firstSelectionRect: { x: currentRects[0].x, y: currentRects[0].y, width: currentRects[0].width, height: currentRects[0].height },
-        firstOutputRect: rawRects[0],
-        devicePixelRatio: window.devicePixelRatio,
+        storedCoords: rawRects[0],
+        renderedPosition: { x: renderedX, y: renderedY },
+        expectedViewportPos: { x: containerRect.x + renderedX, y: containerRect.y + renderedY },
+        actualSelectionViewportPos: { x: currentRects[0].x, y: currentRects[0].y },
+        difference: { 
+          x: (containerRect.x + renderedX) - currentRects[0].x, 
+          y: (containerRect.y + renderedY) - currentRects[0].y 
+        },
       });
     }
     
