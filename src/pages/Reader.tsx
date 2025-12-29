@@ -815,8 +815,17 @@ export function Reader() {
   }, [citationNoteInput]);
 
   useEffect(() => {
+    // Listen to both mouse and touch events for text selection
     document.addEventListener('mouseup', handleTextSelection);
-    return () => document.removeEventListener('mouseup', handleTextSelection);
+    document.addEventListener('touchend', handleTextSelection);
+    document.addEventListener('selectionchange', () => {
+      // Delayed check for touch selection (gives iOS time to complete selection)
+      setTimeout(handleTextSelection, 100);
+    });
+    return () => {
+      document.removeEventListener('mouseup', handleTextSelection);
+      document.removeEventListener('touchend', handleTextSelection);
+    };
   }, [handleTextSelection]);
 
   // Handle Escape key to dismiss popup
@@ -851,6 +860,44 @@ export function Reader() {
     return null;
   };
 
+  // Merge overlapping rects to prevent double-highlighting on multi-line selections
+  const mergeOverlappingRects = (rects: { x: number; y: number; width: number; height: number }[]) => {
+    if (rects.length === 0) return rects;
+    
+    // Sort by y first, then by x
+    const sorted = [...rects].sort((a, b) => {
+      const yDiff = a.y - b.y;
+      if (Math.abs(yDiff) > 2) return yDiff; // Different lines
+      return a.x - b.x; // Same line, sort by x
+    });
+    
+    const merged: typeof rects = [];
+    
+    for (const rect of sorted) {
+      if (merged.length === 0) {
+        merged.push({ ...rect });
+        continue;
+      }
+      
+      const last = merged[merged.length - 1];
+      
+      // Check if rects are on the same line (y within tolerance) and overlap or touch
+      const sameLine = Math.abs(rect.y - last.y) < 3;
+      const overlapsOrTouches = rect.x <= last.x + last.width + 1;
+      
+      if (sameLine && overlapsOrTouches) {
+        // Merge: extend the last rect to include this one
+        const newRight = Math.max(last.x + last.width, rect.x + rect.width);
+        last.width = newRight - last.x;
+        last.height = Math.max(last.height, rect.height);
+      } else {
+        merged.push({ ...rect });
+      }
+    }
+    
+    return merged;
+  };
+
   const createHighlight = async (color: HighlightColor, isFurtherReading: boolean = false, note?: string) => {
     if (!paperId || !selectedText) return;
 
@@ -859,12 +906,15 @@ export function Reader() {
 
     const containerRect = pageContainer.getBoundingClientRect();
 
-    const rects = selectionRects.map((rect) => ({
+    const rawRects = selectionRects.map((rect) => ({
       x: (rect.x - containerRect.x) / effectiveScale,
       y: (rect.y - containerRect.y) / effectiveScale,
       width: rect.width / effectiveScale,
       height: rect.height / effectiveScale,
     }));
+    
+    // Merge overlapping rects to prevent double-highlighting
+    const rects = mergeOverlappingRects(rawRects);
 
     // Check if this looks like a reference
     const refNumber = detectReference(selectedText);

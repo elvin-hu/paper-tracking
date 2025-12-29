@@ -226,6 +226,19 @@ body {
   -ms-overflow-style: auto; /* IE and Edge */
   scrollbar-color: transparent transparent;
   transition: scrollbar-color 0.3s ease;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  overflow: auto;
+}
+
+/* Hide scrollbar on touch devices (iPadOS/iOS) while keeping scroll functionality */
+@supports (-webkit-touch-callout: none) {
+  .pdf-viewer-container {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .pdf-viewer-container::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .pdf-viewer-container::-webkit-scrollbar {
