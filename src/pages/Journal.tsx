@@ -689,7 +689,7 @@ Respond in this exact JSON format:
                             </div>
                           </div>
 
-                          {entry.keyInsights.length > 0 && (
+                          {entry.keyInsights.length > 0 && refreshingSynthesisDate !== dateStr && (
                             <div className="mt-4 pt-4 border-t border-[var(--border-default)]">
                               <h4 className="text-xs font-medium text-[var(--text-secondary)] mb-3 uppercase tracking-wide">
                                 Key Insights
