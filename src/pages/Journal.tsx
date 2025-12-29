@@ -85,8 +85,9 @@ function formatDate(dateStr: string): string {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  const todayStr = today.toISOString().split('T')[0];
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  // Use local date formatting (same as how notes are grouped)
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
 
   if (dateStr === todayStr) return 'Today';
   if (dateStr === yesterdayStr) return 'Yesterday';
