@@ -1734,11 +1734,20 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       const editColorInfo = HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(editingHighlight));
                       const highlightHasNotes = notes.some(n => n.highlightId === editingHighlight.id);
                       
+                      // Get page width to constrain popup position
+                      const pageEl = pageRefs.current.get(pageNum);
+                      const pageWidth = pageEl?.getBoundingClientRect().width || 600;
+                      const popupWidth = 300; // approximate popup width
+                      const halfPopup = popupWidth / 2;
+                      
+                      // Clamp x position so popup stays within page bounds
+                      const clampedX = Math.max(halfPopup, Math.min(editingHighlightPosition.x, pageWidth - halfPopup));
+                      
                       return (
                         <div
                           className="absolute z-50 animate-scale-in"
                           style={{
-                            left: editingHighlightPosition.x,
+                            left: clampedX,
                             top: editingHighlightPosition.y,
                             transform: 'translate(-50%, -100%)',
                           }}
