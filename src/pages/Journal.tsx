@@ -25,18 +25,18 @@ import {
 // Group papers by the date they were read (lastOpenedAt or uploadedAt)
 function groupPapersByDate(papers: Paper[]): Map<string, Paper[]> {
   const groups = new Map<string, Paper[]>();
-  
+
   papers.forEach(paper => {
     // Use lastOpenedAt if available, otherwise uploadedAt
     const date = paper.lastOpenedAt || paper.uploadedAt;
     const dateStr = new Date(date).toISOString().split('T')[0]; // YYYY-MM-DD
-    
+
     if (!groups.has(dateStr)) {
       groups.set(dateStr, []);
     }
     groups.get(dateStr)!.push(paper);
   });
-  
+
   return groups;
 }
 
@@ -46,13 +46,13 @@ function formatDate(dateStr: string): string {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  
+
   const todayStr = today.toISOString().split('T')[0];
   const yesterdayStr = yesterday.toISOString().split('T')[0];
-  
+
   if (dateStr === todayStr) return 'Today';
   if (dateStr === yesterdayStr) return 'Yesterday';
-  
+
   return date.toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'long',
@@ -80,11 +80,11 @@ export default function Journal() {
         getAllPapers(),
         getAllJournalEntries(),
       ]);
-      
+
       // Only include papers that have been read
       const readPapers = loadedPapers.filter(p => p.isRead);
       setPapers(readPapers);
-      
+
       const entryMap = new Map<string, JournalEntry>();
       entries.forEach(e => entryMap.set(e.date, e));
       setJournalEntries(entryMap);
@@ -101,7 +101,7 @@ export default function Journal() {
 
   const generateEntry = async (dateStr: string, datePapers: Paper[]) => {
     setGeneratingDate(dateStr);
-    
+
     try {
       const settings = await getSettings();
       if (!settings.openaiApiKey) {
@@ -121,7 +121,7 @@ export default function Journal() {
         limitation?: string;
         notes?: string;
       }> = [];
-      
+
       datePapers.forEach(paper => {
         const meta = paper.metadata || {};
         paperData.push({
@@ -203,7 +203,7 @@ Respond in this exact JSON format:
 
       const data = await response.json();
       const content = data.choices[0]?.message?.content;
-      
+
       if (!content) {
         throw new Error('No response from AI');
       }
@@ -254,7 +254,7 @@ Respond in this exact JSON format:
 
   const refreshSynthesis = async (dateStr: string, datePapers: Paper[]) => {
     setRefreshingSynthesisDate(dateStr);
-    
+
     try {
       const settings = await getSettings();
       if (!settings.openaiApiKey) {
@@ -277,7 +277,7 @@ Respond in this exact JSON format:
         limitation?: string;
         notes?: string;
       }> = [];
-      
+
       datePapers.forEach(paper => {
         const meta = paper.metadata || {};
         paperData.push({
@@ -359,7 +359,7 @@ Respond in this exact JSON format:
 
       const data = await response.json();
       const content = data.choices[0]?.message?.content;
-      
+
       if (!content) {
         throw new Error('No response from AI');
       }
@@ -418,7 +418,7 @@ Respond in this exact JSON format:
 
   const saveEditing = async () => {
     if (!editingDate) return;
-    
+
     const entry = journalEntries.get(editingDate);
     if (!entry) return;
 
@@ -482,7 +482,7 @@ Respond in this exact JSON format:
             </button>
             <div className="flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-[var(--text-primary)]" />
-              <h1 className="text-lg font-semibold text-[var(--text-primary)]">Journal</h1>
+              <h1 className="text-base font-semibold text-[var(--text-primary)]">Journal</h1>
             </div>
           </div>
         </div>
@@ -498,7 +498,7 @@ Respond in this exact JSON format:
         ) : sortedDates.length === 0 ? (
           <div className="text-center py-20">
             <BookOpen className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-4" />
-            <h2 className="text-lg font-medium text-[var(--text-secondary)] mb-2">No reading history yet</h2>
+            <h2 className="text-base font-medium text-[var(--text-secondary)] mb-2">No reading history yet</h2>
             <p className="text-sm text-[var(--text-muted)]">
               Start reading papers to see your journal entries here.
             </p>
@@ -515,12 +515,18 @@ Respond in this exact JSON format:
                 <div key={dateStr} className="relative">
                   {/* Timeline line */}
                   <div className="absolute left-4 top-8 bottom-0 w-px bg-[var(--border-default)]" />
-                  
+
                   {/* Date header */}
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 rounded-full bg-[var(--bg-tertiary)] border-2 border-[var(--border-default)] flex items-center justify-center z-10">
-                      <div className="w-2 h-2 rounded-full bg-[var(--text-muted)]" />
-                    </div>
+                    {formatDate(dateStr) === 'Today' ? (
+                      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center z-10 animate-pulse-subtle">
+                        <div className="w-2 h-2 rounded-full bg-white" />
+                      </div>
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center z-10">
+                        <div className="w-2 h-2 rounded-full bg-[var(--text-muted)]" />
+                      </div>
+                    )}
                     <h2 className="text-base font-semibold text-[var(--text-primary)]">
                       {formatDate(dateStr)}
                     </h2>
@@ -537,11 +543,10 @@ Respond in this exact JSON format:
                         <button
                           key={paper.id}
                           onClick={() => navigate(`/reader/${paper.id}`, { state: { from: '/journal' } })}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all text-xs ${
-                            hoveredPaperId === paper.id
-                              ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/30'
-                              : 'bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                          }`}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all text-xs ${hoveredPaperId === paper.id
+                            ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/30'
+                            : 'bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            }`}
                         >
                           <FileText className="w-3 h-3" />
                           <span className="truncate max-w-[200px]">{paper.title}</span>
@@ -599,7 +604,7 @@ Respond in this exact JSON format:
                               className="w-full text-sm p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] resize-none"
                             />
                           </div>
-                          
+
                           <div>
                             <label className="text-xs font-medium text-[var(--text-secondary)] mb-2 block">
                               Key Insights
@@ -609,7 +614,7 @@ Respond in this exact JSON format:
                                 const insightText = typeof insight === 'string' ? insight : (insight.text || '');
                                 const isManual = typeof insight === 'object' && insight.isManual;
                                 const insightId = typeof insight === 'object' ? insight.id : `edit-${idx}`;
-                                
+
                                 return (
                                   <div key={insightId} className="flex items-start gap-2">
                                     <span className={`mt-2 text-xs ${isManual ? 'text-[var(--text-muted)]' : 'text-[var(--accent-primary)]/60'}`}>
@@ -697,19 +702,18 @@ Respond in this exact JSON format:
                               <ul className="space-y-2">
                                 {entry.keyInsights.map((insight) => {
                                   // Handle case where insight might be malformed or a string
-                                  const insightText = typeof insight === 'string' 
-                                    ? insight 
+                                  const insightText = typeof insight === 'string'
+                                    ? insight
                                     : (insight.text || '');
                                   const isManual = typeof insight === 'object' && insight.isManual;
                                   const paperId = typeof insight === 'object' ? insight.paperId : undefined;
                                   const insightId = typeof insight === 'object' ? insight.id : String(insight);
-                                  
+
                                   return (
                                     <li
                                       key={insightId}
-                                      className={`flex items-start gap-2 text-sm text-[var(--text-secondary)] ${
-                                        paperId ? 'cursor-pointer hover:text-[var(--text-primary)] transition-colors' : ''
-                                      }`}
+                                      className={`flex items-start gap-2 text-sm text-[var(--text-secondary)] ${paperId ? 'cursor-pointer hover:text-[var(--text-primary)] transition-colors' : ''
+                                        }`}
                                       onMouseEnter={() => paperId && setHoveredPaperId(paperId)}
                                       onMouseLeave={() => setHoveredPaperId(null)}
                                       onClick={() => paperId && navigate(`/reader/${paperId}`, { state: { from: '/journal' } })}
