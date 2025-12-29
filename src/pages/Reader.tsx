@@ -1519,7 +1519,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           ref={containerRef} 
           className="pdf-viewer-container flex-1 overflow-auto relative"
           style={{ background: 'var(--bg-tertiary)' }}
-          onClick={(e) => {
+          onClick={() => {
             // Dismiss floating editor when clicking on background (only if no text entered)
             if (editingHighlight && !noteInput.trim()) {
               setEditingHighlight(null);
