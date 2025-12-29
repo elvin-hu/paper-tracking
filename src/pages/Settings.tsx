@@ -127,7 +127,7 @@ export function Settings() {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="sk-..."
-              className="w-full text-sm font-mono"
+              className="w-full text-sm font-mono bg-[var(--bg-input)]"
             />
 
             <div className="flex items-start gap-2 mt-3 p-2.5 bg-[var(--bg-secondary)] rounded-lg">
@@ -166,7 +166,7 @@ export function Settings() {
               value={researchContext}
               onChange={(e) => setResearchContext(e.target.value)}
               placeholder="Describe your research area, questions, methodology, and what you're looking for in papers..."
-              className="w-full text-sm p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-default)] resize-none"
+              className="w-full text-sm p-3 rounded-lg bg-[var(--bg-input)] border border-[var(--border-default)] resize-none"
               rows={6}
             />
 
@@ -196,11 +196,10 @@ export function Settings() {
                 <button
                   key={c.color}
                   onClick={() => handleColorChange(c.color)}
-                  className={`w-10 h-10 rounded-lg transition-all ${
-                    settings.defaultHighlightColor === c.color
+                  className={`w-10 h-10 rounded-lg transition-all ${settings.defaultHighlightColor === c.color
                       ? 'ring-2 ring-offset-2 ring-[var(--accent-primary)]'
                       : ''
-                  }`}
+                    }`}
                   style={{ backgroundColor: c.border }}
                 />
               ))}

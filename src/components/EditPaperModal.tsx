@@ -31,7 +31,7 @@ export function EditPaperModal({
   const [newTagInput, setNewTagInput] = useState('');
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
-  
+
   const tagInputRef = useRef<HTMLInputElement>(null);
   const tagSuggestionsRef = useRef<HTMLDivElement>(null);
   const [suggestionPosition, setSuggestionPosition] = useState({ top: 0, left: 0, width: 0 });
@@ -94,15 +94,15 @@ export function EditPaperModal({
       authors: authors || undefined,
       tags,
     };
-    
+
     await updatePaper(updatedPaper);
     onSave(updatedPaper);
     onClose();
   };
 
   const filteredTags = availableTags
-    .filter(tag => 
-      !tags.includes(tag) && 
+    .filter(tag =>
+      !tags.includes(tag) &&
       (newTagInput.trim() === '' || tag.toLowerCase().includes(newTagInput.toLowerCase()))
     )
     .slice(0, 8);
@@ -114,7 +114,7 @@ export function EditPaperModal({
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
       <div className="relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl w-full max-w-md animate-scale-in shadow-2xl overflow-hidden">
         {/* Header */}
@@ -142,7 +142,7 @@ export function EditPaperModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Paper title"
-              className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-secondary)] dark:bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+              className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
             />
           </div>
 
@@ -157,7 +157,7 @@ export function EditPaperModal({
                 value={authors}
                 onChange={(e) => setAuthors(e.target.value)}
                 placeholder="Smith, J., Johnson, A."
-                className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-secondary)] dark:bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+                className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
               />
             </div>
           )}
@@ -174,7 +174,7 @@ export function EditPaperModal({
                   value={metadata.firstAuthor}
                   onChange={(e) => onMetadataChange('firstAuthor', e.target.value)}
                   placeholder="First author name"
-                  className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-secondary)] dark:bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+                  className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
                 />
               </div>
 
@@ -187,7 +187,7 @@ export function EditPaperModal({
                   value={metadata.date}
                   onChange={(e) => onMetadataChange('date', e.target.value)}
                   placeholder="Publication date"
-                  className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-secondary)] dark:bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+                  className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
                 />
               </div>
 
@@ -200,7 +200,7 @@ export function EditPaperModal({
                   value={metadata.venue}
                   onChange={(e) => onMetadataChange('venue', e.target.value)}
                   placeholder="Conference, Journal, etc."
-                  className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-secondary)] dark:bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+                  className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
                 />
               </div>
             </>
@@ -214,8 +214,8 @@ export function EditPaperModal({
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {tags.map((tag) => (
-                  <span 
-                    key={tag} 
+                  <span
+                    key={tag}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-xs font-medium"
                   >
                     {tag}
@@ -252,10 +252,10 @@ export function EditPaperModal({
                   }
                 }}
                 placeholder="Add tag..."
-                className="flex-1 text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-secondary)] dark:bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+                className="flex-1 text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
               />
-              <button 
-                onClick={() => addTag()} 
+              <button
+                onClick={() => addTag()}
                 className="px-3 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
               >
                 <Plus className="w-4 h-4" />
