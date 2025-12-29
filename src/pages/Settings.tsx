@@ -197,8 +197,8 @@ export function Settings() {
                   key={c.color}
                   onClick={() => handleColorChange(c.color)}
                   className={`w-10 h-10 rounded-lg transition-all ${settings.defaultHighlightColor === c.color
-                      ? 'ring-2 ring-offset-2 ring-[var(--accent-primary)]'
-                      : ''
+                    ? 'ring-2 ring-offset-2 ring-[var(--accent-primary)] ring-offset-[var(--bg-card)]'
+                    : ''
                     }`}
                   style={{ backgroundColor: c.border }}
                 />

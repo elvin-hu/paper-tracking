@@ -53,7 +53,7 @@ export function Library() {
   const [sortOption, setSortOption] = useState<SortOption>('date-desc');
   const [isLoading, setIsLoading] = useState(true);
   const sortOptionSaveTimeoutRef = useRef<number | null>(null);
-  
+
   // Filter states
   const [showStarredOnly, setShowStarredOnly] = useState(false);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
@@ -74,7 +74,7 @@ export function Library() {
     const handleScroll = () => {
       sessionStorage.setItem(SCROLL_POSITION_KEY, window.scrollY.toString());
     };
-    
+
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -87,7 +87,7 @@ export function Library() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dropZoneRef = useRef<HTMLDivElement>(null);
-  
+
   // Multi-file upload state
   const [uploadQueue, setUploadQueue] = useState<UploadItem[]>([]);
   const [showUploadProgress, setShowUploadProgress] = useState(false);
@@ -97,24 +97,24 @@ export function Library() {
   // Selection state
   const [selectedPapers, setSelectedPapers] = useState<Set<string>>(new Set());
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
-  
+
   // Edit modal state
   const [editingPaper, setEditingPaper] = useState<Paper | null>(null);
-  
+
   // Batch edit state
   const [showBatchEditModal, setShowBatchEditModal] = useState(false);
   const [batchAddTags, setBatchAddTags] = useState<string[]>([]);
   const [batchRemoveTags, setBatchRemoveTags] = useState<string[]>([]);
   const [batchNewTagInput, setBatchNewTagInput] = useState('');
-  
+
 
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       console.log('[Library] Loading papers...');
       const [loadedPapers, tags, settings, notes] = await Promise.all([
-        getAllPapers(), 
-        getAllTags(), 
+        getAllPapers(),
+        getAllTags(),
         getSettings(),
         getAllNotes()
       ]);
@@ -150,12 +150,12 @@ export function Library() {
     if (sortOptionSaveTimeoutRef.current) {
       clearTimeout(sortOptionSaveTimeoutRef.current);
     }
-    
+
     sortOptionSaveTimeoutRef.current = setTimeout(async () => {
       const settings = await getSettings();
       await updateSettings({ ...settings, sortOption });
     }, 300);
-    
+
     return () => {
       if (sortOptionSaveTimeoutRef.current) {
         clearTimeout(sortOptionSaveTimeoutRef.current);
@@ -167,21 +167,21 @@ export function Library() {
   const extractPDFMetadata = async (fileData: ArrayBuffer): Promise<{ title?: string; authors?: string }> => {
     try {
       const pdf = await pdfjs.getDocument({ data: fileData }).promise;
-      
+
       // Try to get metadata first
       const metadata = await pdf.getMetadata();
       const info = metadata?.info;
-      
+
       let title: string | undefined;
       let authors: string | undefined;
-      
+
       // Extract from metadata
       if (info) {
         const infoAny = info as any;
         title = infoAny.Title || infoAny.title;
         authors = infoAny.Author || infoAny.author || infoAny.Creator || infoAny.creator;
       }
-      
+
       // If title/authors not in metadata, try to extract from first page
       if (!title || !authors) {
         try {
@@ -191,11 +191,11 @@ export function Library() {
             .map((item: any) => (item.str || '') as string)
             .join(' ')
             .trim();
-          
+
           // Try to parse title and authors from first page
           if ((!title || !authors) && pageText) {
             const lines = pageText.split(/\n+/).map(l => l.trim()).filter(l => l.length > 0);
-            
+
             // Title is usually the first substantial line (longer, often all caps or title case)
             if (!title && lines.length > 0) {
               // Look for title in first 3 lines
@@ -215,43 +215,43 @@ export function Library() {
                 }
               }
             }
-            
+
             // Authors usually come after title, before abstract/introduction
             if (!authors && lines.length > 1) {
               // Skip first line (title), look in next 5 lines
               for (let i = 1; i < Math.min(6, lines.length); i++) {
                 const line = lines[i];
-                
+
                 // Skip common section headers
                 if (line.match(/^(abstract|introduction|keywords|doi|accepted|published)/i)) {
                   break;
                 }
-                
+
                 // Author patterns:
                 // - Names with initials: "Smith, J., Jones, A."
                 // - Full names: "John Smith, Alice Jones"
                 // - "et al." pattern
                 // - Often contains commas, "and", or "&"
-                
+
                 // Pattern 1: Comma-separated names (most common)
                 if (line.match(/[A-Z][a-z]+(?:\s+[A-Z]\.?\s*)*[A-Z][a-z]+(?:\s*,\s*[A-Z][a-z]+(?:\s+[A-Z]\.?\s*)*[A-Z][a-z]+)+/)) {
                   // Extract just the author part (before email, affiliation, etc.)
                   authors = line.split(/[@\(\)\[\]0-9]/)[0].trim();
                   break;
                 }
-                
+
                 // Pattern 2: Single or two authors with "and"
                 if (line.match(/^[A-Z][a-z]+(?:\s+[A-Z]\.?\s*)*[A-Z][a-z]+\s+(and|&)\s+[A-Z][a-z]+(?:\s+[A-Z]\.?\s*)*[A-Z][a-z]+/i)) {
                   authors = line.split(/[@\(\)\[\]0-9]/)[0].trim();
                   break;
                 }
-                
+
                 // Pattern 3: "et al." pattern
                 if (line.match(/[A-Z][a-z]+\s+et\s+al\.?/i)) {
                   authors = line.split(/[@\(\)\[\]0-9]/)[0].trim();
                   break;
                 }
-                
+
                 // Pattern 4: Line with email (authors often listed with emails)
                 if (line.includes('@')) {
                   // Take the part before the email
@@ -267,7 +267,7 @@ export function Library() {
               }
             }
           }
-          
+
           pdf.destroy();
         } catch (pageError) {
           console.error('Error extracting from first page:', pageError);
@@ -276,7 +276,7 @@ export function Library() {
       } else {
         pdf.destroy();
       }
-      
+
       return { title, authors };
     } catch (error) {
       console.error('Error extracting PDF metadata:', error);
@@ -299,12 +299,12 @@ export function Library() {
     }
 
     setPendingFile(file);
-    
+
     // Extract title from PDF (skip author detection)
     try {
       const fileData = await file.arrayBuffer();
       const { title } = await extractPDFMetadata(fileData);
-      
+
       setUploadTitle(title || file.name.replace('.pdf', ''));
       setUploadAuthors('');
     } catch (error) {
@@ -312,7 +312,7 @@ export function Library() {
       setUploadTitle(file.name.replace('.pdf', ''));
       setUploadAuthors('');
     }
-    
+
     setShowUploadModal(true);
   };
 
@@ -358,7 +358,7 @@ export function Library() {
   // Handle multiple file selection
   const handleMultiFileSelect = (files: File[]) => {
     const pdfFiles = files.filter(f => f.type === 'application/pdf');
-    
+
     if (pdfFiles.length === 0) {
       alert('Please select valid PDF files.');
       return;
@@ -367,7 +367,7 @@ export function Library() {
     // Check file sizes (50MB limit for Supabase free tier)
     const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
     const oversizedFiles = pdfFiles.filter(f => f.size > MAX_FILE_SIZE);
-    
+
     if (oversizedFiles.length > 0) {
       const fileNames = oversizedFiles.map(f => f.name).join(', ');
       const sizeMB = (oversizedFiles[0].size / (1024 * 1024)).toFixed(1);
@@ -397,35 +397,35 @@ export function Library() {
   // Process upload queue
   const processUploadQueue = useCallback(async () => {
     if (isProcessingRef.current) return;
-    
+
     const pendingItem = uploadQueue.find(item => item.status === 'pending');
     if (!pendingItem) return;
 
     isProcessingRef.current = true;
 
     // Update status to uploading
-    setUploadQueue(prev => prev.map(item => 
+    setUploadQueue(prev => prev.map(item =>
       item.id === pendingItem.id ? { ...item, status: 'uploading' as const, progress: 10 } : item
     ));
 
     try {
       const paperId = uuidv4();
-      
+
       // Progress: reading file
-      setUploadQueue(prev => prev.map(item => 
+      setUploadQueue(prev => prev.map(item =>
         item.id === pendingItem.id ? { ...item, progress: 30 } : item
       ));
-      
+
       console.log(`[Batch Upload] Reading file: ${pendingItem.file.name}, size: ${pendingItem.file.size}`);
       const fileData = await pendingItem.file.arrayBuffer();
       console.log(`[Batch Upload] ArrayBuffer size after read: ${fileData.byteLength}`);
-      
+
       // Create a fresh copy immediately for upload before anything else touches it
       const uploadCopy = fileData.slice(0);
       console.log(`[Batch Upload] Upload copy size: ${uploadCopy.byteLength}`);
 
       // Progress: extracting metadata
-      setUploadQueue(prev => prev.map(item => 
+      setUploadQueue(prev => prev.map(item =>
         item.id === pendingItem.id ? { ...item, progress: 40 } : item
       ));
 
@@ -439,11 +439,11 @@ export function Library() {
         console.warn('[Batch Upload] Metadata extraction failed:', e);
         title = undefined;
       }
-      
+
       console.log(`[Batch Upload] Upload copy size after metadata: ${uploadCopy.byteLength}`);
 
       // Progress: creating paper record
-      setUploadQueue(prev => prev.map(item => 
+      setUploadQueue(prev => prev.map(item =>
         item.id === pendingItem.id ? { ...item, progress: 50 } : item
       ));
 
@@ -460,23 +460,23 @@ export function Library() {
       await addPaper(paper);
 
       // Progress: saving file data
-      setUploadQueue(prev => prev.map(item => 
+      setUploadQueue(prev => prev.map(item =>
         item.id === pendingItem.id ? { ...item, progress: 80 } : item
       ));
 
       console.log(`[Batch Upload] About to upload, copy size: ${uploadCopy.byteLength}`);
-      
+
       // Use the upload copy (guaranteed to not be detached)
       await addPaperFile({
         id: uuidv4(),
         paperId,
         data: uploadCopy,
       });
-      
+
       console.log(`[Batch Upload] Upload complete for ${pendingItem.file.name}`);
 
       // Complete
-      setUploadQueue(prev => prev.map(item => 
+      setUploadQueue(prev => prev.map(item =>
         item.id === pendingItem.id ? { ...item, status: 'complete' as const, progress: 100 } : item
       ));
 
@@ -484,7 +484,7 @@ export function Library() {
     } catch (err) {
       console.error('Failed to upload paper:', err);
       let errorMessage = 'Upload failed';
-      
+
       if (err instanceof Error) {
         // Parse common error messages
         if (err.message.includes('413') || err.message.includes('too large') || err.message.includes('exceeded')) {
@@ -497,11 +497,11 @@ export function Library() {
           errorMessage = err.message.length > 50 ? err.message.substring(0, 50) + '...' : err.message;
         }
       }
-      
-      setUploadQueue(prev => prev.map(item => 
-        item.id === pendingItem.id ? { 
-          ...item, 
-          status: 'error' as const, 
+
+      setUploadQueue(prev => prev.map(item =>
+        item.id === pendingItem.id ? {
+          ...item,
+          status: 'error' as const,
           error: errorMessage
         } : item
       ));
@@ -514,7 +514,7 @@ export function Library() {
   useEffect(() => {
     const hasPending = uploadQueue.some(item => item.status === 'pending');
     const hasUploading = uploadQueue.some(item => item.status === 'uploading');
-    
+
     if (hasPending && !hasUploading) {
       processUploadQueue();
     }
@@ -543,7 +543,7 @@ export function Library() {
   const handlePaperClick = (e: React.MouseEvent, paper: Paper) => {
     const isMetaKey = e.metaKey || e.ctrlKey;
     const isShiftKey = e.shiftKey;
-    
+
     if (isMetaKey) {
       // Toggle selection
       setSelectedPapers(prev => {
@@ -563,12 +563,12 @@ export function Library() {
         const paperIds = filteredAndSortedPapers.map(p => p.id);
         const lastIndex = paperIds.indexOf(lastSelectedId);
         const currentIndex = paperIds.indexOf(paper.id);
-        
+
         if (lastIndex !== -1 && currentIndex !== -1) {
           const start = Math.min(lastIndex, currentIndex);
           const end = Math.max(lastIndex, currentIndex);
           const rangeIds = paperIds.slice(start, end + 1);
-          
+
           setSelectedPapers(prev => {
             const next = new Set(prev);
             rangeIds.forEach(id => next.add(id));
@@ -601,18 +601,18 @@ export function Library() {
     e.stopPropagation();
     const isMetaKey = e.metaKey || e.ctrlKey;
     const isShiftKey = e.shiftKey;
-    
+
     if (isShiftKey && lastSelectedId && lastSelectedId !== paperId) {
       // Range selection with Shift
       const paperIds = filteredAndSortedPapers.map(p => p.id);
       const lastIndex = paperIds.indexOf(lastSelectedId);
       const currentIndex = paperIds.indexOf(paperId);
-      
+
       if (lastIndex !== -1 && currentIndex !== -1) {
         const start = Math.min(lastIndex, currentIndex);
         const end = Math.max(lastIndex, currentIndex);
         const rangeIds = paperIds.slice(start, end + 1);
-        
+
         setSelectedPapers(prev => {
           const next = new Set(prev);
           rangeIds.forEach(id => next.add(id));
@@ -683,45 +683,45 @@ export function Library() {
   };
 
   const toggleBatchRemoveTag = (tag: string) => {
-    setBatchRemoveTags(prev => 
+    setBatchRemoveTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
   };
 
   const applyBatchEdit = async () => {
     if (selectedPapers.size === 0) return;
-    
+
     const selectedPapersList = papers.filter(p => selectedPapers.has(p.id));
     if (selectedPapersList.length === 0) {
       alert('No papers selected');
       return;
     }
-    
+
     try {
       // Prepare all updates in memory first
       const papersToUpdate: Paper[] = [];
-      
+
       for (const paper of selectedPapersList) {
         // Ensure tags is an array
         const currentTags = Array.isArray(paper.tags) ? paper.tags : [];
         const newTags = [...currentTags];
-        
+
         // Add new tags
         batchAddTags.forEach(tag => {
           if (!newTags.includes(tag)) {
             newTags.push(tag);
           }
         });
-        
+
         // Remove tags
         const filteredTags = newTags.filter(tag => !batchRemoveTags.includes(tag));
-        
+
         // Only include if tags actually changed
         if (JSON.stringify(filteredTags.sort()) !== JSON.stringify(currentTags.sort())) {
           papersToUpdate.push({ ...paper, tags: filteredTags });
         }
       }
-      
+
       if (papersToUpdate.length === 0) {
         // No changes needed
         setShowBatchEditModal(false);
@@ -731,18 +731,18 @@ export function Library() {
         clearSelection();
         return;
       }
-      
+
       // Update all papers in a single batch operation
       await updatePapersBatch(papersToUpdate);
-      
+
       console.log(`[Library] Batch updated ${papersToUpdate.length} paper(s)`);
-      
+
       setShowBatchEditModal(false);
       setBatchAddTags([]);
       setBatchRemoveTags([]);
       setBatchNewTagInput('');
       clearSelection();
-      
+
       // Reload data to reflect changes
       await loadData();
     } catch (err) {
@@ -753,16 +753,16 @@ export function Library() {
 
   const deleteSelectedPapers = async () => {
     if (selectedPapers.size === 0) return;
-    
+
     const count = selectedPapers.size;
     if (!confirm(`Are you sure you want to delete ${count} paper${count > 1 ? 's' : ''}?`)) {
       return;
     }
-    
+
     for (const paperId of selectedPapers) {
       await deletePaper(paperId);
     }
-    
+
     clearSelection();
     loadData();
   };
@@ -808,12 +808,12 @@ export function Library() {
       setUploadTags([]);
       setPendingFile(null);
       setNewTagInput('');
-      
+
       // Refresh the papers list
       await loadData();
     } catch (err) {
       console.error('Failed to upload paper:', err);
-      
+
       let errorMessage = 'Failed to upload paper.';
       if (err instanceof Error) {
         if (err.message.includes('413') || err.message.includes('too large') || err.message.includes('exceeded')) {
@@ -826,7 +826,7 @@ export function Library() {
           errorMessage = `Upload failed: ${err.message}`;
         }
       }
-      
+
       alert(errorMessage);
     } finally {
       setIsUploading(false);
@@ -851,10 +851,10 @@ export function Library() {
   const togglePaperReadStatus = async (e: React.MouseEvent, paper: Paper) => {
     e.stopPropagation();
     const updatedPaper = { ...paper, isRead: !paper.isRead };
-    
+
     // Optimistically update local state immediately
     setPapers(prev => prev.map(p => p.id === paper.id ? updatedPaper : p));
-    
+
     // Save to database in background
     try {
       await updatePaper(updatedPaper);
@@ -868,10 +868,10 @@ export function Library() {
   const togglePaperStarred = async (e: React.MouseEvent, paper: Paper) => {
     e.stopPropagation();
     const updatedPaper = { ...paper, isStarred: !paper.isStarred };
-    
+
     // Optimistically update local state immediately
     setPapers(prev => prev.map(p => p.id === paper.id ? updatedPaper : p));
-    
+
     // Save to database in background
     try {
       await updatePaper(updatedPaper);
@@ -909,13 +909,13 @@ export function Library() {
   const getLastUpdatedDate = useCallback((paper: Paper): Date => {
     // Get notes for this paper
     const paperNotes = allNotes.filter(n => n.paperId === paper.id);
-    const latestNoteDate = paperNotes.length > 0 
+    const latestNoteDate = paperNotes.length > 0
       ? Math.max(...paperNotes.map(n => new Date(n.updatedAt).getTime()))
       : 0;
-    
+
     const lastOpenedTime = paper.lastOpenedAt ? new Date(paper.lastOpenedAt).getTime() : 0;
     const uploadedTime = new Date(paper.uploadedAt).getTime();
-    
+
     // Return the most recent date
     const latestTime = Math.max(latestNoteDate, lastOpenedTime, uploadedTime);
     return new Date(latestTime);
@@ -964,11 +964,11 @@ export function Library() {
     const d = new Date(date);
     const now = new Date();
     const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
-    
+
     return d.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -1046,22 +1046,20 @@ export function Library() {
                 <div className="flex flex-col gap-1">
                   <button
                     onClick={() => setShowStarredOnly(!showStarredOnly)}
-                    className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${
-                      showStarredOnly 
-                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium' 
+                    className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${showStarredOnly
+                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
                         : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
-                    }`}
+                      }`}
                   >
                     <Star className={`w-3.5 h-3.5 ${showStarredOnly ? 'fill-current' : ''}`} />
                     Starred
                   </button>
                   <button
                     onClick={() => setShowUnreadOnly(!showUnreadOnly)}
-                    className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${
-                      showUnreadOnly 
-                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium' 
+                    className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${showUnreadOnly
+                        ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
                         : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
-                    }`}
+                      }`}
                   >
                     <div className={`w-2 h-2 rounded-full ${showUnreadOnly ? 'bg-[var(--bg-primary)]' : 'bg-blue-500'}`} />
                     Unread
@@ -1078,11 +1076,10 @@ export function Library() {
                       <button
                         key={tag}
                         onClick={() => toggleTag(tag)}
-                        className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                          selectedTags.includes(tag) 
-                            ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium' 
+                        className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${selectedTags.includes(tag)
+                            ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
                             : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
-                        }`}
+                          }`}
                       >
                         {tag}
                       </button>
@@ -1098,9 +1095,8 @@ export function Library() {
                   setShowStarredOnly(false);
                   setShowUnreadOnly(false);
                 }}
-                className={`text-left px-3 py-1.5 text-xs text-[var(--accent-red)] hover:underline transition-opacity mb-6 ${
-                  selectedTags.length > 0 || showStarredOnly || showUnreadOnly ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
+                className={`text-left px-3 py-1.5 text-xs text-[var(--accent-red)] hover:underline transition-opacity mb-6 ${selectedTags.length > 0 || showStarredOnly || showUnreadOnly ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
               >
                 Clear all filters
               </button>
@@ -1129,241 +1125,238 @@ export function Library() {
               </span>
             </div>
 
-        {/* Papers List */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-[var(--text-muted)] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : filteredAndSortedPapers.length === 0 ? (
-          <div
-            ref={dropZoneRef}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            className={`drop-zone text-center py-16 px-8 ${isDragging ? 'drag-over' : ''}`}
-          >
-            <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-[var(--bg-tertiary)] flex items-center justify-center">
-              {isDragging ? (
-                <Upload className="w-7 h-7 text-[var(--text-primary)]" />
-              ) : (
-                <FileText className="w-7 h-7 text-[var(--text-muted)]" />
-              )}
-            </div>
-            <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">
-              {isDragging ? 'Drop PDFs here' : papers.length === 0 ? 'No papers yet' : 'No results'}
-            </h3>
-            <p className="text-sm text-[var(--text-muted)] mb-4">
-              {isDragging
-                ? 'Release to upload multiple files'
-                : papers.length === 0
-                ? 'Drag & drop or click to upload'
-                : 'Try different search terms'}
-            </p>
-            {!isDragging && papers.length === 0 && (
-              <label className="btn-primary inline-flex items-center gap-1.5 cursor-pointer text-sm">
-                <Upload className="w-4 h-4" />
-                <span>Upload PDFs</span>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  multiple
-                  onChange={handleInputChange}
-                  className="hidden"
-                />
-              </label>
-            )}
-          </div>
-        ) : (
-          <div
-            ref={dropZoneRef}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            className="relative"
-          >
-            {isDragging && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--accent-primary-muted)] border-2 border-dashed border-[var(--accent-primary)] rounded-xl">
-                <div className="text-center">
-                  <Upload className="w-10 h-10 mx-auto text-[var(--accent-primary)] mb-2" />
-                  <p className="text-sm font-medium text-[var(--accent-primary)]">
-                    Drop PDFs to upload
-                  </p>
+            {/* Papers List */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="w-8 h-8 border-2 border-[var(--text-muted)] border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : filteredAndSortedPapers.length === 0 ? (
+              <div
+                ref={dropZoneRef}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                className={`drop-zone text-center py-16 px-8 ${isDragging ? 'drag-over' : ''}`}
+              >
+                <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-[var(--bg-tertiary)] flex items-center justify-center">
+                  {isDragging ? (
+                    <Upload className="w-7 h-7 text-[var(--text-primary)]" />
+                  ) : (
+                    <FileText className="w-7 h-7 text-[var(--text-muted)]" />
+                  )}
+                </div>
+                <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">
+                  {isDragging ? 'Drop PDFs here' : papers.length === 0 ? 'No papers yet' : 'No results'}
+                </h3>
+                <p className="text-sm text-[var(--text-muted)] mb-4">
+                  {isDragging
+                    ? 'Release to upload multiple files'
+                    : papers.length === 0
+                      ? 'Drag & drop or click to upload'
+                      : 'Try different search terms'}
+                </p>
+                {!isDragging && papers.length === 0 && (
+                  <label className="btn-primary inline-flex items-center gap-1.5 cursor-pointer text-sm">
+                    <Upload className="w-4 h-4" />
+                    <span>Upload PDFs</span>
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      multiple
+                      onChange={handleInputChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+            ) : (
+              <div
+                ref={dropZoneRef}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                className="relative"
+              >
+                {isDragging && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--accent-primary-muted)] border-2 border-dashed border-[var(--accent-primary)] rounded-xl">
+                    <div className="text-center">
+                      <Upload className="w-10 h-10 mx-auto text-[var(--accent-primary)] mb-2" />
+                      <p className="text-sm font-medium text-[var(--accent-primary)]">
+                        Drop PDFs to upload
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {/* List View */}
+                <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl overflow-hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}>
+                  <table className="w-full table-fixed">
+                    <thead>
+                      <tr className="border-b border-[var(--border-default)]">
+                        <th className="w-8"></th>
+                        <th
+                          className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
+                          style={{ width: '40%' }}
+                          onClick={() => toggleSort('title')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Title
+                            {(sortOption === 'title-asc' || sortOption === 'title-desc') && (
+                              sortOption === 'title-asc'
+                                ? <ArrowUp className="w-3 h-3" />
+                                : <ArrowDown className="w-3 h-3" />
+                            )}
+                          </div>
+                        </th>
+                        <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '20%' }}>Authors</th>
+                        <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '15%' }}>Tags</th>
+                        <th
+                          className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-24 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
+                          onClick={() => toggleSort('date')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Updated
+                            {(sortOption === 'date-asc' || sortOption === 'date-desc') && (
+                              sortOption === 'date-asc'
+                                ? <ArrowUp className="w-3 h-3" />
+                                : <ArrowDown className="w-3 h-3" />
+                            )}
+                          </div>
+                        </th>
+                        <th className="w-20"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredAndSortedPapers.map((paper, index) => {
+                        const isSelected = selectedPapers.has(paper.id);
+                        const isUnread = !paper.isRead;
+                        const totalItems = filteredAndSortedPapers.length;
+                        const animationDuration = 300;
+                        const maxTotalTime = 450;
+                        const maxDelay = Math.max(0, maxTotalTime - animationDuration);
+                        const delay = totalItems > 1 ? (maxDelay * index) / (totalItems - 1) : 0;
+
+                        return (
+                          <tr
+                            key={paper.id}
+                            onClick={(e) => handlePaperClick(e, paper)}
+                            className={`group border-b border-[var(--border-muted)] last:border-0 hover:bg-[var(--bg-secondary)] cursor-pointer transition-colors animate-fade-in ${isSelected ? 'bg-[var(--bg-tertiary)]' : ''
+                              }`}
+                            style={{ animationDelay: `${delay}ms` }}
+                          >
+                            {/* Unread indicator */}
+                            <td className="pl-4 py-3 w-8">
+                              <div className="relative flex items-center justify-center w-4 h-4">
+                                {isUnread ? (
+                                  <button
+                                    onClick={(e) => togglePaperReadStatus(e, paper)}
+                                    className="relative w-4 h-4 flex items-center justify-center group/button"
+                                    title="Mark as read"
+                                  >
+                                    {/* Outer circle with faint blue fill - only on hover (2x dot width = 4px) */}
+                                    <div className="absolute inset-0 w-4 h-4 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                                    {/* Inner blue dot - always visible for unread, centered */}
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-500" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={(e) => togglePaperReadStatus(e, paper)}
+                                    className="relative w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
+                                    title="Mark as unread"
+                                  >
+                                    {/* Outer circle with faint grey fill - only on hover (2x dot width = 4px) */}
+                                    <div className="absolute inset-0 w-4 h-4 rounded-full bg-[var(--text-muted)]/15 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                                    {/* Inner grey dot - centered */}
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 overflow-hidden">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  <button
+                                    onClick={(e) => togglePaperSelection(e, paper.id)}
+                                    className={`p-1 rounded transition-all ${isSelected
+                                        ? ''
+                                        : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]'
+                                      }`}
+                                    style={isSelected ? {
+                                      backgroundColor: '#3b82f6',
+                                      color: '#ffffff'
+                                    } : undefined}
+                                  >
+                                    {isSelected ? <Check className="w-3.5 h-3.5" style={{ color: '#ffffff' }} /> : <FileText className="w-3.5 h-3.5" />}
+                                  </button>
+                                  <button
+                                    onClick={(e) => togglePaperStarred(e, paper)}
+                                    className={`p-1 rounded transition-all ${paper.isStarred
+                                        ? 'text-yellow-500'
+                                        : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
+                                      }`}
+                                    title={paper.isStarred ? "Unstar" : "Star"}
+                                  >
+                                    <Star className={`w-3.5 h-3.5 ${paper.isStarred ? 'fill-current' : ''}`} />
+                                  </button>
+                                </div>
+                                <span className={`text-sm line-clamp-2 ${isUnread ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-primary)]'}`}>
+                                  {paper.title}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 overflow-hidden">
+                              <span className="text-xs text-[var(--text-muted)] truncate block max-w-full">{paper.authors || '—'}</span>
+                            </td>
+                            <td className="px-4 py-3 overflow-hidden">
+                              <div className="flex items-center gap-1 flex-wrap max-w-full">
+                                {paper.tags.slice(0, 2).map((tag) => (
+                                  <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
+                                    {tag}
+                                  </span>
+                                ))}
+                                {paper.tags.length > 2 && (
+                                  <span className="text-[10px] text-[var(--text-muted)]">+{paper.tags.length - 2}</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-[var(--text-muted)]">{formatDate(getLastUpdatedDate(paper))}</span>
+                                {getNoteCountForPaper(paper.id) > 0 && (
+                                  <span className="flex items-center gap-0.5 text-[10px] text-[var(--text-muted)]" title={`${getNoteCountForPaper(paper.id)} notes`}>
+                                    <MessageSquare className="w-3 h-3" />
+                                    {getNoteCountForPaper(paper.id)}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                <button
+                                  onClick={(e) => openEditModal(e, paper)}
+                                  className="p-1.5 rounded text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] transition-all"
+                                  title="Edit"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleDelete(e, paper.id)}
+                                  className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-all"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
-            {/* List View */}
-            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl overflow-hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}>
-              <table className="w-full table-fixed">
-                <thead>
-                  <tr className="border-b border-[var(--border-default)]">
-                    <th className="w-8"></th>
-                    <th 
-                      className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none" 
-                      style={{ width: '40%' }}
-                      onClick={() => toggleSort('title')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Title
-                        {(sortOption === 'title-asc' || sortOption === 'title-desc') && (
-                          sortOption === 'title-asc' 
-                            ? <ArrowUp className="w-3 h-3" />
-                            : <ArrowDown className="w-3 h-3" />
-                        )}
-                      </div>
-                    </th>
-                    <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '20%' }}>Authors</th>
-                    <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '15%' }}>Tags</th>
-                    <th 
-                      className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-24 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
-                      onClick={() => toggleSort('date')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Updated
-                        {(sortOption === 'date-asc' || sortOption === 'date-desc') && (
-                          sortOption === 'date-asc' 
-                            ? <ArrowUp className="w-3 h-3" />
-                            : <ArrowDown className="w-3 h-3" />
-                        )}
-                      </div>
-                    </th>
-                    <th className="w-20"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAndSortedPapers.map((paper, index) => {
-                    const isSelected = selectedPapers.has(paper.id);
-                    const isUnread = !paper.isRead;
-                    const totalItems = filteredAndSortedPapers.length;
-                    const animationDuration = 300;
-                    const maxTotalTime = 450;
-                    const maxDelay = Math.max(0, maxTotalTime - animationDuration);
-                    const delay = totalItems > 1 ? (maxDelay * index) / (totalItems - 1) : 0;
-                    
-                    return (
-                      <tr
-                        key={paper.id}
-                        onClick={(e) => handlePaperClick(e, paper)}
-                        className={`group border-b border-[var(--border-muted)] last:border-0 hover:bg-[var(--bg-secondary)] cursor-pointer transition-colors animate-fade-in ${
-                          isSelected ? 'bg-[var(--accent-primary)]/5' : ''
-                        }`}
-                        style={{ animationDelay: `${delay}ms` }}
-                      >
-                        {/* Unread indicator */}
-                        <td className="pl-4 py-3 w-8">
-                          <div className="relative flex items-center justify-center w-4 h-4">
-                            {isUnread ? (
-                              <button
-                                onClick={(e) => togglePaperReadStatus(e, paper)}
-                                className="relative w-4 h-4 flex items-center justify-center group/button"
-                                title="Mark as read"
-                              >
-                                {/* Outer circle with faint blue fill - only on hover (2x dot width = 4px) */}
-                                <div className="absolute inset-0 w-4 h-4 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
-                                {/* Inner blue dot - always visible for unread, centered */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-500" />
-                              </button>
-                            ) : (
-                              <button
-                                onClick={(e) => togglePaperReadStatus(e, paper)}
-                                className="relative w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
-                                title="Mark as unread"
-                              >
-                                {/* Outer circle with faint grey fill - only on hover (2x dot width = 4px) */}
-                                <div className="absolute inset-0 w-4 h-4 rounded-full bg-[var(--text-muted)]/15 opacity-0 group-hover/button:opacity-100 transition-opacity" />
-                                {/* Inner grey dot - centered */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 overflow-hidden">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              <button
-                                onClick={(e) => togglePaperSelection(e, paper.id)}
-                                className={`p-1 rounded transition-all ${
-                                  isSelected 
-                                    ? '' 
-                                    : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]'
-                                }`}
-                                style={isSelected ? { 
-                                  backgroundColor: '#3b82f6',
-                                  color: '#ffffff'
-                                } : undefined}
-                              >
-                                {isSelected ? <Check className="w-3.5 h-3.5" style={{ color: '#ffffff' }} /> : <FileText className="w-3.5 h-3.5" />}
-                              </button>
-                              <button
-                                onClick={(e) => togglePaperStarred(e, paper)}
-                                className={`p-1 rounded transition-all ${
-                                  paper.isStarred
-                                    ? 'text-yellow-500'
-                                    : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
-                                }`}
-                                title={paper.isStarred ? "Unstar" : "Star"}
-                              >
-                                <Star className={`w-3.5 h-3.5 ${paper.isStarred ? 'fill-current' : ''}`} />
-                              </button>
-                            </div>
-                            <span className={`text-sm line-clamp-2 ${isUnread ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-primary)]'}`}>
-                              {paper.title}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 overflow-hidden">
-                          <span className="text-xs text-[var(--text-muted)] truncate block max-w-full">{paper.authors || '—'}</span>
-                        </td>
-                        <td className="px-4 py-3 overflow-hidden">
-                          <div className="flex items-center gap-1 flex-wrap max-w-full">
-                            {paper.tags.slice(0, 2).map((tag) => (
-                              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
-                                {tag}
-                              </span>
-                            ))}
-                            {paper.tags.length > 2 && (
-                              <span className="text-[10px] text-[var(--text-muted)]">+{paper.tags.length - 2}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-[var(--text-muted)]">{formatDate(getLastUpdatedDate(paper))}</span>
-                            {getNoteCountForPaper(paper.id) > 0 && (
-                              <span className="flex items-center gap-0.5 text-[10px] text-[var(--text-muted)]" title={`${getNoteCountForPaper(paper.id)} notes`}>
-                                <MessageSquare className="w-3 h-3" />
-                                {getNoteCountForPaper(paper.id)}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                            <button
-                              onClick={(e) => openEditModal(e, paper)}
-                              className="p-1.5 rounded text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] transition-all"
-                              title="Edit"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={(e) => handleDelete(e, paper.id)}
-                              className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-all"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
           </div>
         </div>
       </main>
@@ -1471,7 +1464,7 @@ export function Library() {
       {showUploadProgress && uploadQueue.length > 0 && (
         <div className="fixed bottom-6 right-6 z-50 w-80 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl shadow-2xl overflow-hidden animate-slide-up">
           {/* Header */}
-          <div 
+          <div
             className="flex items-center justify-between px-4 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)] cursor-pointer"
             onClick={() => setIsUploadProgressMinimized(!isUploadProgressMinimized)}
           >
@@ -1522,8 +1515,8 @@ export function Library() {
           {!isUploadProgressMinimized && (
             <div className="max-h-64 overflow-y-auto">
               {uploadQueue.map((item) => (
-                <div 
-                  key={item.id} 
+                <div
+                  key={item.id}
                   className="flex items-center gap-3 px-4 py-2.5 border-b border-[var(--border-muted)] last:border-0"
                 >
                   {/* Status Icon */}
@@ -1544,7 +1537,7 @@ export function Library() {
                     </p>
                     {item.status === 'uploading' && (
                       <div className="mt-1.5 h-1 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-[var(--accent-primary)] rounded-full transition-all duration-300"
                           style={{ width: `${item.progress}%` }}
                         />
@@ -1584,7 +1577,7 @@ export function Library() {
           <button
             onClick={openBatchEditModal}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
-            style={{ 
+            style={{
               backgroundColor: '#3b82f6',
               color: '#ffffff'
             }}
@@ -1682,11 +1675,10 @@ export function Library() {
                       <button
                         key={tag}
                         onClick={() => toggleBatchRemoveTag(tag)}
-                        className={`tag transition-all ${
-                          batchRemoveTags.includes(tag)
+                        className={`tag transition-all ${batchRemoveTags.includes(tag)
                             ? 'bg-[var(--accent-red)]/20 text-[var(--accent-red)] line-through'
                             : ''
-                        }`}
+                          }`}
                       >
                         {tag}
                       </button>
