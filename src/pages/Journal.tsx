@@ -109,52 +109,60 @@ export default function Journal() {
         return;
       }
 
-      // Collect all notes from papers read that day
-      const paperNotes: { title: string; notes: string }[] = [];
+      // Collect paper metadata and notes
+      const paperData: Array<{
+        title: string;
+        authors?: string;
+        venue?: string;
+        date?: string;
+        methodology?: string;
+        conclusion?: string;
+        limitation?: string;
+        notes?: string;
+      }> = [];
+      
       datePapers.forEach(paper => {
-        if (paper.metadata?.notes) {
-          paperNotes.push({
-            title: paper.title,
-            notes: paper.metadata.notes,
-          });
-        }
+        const meta = paper.metadata || {};
+        paperData.push({
+          title: paper.title,
+          authors: paper.authors,
+          venue: meta.venue,
+          date: meta.date,
+          methodology: meta.methodology,
+          conclusion: meta.conclusion,
+          limitation: meta.limitation,
+          notes: meta.notes,
+        });
       });
 
-      if (paperNotes.length === 0) {
-        // Create empty entry if no notes
-        const entry: JournalEntry = {
-          id: uuidv4(),
-          date: dateStr,
-          paperIds: datePapers.map(p => p.id),
-          synthesis: 'No notes available for synthesis. Add notes to papers using the AI autofill feature in the Reader view.',
-          keyInsights: [],
-          isGenerated: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        await addJournalEntry(entry);
-        setJournalEntries(prev => new Map(prev).set(dateStr, entry));
-        setGeneratingDate(null);
-        return;
-      }
-
-      // Build prompt
-      const notesText = paperNotes
-        .map(pn => `Paper: "${pn.title}"\nNotes: ${pn.notes}`)
+      // Build prompt with full paper information
+      const papersText = paperData
+        .map(p => {
+          const parts: string[] = [];
+          parts.push(`Paper: "${p.title}"`);
+          if (p.authors) parts.push(`Authors: ${p.authors}`);
+          if (p.venue) parts.push(`Venue: ${p.venue}`);
+          if (p.date) parts.push(`Date: ${p.date}`);
+          if (p.methodology) parts.push(`Methodology: ${p.methodology}`);
+          if (p.conclusion) parts.push(`Conclusion: ${p.conclusion}`);
+          if (p.limitation) parts.push(`Limitations: ${p.limitation}`);
+          if (p.notes) parts.push(`My Notes: ${p.notes}`);
+          return parts.join('\n');
+        })
         .join('\n\n---\n\n');
 
       const researchContext = settings.researchContext
         ? `\n\nMy Research Context:\n${settings.researchContext}`
         : '';
 
-      const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Based on the notes I took, synthesize my learnings and extract key insights.
+      const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Synthesize my learnings and extract key insights.
 ${researchContext}
 
-Papers and Notes:
-${notesText}
+Papers I Read:
+${papersText}
 
 Please provide:
-1. A synthesis paragraph (2-4 sentences) that connects the key themes and learnings across these papers. Write in first person as if I'm writing my own research journal (use "my research", "I noticed", etc.). Be direct and specific.
+1. A synthesis paragraph (4-6 sentences) that: (a) provides a brief recap of what each paper was about (methodology, findings, etc.), and (b) connects the key themes and learnings across these papers. Write in first person as if I'm writing my own research journal (use "my research", "I noticed", etc.). Be direct and specific.
 2. A list of 3-6 bullet points with actionable insights, potential research directions, or important takeaways. Also in first person.
 
 Respond in this exact JSON format:
@@ -234,39 +242,59 @@ Respond in this exact JSON format:
       const entry = journalEntries.get(dateStr);
       if (!entry) return;
 
-      // Collect all notes from papers read that day
-      const paperNotes: { title: string; notes: string }[] = [];
+      // Collect paper metadata and notes
+      const paperData: Array<{
+        title: string;
+        authors?: string;
+        venue?: string;
+        date?: string;
+        methodology?: string;
+        conclusion?: string;
+        limitation?: string;
+        notes?: string;
+      }> = [];
+      
       datePapers.forEach(paper => {
-        if (paper.metadata?.notes) {
-          paperNotes.push({
-            title: paper.title,
-            notes: paper.metadata.notes,
-          });
-        }
+        const meta = paper.metadata || {};
+        paperData.push({
+          title: paper.title,
+          authors: paper.authors,
+          venue: meta.venue,
+          date: meta.date,
+          methodology: meta.methodology,
+          conclusion: meta.conclusion,
+          limitation: meta.limitation,
+          notes: meta.notes,
+        });
       });
 
-      if (paperNotes.length === 0) {
-        alert('No notes available for synthesis. Add notes to papers using the AI autofill feature in the Reader view.');
-        setRefreshingSynthesisDate(null);
-        return;
-      }
-
-      // Build prompt - only for synthesis
-      const notesText = paperNotes
-        .map(pn => `Paper: "${pn.title}"\nNotes: ${pn.notes}`)
+      // Build prompt with full paper information - only for synthesis
+      const papersText = paperData
+        .map(p => {
+          const parts: string[] = [];
+          parts.push(`Paper: "${p.title}"`);
+          if (p.authors) parts.push(`Authors: ${p.authors}`);
+          if (p.venue) parts.push(`Venue: ${p.venue}`);
+          if (p.date) parts.push(`Date: ${p.date}`);
+          if (p.methodology) parts.push(`Methodology: ${p.methodology}`);
+          if (p.conclusion) parts.push(`Conclusion: ${p.conclusion}`);
+          if (p.limitation) parts.push(`Limitations: ${p.limitation}`);
+          if (p.notes) parts.push(`My Notes: ${p.notes}`);
+          return parts.join('\n');
+        })
         .join('\n\n---\n\n');
 
       const researchContext = settings.researchContext
         ? `\n\nMy Research Context:\n${settings.researchContext}`
         : '';
 
-      const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Based on the notes I took, write a synthesis paragraph that connects the key themes and learnings across these papers.
+      const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Write a synthesis paragraph.
 ${researchContext}
 
-Papers and Notes:
-${notesText}
+Papers I Read:
+${papersText}
 
-Write a synthesis paragraph (2-4 sentences) in first person as if I'm writing my own research journal (use "my research", "I noticed", etc.). Be direct and specific. Connect the key themes and learnings across these papers.
+Write a synthesis paragraph (4-6 sentences) that: (a) provides a brief recap of what each paper was about (methodology, findings, etc.), and (b) connects the key themes and learnings across these papers. Write in first person as if I'm writing my own research journal (use "my research", "I noticed", etc.). Be direct and specific.
 
 Respond with ONLY the synthesis paragraph, no JSON, no bullet points, just the paragraph text.`;
 
