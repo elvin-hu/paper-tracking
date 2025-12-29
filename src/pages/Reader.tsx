@@ -1715,10 +1715,15 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                               }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // Calculate position for the floating popup
-                                const firstRect = highlight.rects[0];
-                                const popupX = (firstRect.x + firstRect.width / 2) * effectiveScale;
-                                const popupY = firstRect.y * effectiveScale - 10;
+                                // Calculate position for the floating popup - use bounding box of ALL rects
+                                const allRects = highlight.rects;
+                                const minX = Math.min(...allRects.map(r => r.x));
+                                const maxX = Math.max(...allRects.map(r => r.x + r.width));
+                                const minY = Math.min(...allRects.map(r => r.y));
+                                
+                                // Center horizontally across the highlight's bounding box
+                                const popupX = ((minX + maxX) / 2) * effectiveScale;
+                                const popupY = minY * effectiveScale - 10;
                                 setEditingHighlightPosition({ x: popupX, y: popupY });
                                 setEditingHighlight(highlight);
                                 setNoteInput('');
@@ -2036,11 +2041,14 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                       onMouseLeave={() => setHoveredNoteHighlightId(null)}
                                       onClick={() => {
                                         scrollToHighlight(highlight);
-                                        // Calculate position for floating editor based on highlight location
-                                        const firstRect = highlight.rects[0];
-                                        if (firstRect) {
-                                          const popupX = (firstRect.x + firstRect.width / 2) * effectiveScale;
-                                          const popupY = firstRect.y * effectiveScale - 10;
+                                        // Calculate position for floating editor - use bounding box of ALL rects
+                                        const allRects = highlight.rects;
+                                        if (allRects.length > 0) {
+                                          const minX = Math.min(...allRects.map(r => r.x));
+                                          const maxX = Math.max(...allRects.map(r => r.x + r.width));
+                                          const minY = Math.min(...allRects.map(r => r.y));
+                                          const popupX = ((minX + maxX) / 2) * effectiveScale;
+                                          const popupY = minY * effectiveScale - 10;
                                           setEditingHighlightPosition({ x: popupX, y: popupY });
                                         }
                                         setEditingHighlight(highlight);
