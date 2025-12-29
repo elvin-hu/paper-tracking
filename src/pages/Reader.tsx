@@ -37,6 +37,7 @@ import {
   getAllPapers,
   updatePaper,
   getSettings,
+  getAllTags,
 } from '../lib/database';
 
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -301,6 +302,10 @@ export function Reader() {
   
   // Tag editing state
   const [newTagInput, setNewTagInput] = useState('');
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const tagInputRef = useRef<HTMLInputElement>(null);
+  const tagSuggestionsRef = useRef<HTMLDivElement>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -431,13 +436,15 @@ export function Reader() {
 
   // Load all papers for reading list (needed to show paper info) and settings
   const loadAllPapers = useCallback(async () => {
-    const [papers, settings] = await Promise.all([
+    const [papers, settings, tags] = await Promise.all([
       getAllPapers(),
       getSettings(),
+      getAllTags(),
     ]);
     const paperMap = new Map<string, Paper>();
     papers.forEach((p) => paperMap.set(p.id, p));
     setAllPapers(paperMap);
+    setAvailableTags(tags);
     if (settings.sortOption) {
       setSortOption(settings.sortOption);
     }
@@ -446,6 +453,27 @@ export function Reader() {
   useEffect(() => {
     loadAllPapers();
   }, [loadAllPapers]);
+
+  // Close tag suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        tagSuggestionsRef.current &&
+        tagInputRef.current &&
+        !tagSuggestionsRef.current.contains(event.target as Node) &&
+        !tagInputRef.current.contains(event.target as Node)
+      ) {
+        setShowTagSuggestions(false);
+      }
+    };
+
+    if (showTagSuggestions) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showTagSuggestions]);
 
   // Switch to a different paper while preserving scroll position
   const switchToPaper = useCallback((targetPaperId: string) => {
@@ -1171,15 +1199,16 @@ export function Reader() {
   ]);
 
   // Tag editing functions
-  const addTag = () => {
+  const addTag = (tagToAdd?: string) => {
     if (!paper) return;
-    const trimmed = newTagInput.trim().toLowerCase();
-    if (trimmed && !paper.tags.includes(trimmed)) {
-      const updatedTags = [...paper.tags, trimmed];
+    const tag = tagToAdd || newTagInput.trim().toLowerCase();
+    if (tag && !paper.tags.includes(tag)) {
+      const updatedTags = [...paper.tags, tag];
       const updatedPaper = { ...paper, tags: updatedTags };
       setPaper(updatedPaper);
       paperRef.current = updatedPaper;
       setNewTagInput('');
+      setShowTagSuggestions(false);
       
       // Autosave tag changes
       if (metadataSaveTimeoutRef.current) {
@@ -2394,116 +2423,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               </div>
 
               <div className="space-y-2.5">
-                {/* Title */}
-                <div>
-                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    value={paper?.title || ''}
-                    onChange={(e) => {
-                      if (!paper) return;
-                      const newTitle = e.target.value;
-                      const updatedPaper = { ...paper, title: newTitle };
-                      setPaper(updatedPaper);
-                      paperRef.current = updatedPaper;
-                      
-                      // Autosave title changes
-                      if (metadataSaveTimeoutRef.current) {
-                        clearTimeout(metadataSaveTimeoutRef.current);
-                      }
-                      metadataSaveTimeoutRef.current = window.setTimeout(async () => {
-                        try {
-                          await updatePaper(updatedPaper);
-                          // Also update in allPapers map for sidebar
-                          setAllPapers(prev => {
-                            const newMap = new Map(prev);
-                            newMap.set(updatedPaper.id, updatedPaper);
-                            return newMap;
-                          });
-                        } catch (err) {
-                          console.error('Failed to save title:', err);
-                        }
-                      }, 500);
-                    }}
-                    placeholder="Paper title..."
-                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
-                  />
-                </div>
-
-                {/* Authors */}
-                <div>
-                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
-                    Authors
-                  </label>
-                  <input
-                    type="text"
-                    value={paper?.authors || ''}
-                    onChange={(e) => {
-                      if (!paper) return;
-                      const newAuthors = e.target.value;
-                      const updatedPaper = { ...paper, authors: newAuthors || undefined };
-                      setPaper(updatedPaper);
-                      paperRef.current = updatedPaper;
-                      
-                      // Autosave authors changes
-                      if (metadataSaveTimeoutRef.current) {
-                        clearTimeout(metadataSaveTimeoutRef.current);
-                      }
-                      metadataSaveTimeoutRef.current = window.setTimeout(async () => {
-                        try {
-                          await updatePaper(updatedPaper);
-                          setAllPapers(prev => {
-                            const newMap = new Map(prev);
-                            newMap.set(updatedPaper.id, updatedPaper);
-                            return newMap;
-                          });
-                        } catch (err) {
-                          console.error('Failed to save authors:', err);
-                        }
-                      }, 500);
-                    }}
-                    placeholder="Smith, J., Johnson, A."
-                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
-                  />
-                </div>
-
-                {/* Tags */}
-                <div>
-                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
-                    Tags
-                  </label>
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {paper?.tags.map((tag) => (
-                      <span key={tag} className="tag active flex items-center gap-1">
-                        {tag}
-                        <button
-                          onClick={() => removeTag(tag)}
-                          className="hover:text-[var(--accent-red)]"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newTagInput}
-                      onChange={(e) => setNewTagInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                      placeholder="Add tag..."
-                      className="flex-1 text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
-                    />
-                    <button onClick={addTag} className="btn-secondary px-2.5">
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div className="border-t border-[var(--border-muted)] my-3"></div>
 
                 {/* Methodology */}
                 <div>
@@ -2601,6 +2520,118 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     placeholder="Conference, Journal, etc."
                     className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
                   />
+                </div>
+
+                {/* Title */}
+                <div>
+                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
+                    Title
+                  </label>
+                  <input
+                    type="text"
+                    value={paper?.title || ''}
+                    onChange={(e) => {
+                      if (!paper) return;
+                      const newTitle = e.target.value;
+                      const updatedPaper = { ...paper, title: newTitle };
+                      setPaper(updatedPaper);
+                      paperRef.current = updatedPaper;
+                      
+                      // Autosave title changes
+                      if (metadataSaveTimeoutRef.current) {
+                        clearTimeout(metadataSaveTimeoutRef.current);
+                      }
+                      metadataSaveTimeoutRef.current = window.setTimeout(async () => {
+                        try {
+                          await updatePaper(updatedPaper);
+                          // Also update in allPapers map for sidebar
+                          setAllPapers(prev => {
+                            const newMap = new Map(prev);
+                            newMap.set(updatedPaper.id, updatedPaper);
+                            return newMap;
+                          });
+                        } catch (err) {
+                          console.error('Failed to save title:', err);
+                        }
+                      }, 500);
+                    }}
+                    placeholder="Paper title..."
+                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
+                  />
+                </div>
+
+                {/* Tags */}
+                <div className="relative">
+                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
+                    Tags
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {paper?.tags.map((tag) => (
+                      <span key={tag} className="tag active flex items-center gap-1">
+                        {tag}
+                        <button
+                          onClick={() => removeTag(tag)}
+                          className="hover:text-[var(--accent-red)]"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="relative flex gap-2">
+                    <input
+                      ref={tagInputRef}
+                      type="text"
+                      value={newTagInput}
+                      onChange={(e) => {
+                        setNewTagInput(e.target.value);
+                        setShowTagSuggestions(true);
+                      }}
+                      onFocus={() => setShowTagSuggestions(true)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addTag();
+                        } else if (e.key === 'Escape') {
+                          setShowTagSuggestions(false);
+                        }
+                      }}
+                      placeholder="Add tag..."
+                      className="flex-1 text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
+                    />
+                    <button onClick={() => addTag()} className="btn-secondary px-2.5">
+                      <Plus className="w-3 h-3" />
+                    </button>
+                    
+                    {/* Tag Suggestions Popup */}
+                    {showTagSuggestions && availableTags.length > 0 && (
+                      <div
+                        ref={tagSuggestionsRef}
+                        className="absolute top-full left-0 right-10 mt-1 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto"
+                      >
+                        {availableTags
+                          .filter(tag => 
+                            !paper?.tags.includes(tag) && 
+                            (newTagInput.trim() === '' || tag.toLowerCase().includes(newTagInput.toLowerCase()))
+                          )
+                          .slice(0, 10)
+                          .map((tag) => (
+                            <button
+                              key={tag}
+                              onClick={() => addTag(tag)}
+                              className="w-full text-left px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        {availableTags.filter(tag => !paper?.tags.includes(tag) && (newTagInput.trim() === '' || tag.toLowerCase().includes(newTagInput.toLowerCase()))).length === 0 && (
+                          <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
+                            No suggestions
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
