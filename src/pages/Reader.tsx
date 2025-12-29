@@ -1421,21 +1421,21 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             <div className="toolbar">
               <button
                 onClick={() => setShowPaperList(!showPaperList)}
-                className={`toolbar-btn ${showPaperList ? 'active' : ''}`}
+                className={`toolbar-btn ${showPaperList ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)] opacity-60'}`}
                 title={showPaperList ? 'Hide paper list' : 'Show paper list'}
               >
                 <PanelLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setShowRightPanel(!showRightPanel)}
-                className={`toolbar-btn ${showRightPanel ? 'active' : ''}`}
+                className={`toolbar-btn ${showRightPanel ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)] opacity-60'}`}
                 title={showRightPanel ? 'Hide notes panel' : 'Show notes panel'}
               >
                 <PanelRight className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Zoom Controls */}
+            {/* Zoom Controls with Fit to Width */}
             <div className="toolbar">
               <button
                 onClick={() => {
@@ -1460,16 +1460,15 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
+              <div className="w-px h-4 bg-[var(--border-default)] mx-0.5" />
+              <button
+                onClick={() => setFitToWidth(!fitToWidth)}
+                className={`toolbar-btn ${fitToWidth ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}
+                title="Fit to Width"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
             </div>
-
-            {/* Fit to Width - subtle toggle */}
-            <button
-              onClick={() => setFitToWidth(!fitToWidth)}
-              className={`toolbar-btn ${fitToWidth ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}
-              title="Fit to Width"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </button>
 
             {/* Download Button */}
             <button
