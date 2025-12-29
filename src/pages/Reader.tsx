@@ -259,7 +259,6 @@ export function Reader() {
   const [editingHighlight, setEditingHighlight] = useState<Highlight | null>(null); // Highlight being edited for a new note
   const [editingHighlightPosition, setEditingHighlightPosition] = useState<{ x: number; y: number } | null>(null); // Position for floating editor
   const [hoveredNoteHighlightId, setHoveredNoteHighlightId] = useState<string | null>(null); // Highlight ID being hovered in sidebar
-  const [pulsingHighlightId, setPulsingHighlightId] = useState<string | null>(null); // Highlight that should pulse
   const [noteInput, setNoteInput] = useState('');
   const [citationNoteInput, setCitationNoteInput] = useState('');
   const [references, setReferences] = useState<Map<string, string>>(new Map());
@@ -270,9 +269,15 @@ export function Reader() {
   const [documentReady, setDocumentReady] = useState(false);
   const [documentKey, setDocumentKey] = useState(0); // Used to force Document recreation
   
-  // Paper list sidebar state
-  const [showPaperList, setShowPaperList] = useState(true);
-  const [showRightPanel, setShowRightPanel] = useState(true);
+  // Paper list sidebar state - load from localStorage
+  const [showPaperList, setShowPaperList] = useState(() => {
+    const saved = localStorage.getItem('reader-showPaperList');
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [showRightPanel, setShowRightPanel] = useState(() => {
+    const saved = localStorage.getItem('reader-showRightPanel');
+    return saved !== null ? saved === 'true' : true;
+  });
   const [sortOption, setSortOption] = useState<SortOption>('date-desc');
   const [pdfContainerReady, setPdfContainerReady] = useState(false); // For fade-in effect
   const paperScrollPositions = useRef<Map<string, number>>(new Map()); // Store scroll positions per paper
@@ -296,7 +301,6 @@ export function Reader() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const pulseTimeoutRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
 
   const loadData = useCallback(async () => {
@@ -414,9 +418,6 @@ export function Reader() {
     return () => {
       isMountedRef.current = false;
       // Clear any pending timeouts
-      if (pulseTimeoutRef.current) {
-        clearTimeout(pulseTimeoutRef.current);
-      }
       if (metadataSaveTimeoutRef.current) {
         clearTimeout(metadataSaveTimeoutRef.current);
       }
@@ -571,6 +572,54 @@ export function Reader() {
       clearTimeout(timeoutId);
     };
   }, [showPaperList]);
+
+  // Save panel states to localStorage
+  useEffect(() => {
+    localStorage.setItem('reader-showPaperList', String(showPaperList));
+  }, [showPaperList]);
+
+  useEffect(() => {
+    localStorage.setItem('reader-showRightPanel', String(showRightPanel));
+  }, [showRightPanel]);
+
+  // Save scroll position to localStorage on scroll (debounced)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !paperId) return;
+
+    let saveTimeout: number | null = null;
+
+    const handleScroll = () => {
+      if (saveTimeout) clearTimeout(saveTimeout);
+      saveTimeout = window.setTimeout(() => {
+        const positions = JSON.parse(localStorage.getItem('reader-scrollPositions') || '{}');
+        positions[paperId] = container.scrollTop;
+        localStorage.setItem('reader-scrollPositions', JSON.stringify(positions));
+      }, 300);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      if (saveTimeout) clearTimeout(saveTimeout);
+    };
+  }, [paperId]);
+
+  // Restore scroll position from localStorage on load
+  useEffect(() => {
+    if (documentReady && paperId && containerRef.current) {
+      const positions = JSON.parse(localStorage.getItem('reader-scrollPositions') || '{}');
+      const savedPosition = positions[paperId];
+      if (savedPosition !== undefined) {
+        // Use a small delay to ensure PDF pages are rendered
+        setTimeout(() => {
+          if (containerRef.current) {
+            containerRef.current.scrollTop = savedPosition;
+          }
+        }, 150);
+      }
+    }
+  }, [documentReady, paperId]);
 
   // Show scrollbar when scrolling, hide after scroll stops
   useEffect(() => {
@@ -1368,22 +1417,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
       top: Math.max(0, scrollTarget),
       behavior: 'smooth',
     });
-
-    // Clear any existing pulse timeout
-    if (pulseTimeoutRef.current) {
-      clearTimeout(pulseTimeoutRef.current);
-    }
-
-    // Trigger pulse animation after scroll completes
-    pulseTimeoutRef.current = window.setTimeout(() => {
-      if (!isMountedRef.current) return;
-      setPulsingHighlightId(highlight.id);
-      // Clear pulse after animation
-      pulseTimeoutRef.current = window.setTimeout(() => {
-        if (!isMountedRef.current) return;
-        setPulsingHighlightId(null);
-      }, 1500);
-    }, 400);
   };
 
   const handleDownloadPDF = async () => {
@@ -1710,7 +1743,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     {/* Highlight Overlays - two layers: visual (below text) and click (above text) */}
                     {pageHighlights.map((highlight) => {
                       const isHovered = hoveredNoteHighlightId === highlight.id;
-                      const isPulsing = pulsingHighlightId === highlight.id;
                       const isEditing = editingHighlight?.id === highlight.id;
                       
                       return (
@@ -1720,7 +1752,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                             <div
                               key={`visual-${idx}`}
                               className={`absolute pointer-events-none transition-all duration-300 ${
-                                isPulsing ? 'animate-highlight-pulse' : ''
+                                isHovered ? 'animate-highlight-pulse' : ''
                               }`}
                               style={{
                                 left: rect.x * effectiveScale,
@@ -1732,7 +1764,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                 mixBlendMode: 'multiply',
                                 opacity: isHovered || isEditing ? 1 : 0.85,
                                 filter: isHovered || isEditing ? 'saturate(1.5) brightness(0.95)' : 'none',
-                                boxShadow: isPulsing ? `0 0 12px 4px ${getHighlightBg(highlight.color, highlight.isFurtherReading)}` : 'none',
+                                boxShadow: isHovered ? `0 0 8px 2px ${getHighlightBg(highlight.color, highlight.isFurtherReading)}` : 'none',
                               }}
                             />
                           ))}
