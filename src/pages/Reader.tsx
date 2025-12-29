@@ -919,22 +919,31 @@ export function Reader() {
       currentRects = Array.from(range.getClientRects());
     }
 
-    // Use the page container directly for positioning
-    const containerRect = pageContainer.getBoundingClientRect();
+    // IMPORTANT: Use the react-pdf Page element, not our wrapper, for accurate positioning
+    // The Page element is where text selection happens, so we need its rect
+    const pageElement = pageContainer.querySelector('.react-pdf__Page');
+    
+    // If we can't find the Page element, fall back to container
+    const referenceRect = pageElement 
+      ? pageElement.getBoundingClientRect() 
+      : pageContainer.getBoundingClientRect();
 
     // Convert viewport coords to page-relative coords, then to PDF units
     const rawRects = currentRects.map((rect) => ({
-      x: (rect.x - containerRect.x) / effectiveScale,
-      y: (rect.y - containerRect.y) / effectiveScale,
+      x: (rect.x - referenceRect.x) / effectiveScale,
+      y: (rect.y - referenceRect.y) / effectiveScale,
       width: rect.width / effectiveScale,
       height: rect.height / effectiveScale,
     }));
     
     // Debug logging for iPadOS issues
     if (currentRects.length > 0) {
+      const containerRect = pageContainer.getBoundingClientRect();
       console.log('[Highlight Debug]', {
         effectiveScale,
-        containerRect: { x: containerRect.x, y: containerRect.y, width: containerRect.width, height: containerRect.height },
+        wrapperRect: { x: containerRect.x, y: containerRect.y },
+        pageElementRect: { x: referenceRect.x, y: referenceRect.y },
+        offsetFromWrapper: { x: referenceRect.x - containerRect.x, y: referenceRect.y - containerRect.y },
         firstSelectionRect: { x: currentRects[0].x, y: currentRects[0].y, width: currentRects[0].width, height: currentRects[0].height },
         firstOutputRect: rawRects[0],
         devicePixelRatio: window.devicePixelRatio,
@@ -1645,9 +1654,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                 return (
                   <div
                     key={pageNum}
-                    ref={(el) => {
-                      if (el) pageRefs.current.set(pageNum, el);
-                    }}
                     data-page={pageNum}
                     className="relative mb-4"
                     onClick={(e) => {
@@ -1659,12 +1665,19 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       }
                     }}
                   >
-                    <Page
-                      pageNumber={pageNum}
-                      scale={effectiveScale}
-                      className="shadow-lg rounded-sm overflow-hidden"
-                      renderAnnotationLayer={false}
-                    />
+                    {/* Wrapper that positions highlights relative to Page element */}
+                    <div
+                      ref={(el) => {
+                        if (el) pageRefs.current.set(pageNum, el);
+                      }}
+                      className="relative inline-block"
+                    >
+                      <Page
+                        pageNumber={pageNum}
+                        scale={effectiveScale}
+                        className="shadow-lg rounded-sm overflow-hidden block"
+                        renderAnnotationLayer={false}
+                      />
                     {/* Highlight Overlays - two layers: visual (below text) and click (above text) */}
                     {pageHighlights.map((highlight) => {
                       const isHovered = hoveredNoteHighlightId === highlight.id;
@@ -1831,6 +1844,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                         </div>
                       );
                     })()}
+                    </div>{/* Close the inner wrapper for highlights */}
                   </div>
                 );
               })}
