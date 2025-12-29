@@ -22,7 +22,6 @@ import {
   FileText,
   Star,
   Trash2,
-  Info,
 } from 'lucide-react';
 import type { Paper, Highlight, Note, HighlightColor, SortOption } from '../types';
 import {
@@ -300,12 +299,8 @@ export function Reader() {
   const isInitialMetadataLoadRef = useRef(true);
   const paperRef = useRef<Paper | null>(null);
   
-  // Edit paper modal state
-  const [editingPaper, setEditingPaper] = useState<Paper | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editAuthors, setEditAuthors] = useState('');
-  const [editTags, setEditTags] = useState<string[]>([]);
-  const [editNewTagInput, setEditNewTagInput] = useState('');
+  // Tag editing state
+  const [newTagInput, setNewTagInput] = useState('');
 
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -1175,48 +1170,59 @@ export function Reader() {
     metadata.notes,
   ]);
 
-  // Edit paper modal functions
-  const openEditModal = () => {
+  // Tag editing functions
+  const addTag = () => {
     if (!paper) return;
-    setEditingPaper(paper);
-    setEditTitle(paper.title);
-    setEditAuthors(paper.authors || '');
-    setEditTags([...paper.tags]);
-    setEditNewTagInput('');
-  };
-
-  const addEditTag = () => {
-    const trimmed = editNewTagInput.trim().toLowerCase();
-    if (trimmed && !editTags.includes(trimmed)) {
-      setEditTags(prev => [...prev, trimmed]);
-      setEditNewTagInput('');
+    const trimmed = newTagInput.trim().toLowerCase();
+    if (trimmed && !paper.tags.includes(trimmed)) {
+      const updatedTags = [...paper.tags, trimmed];
+      const updatedPaper = { ...paper, tags: updatedTags };
+      setPaper(updatedPaper);
+      paperRef.current = updatedPaper;
+      setNewTagInput('');
+      
+      // Autosave tag changes
+      if (metadataSaveTimeoutRef.current) {
+        clearTimeout(metadataSaveTimeoutRef.current);
+      }
+      metadataSaveTimeoutRef.current = window.setTimeout(async () => {
+        try {
+          await updatePaper(updatedPaper);
+          setAllPapers(prev => {
+            const newMap = new Map(prev);
+            newMap.set(updatedPaper.id, updatedPaper);
+            return newMap;
+          });
+        } catch (err) {
+          console.error('Failed to save tags:', err);
+        }
+      }, 500);
     }
   };
 
-  const removeEditTag = (tag: string) => {
-    setEditTags(prev => prev.filter(t => t !== tag));
-  };
-
-  const saveEditedPaper = async () => {
-    if (!editingPaper || !paper) return;
-    
-    const updatedPaper: Paper = {
-      ...editingPaper,
-      title: editTitle || editingPaper.title,
-      authors: editAuthors || undefined,
-      tags: editTags,
-    };
-    
-    await updatePaper(updatedPaper);
-    setEditingPaper(null);
+  const removeTag = (tag: string) => {
+    if (!paper) return;
+    const updatedTags = paper.tags.filter(t => t !== tag);
+    const updatedPaper = { ...paper, tags: updatedTags };
     setPaper(updatedPaper);
     paperRef.current = updatedPaper;
-    // Update allPapers map so sidebar shows updated info
-    setAllPapers(prev => {
-      const newMap = new Map(prev);
-      newMap.set(updatedPaper.id, updatedPaper);
-      return newMap;
-    });
+    
+    // Autosave tag changes
+    if (metadataSaveTimeoutRef.current) {
+      clearTimeout(metadataSaveTimeoutRef.current);
+    }
+    metadataSaveTimeoutRef.current = window.setTimeout(async () => {
+      try {
+        await updatePaper(updatedPaper);
+        setAllPapers(prev => {
+          const newMap = new Map(prev);
+          newMap.set(updatedPaper.id, updatedPaper);
+          return newMap;
+        });
+      } catch (err) {
+        console.error('Failed to save tags:', err);
+      }
+    }, 500);
   };
 
   const handleAIAutofill = async () => {
@@ -1527,20 +1533,10 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             >
               <ArrowLeft className="w-[18px] h-[18px]" />
             </button>
-            <div className="min-w-0 flex items-center gap-2">
+            <div className="min-w-0">
               <h1 className="text-sm font-semibold text-[var(--text-primary)] truncate max-w-[500px]">
                 {displayTitle}
               </h1>
-              {/* Info Button */}
-              {paper && (
-                <button
-                  onClick={openEditModal}
-                  className="toolbar-btn flex-shrink-0"
-                  title="Edit paper info"
-                >
-                  <Info className="w-4 h-4" />
-                </button>
-              )}
             </div>
             {displayAuthors && (
               <p className="text-xs text-[var(--text-muted)] truncate hidden md:block">{displayAuthors}</p>
@@ -2436,6 +2432,79 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                   />
                 </div>
 
+                {/* Authors */}
+                <div>
+                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
+                    Authors
+                  </label>
+                  <input
+                    type="text"
+                    value={paper?.authors || ''}
+                    onChange={(e) => {
+                      if (!paper) return;
+                      const newAuthors = e.target.value;
+                      const updatedPaper = { ...paper, authors: newAuthors || undefined };
+                      setPaper(updatedPaper);
+                      paperRef.current = updatedPaper;
+                      
+                      // Autosave authors changes
+                      if (metadataSaveTimeoutRef.current) {
+                        clearTimeout(metadataSaveTimeoutRef.current);
+                      }
+                      metadataSaveTimeoutRef.current = window.setTimeout(async () => {
+                        try {
+                          await updatePaper(updatedPaper);
+                          setAllPapers(prev => {
+                            const newMap = new Map(prev);
+                            newMap.set(updatedPaper.id, updatedPaper);
+                            return newMap;
+                          });
+                        } catch (err) {
+                          console.error('Failed to save authors:', err);
+                        }
+                      }, 500);
+                    }}
+                    placeholder="Smith, J., Johnson, A."
+                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
+                  />
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
+                    Tags
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {paper?.tags.map((tag) => (
+                      <span key={tag} className="tag active flex items-center gap-1">
+                        {tag}
+                        <button
+                          onClick={() => removeTag(tag)}
+                          className="hover:text-[var(--accent-red)]"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                      placeholder="Add tag..."
+                      className="flex-1 text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)]"
+                    />
+                    <button onClick={addTag} className="btn-secondary px-2.5">
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-[var(--border-muted)] my-3"></div>
+
                 {/* Methodology */}
                 <div>
                   <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
@@ -2492,9 +2561,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                   />
                 </div>
 
-                {/* Divider */}
-                <div className="border-t border-[var(--border-muted)] my-3"></div>
-
                 {/* First Author */}
                 <div>
                   <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
@@ -2543,103 +2609,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
         </div>
       </div>
 
-      {/* Edit Paper Modal */}
-      {editingPaper && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setEditingPaper(null)}
-          />
-          <div className="relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-md animate-scale-in shadow-xl">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                Edit Paper
-              </h2>
-              <button
-                onClick={() => setEditingPaper(null)}
-                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  placeholder="Paper title"
-                  className="w-full text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-                  Authors
-                </label>
-                <input
-                  type="text"
-                  value={editAuthors}
-                  onChange={(e) => setEditAuthors(e.target.value)}
-                  placeholder="Smith, J., Johnson, A."
-                  className="w-full text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-                  Tags
-                </label>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {editTags.map((tag) => (
-                    <span key={tag} className="tag active flex items-center gap-1">
-                      {tag}
-                      <button
-                        onClick={() => removeEditTag(tag)}
-                        className="hover:text-[var(--accent-red)]"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={editNewTagInput}
-                    onChange={(e) => setEditNewTagInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addEditTag())}
-                    placeholder="Add tag..."
-                    className="flex-1 text-sm"
-                  />
-                  <button onClick={addEditTag} className="btn-secondary px-2.5">
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2 mt-6">
-              <button
-                onClick={() => setEditingPaper(null)}
-                className="btn-secondary flex-1 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveEditedPaper}
-                className="btn-primary flex-1 text-sm"
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
