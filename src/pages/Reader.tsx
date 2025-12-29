@@ -1349,7 +1349,16 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
     const highlightTop = firstRect.y * effectiveScale;
     const highlightHeight = firstRect.height * effectiveScale;
-    const pageOffsetTop = pageEl.offsetTop;
+    
+    // Calculate cumulative offset from page element to scroll container
+    // offsetTop only gives offset relative to offsetParent, not the scroll container
+    let pageOffsetTop = 0;
+    let el: HTMLElement | null = pageEl;
+    while (el && el !== containerRef.current) {
+      pageOffsetTop += el.offsetTop;
+      el = el.offsetParent as HTMLElement | null;
+    }
+    
     const containerHeight = containerRef.current.clientHeight;
 
     // Calculate scroll position to center the highlight
