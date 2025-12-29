@@ -1252,7 +1252,7 @@ Please extract and return a JSON object with the following fields:
 - methodology: Research methodology—be direct, no filler phrases (2-3 sentences)
 - conclusion: Key findings—go straight to the point (2-3 sentences)
 - limitation: Stated or obvious limitations (2-3 sentences)
-- notes: Practical learnings and actionable insights. Pay special attention to any TODOs, questions, or potential connections I've already noted—address those specifically. Suggest connections to my research context. Be direct. (3-4 sentences)
+- notes: Practical learnings and actionable insights. Pay special attention to any TODOs, questions, or potential connections I've already noted—address those specifically. Suggest connections to my research context. Be direct and thorough.
 
 Return ONLY a valid JSON object, no other text. If a field cannot be determined, use an empty string. Format:
 {
