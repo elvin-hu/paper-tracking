@@ -272,6 +272,7 @@ export function Reader() {
   
   // Paper list sidebar state
   const [showPaperList, setShowPaperList] = useState(true);
+  const [showRightPanel, setShowRightPanel] = useState(true);
   const [sortOption, setSortOption] = useState<SortOption>('date-desc');
   const [pdfContainerReady, setPdfContainerReady] = useState(false); // For fade-in effect
   const paperScrollPositions = useRef<Map<string, number>>(new Map()); // Store scroll positions per paper
@@ -818,13 +819,18 @@ export function Reader() {
     // Listen to both mouse and touch events for text selection
     document.addEventListener('mouseup', handleTextSelection);
     document.addEventListener('touchend', handleTextSelection);
-    document.addEventListener('selectionchange', () => {
-      // Delayed check for touch selection (gives iOS time to complete selection)
-      setTimeout(handleTextSelection, 100);
-    });
+    
+    // Handle real-time selection changes (for touch/pencil drag)
+    const handleSelectionChange = () => {
+      // Check selection immediately for responsive feedback
+      handleTextSelection();
+    };
+    document.addEventListener('selectionchange', handleSelectionChange);
+    
     return () => {
       document.removeEventListener('mouseup', handleTextSelection);
       document.removeEventListener('touchend', handleTextSelection);
+      document.removeEventListener('selectionchange', handleSelectionChange);
     };
   }, [handleTextSelection]);
 
@@ -1899,8 +1905,24 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           })()}
         </div>
 
+        {/* Right Panel Toggle Button (when collapsed) */}
+        {!showRightPanel && (
+          <button
+            onClick={() => setShowRightPanel(true)}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-30 p-2 bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-l-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+            title="Show notes panel"
+          >
+            <PanelLeft className="w-4 h-4 text-[var(--text-secondary)]" />
+          </button>
+        )}
+
         {/* Right Sidebar - Notes and Metadata */}
-        <div className="w-80 flex flex-col h-full overflow-hidden flex-shrink-0 border-l border-[var(--border-default)] relative" data-sidebar="notes-metadata">
+        <div 
+          className={`flex flex-col h-full overflow-hidden flex-shrink-0 border-l border-[var(--border-default)] relative transition-all duration-200 ease-out ${
+            showRightPanel ? 'w-80' : 'w-0'
+          }`}
+          data-sidebar="notes-metadata"
+        >
           {/* Loading overlay for right sidebar */}
           {isLoading && (
             <div className="absolute inset-0 z-40 bg-[var(--bg-primary)] flex items-center justify-center">
@@ -1911,6 +1933,17 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           <div className="flex flex-col overflow-hidden" style={{ height: `calc(100% - ${metadataPanelHeight}px)` }}>
             {/* Tab Header */}
             <div className="p-2 border-b border-[var(--border-default)] flex-shrink-0">
+              {/* Collapse button */}
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-[var(--text-secondary)]">Notes & Reading</span>
+                <button
+                  onClick={() => setShowRightPanel(false)}
+                  className="p-1 rounded hover:bg-[var(--bg-tertiary)] transition-colors"
+                  title="Hide panel"
+                >
+                  <PanelLeftClose className="w-4 h-4 text-[var(--text-muted)]" style={{ transform: 'scaleX(-1)' }} />
+                </button>
+              </div>
               <div className="segmented-control w-full justify-center">
                 <button
                   onClick={() => setSidebarTab('notes')}
