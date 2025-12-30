@@ -58,10 +58,10 @@ const HIGHLIGHT_COLORS: { color: HighlightColor; bg: string; border: string; acc
 // Parse references from PDF text
 function parseReferences(fullText: string): Map<string, string> {
   const references = new Map<string, string>();
-  
+
   // Normalize whitespace for easier parsing
   const normalizedText = fullText.replace(/\s+/g, ' ');
-  
+
   // Find the references section - look for common headers (case insensitive, flexible spacing)
   const refSectionPatterns = [
     /\bReferences?\b/i,
@@ -70,7 +70,7 @@ function parseReferences(fullText: string): Map<string, string> {
     /\bLiterature\s+Cited\b/i,
     /\bCited\s+Literature\b/i,
   ];
-  
+
   let refSectionStart = -1;
   for (const pattern of refSectionPatterns) {
     const match = normalizedText.match(pattern);
@@ -85,7 +85,7 @@ function parseReferences(fullText: string): Map<string, string> {
       }
     }
   }
-  
+
   // If we didn't find a header, look for numbered entries in the last portion
   if (refSectionStart === -1) {
     const lastThird = normalizedText.slice(-Math.floor(normalizedText.length / 3));
@@ -96,25 +96,25 @@ function parseReferences(fullText: string): Map<string, string> {
       console.log(`Found references by [1] pattern at position ${refSectionStart}`);
     }
   }
-  
+
   if (refSectionStart === -1) {
     console.log('Could not find references section in PDF');
     return references;
   }
-  
+
   const refSection = normalizedText.slice(refSectionStart);
   console.log(`Reference section length: ${refSection.length} chars`);
   console.log(`First 500 chars of ref section: ${refSection.slice(0, 500)}`);
-  
+
   // Try bracket style first: [1] ... [2] ...
   const bracketPattern = /\[(\d+)\]/g;
   const bracketMatches: { num: string; index: number }[] = [];
   let match;
-  
+
   while ((match = bracketPattern.exec(refSection)) !== null) {
     bracketMatches.push({ num: match[1], index: match.index });
   }
-  
+
   if (bracketMatches.length >= 3) {
     console.log(`Found ${bracketMatches.length} bracket references`);
     for (let i = 0; i < bracketMatches.length; i++) {
@@ -123,22 +123,22 @@ function parseReferences(fullText: string): Map<string, string> {
       const startIdx = current.index + current.num.length + 2; // skip "[N]"
       const endIdx = next ? next.index : refSection.length;
       const refText = refSection.slice(startIdx, endIdx).trim();
-      
+
       if (refText.length > 10) {
         references.set(current.num, refText);
       }
     }
   }
-  
+
   // If bracket style didn't work, try numbered style: 1. ... 2. ...
   if (references.size === 0) {
     const numberedPattern = /(?:^|\s)(\d{1,3})\.\s+([A-Z])/g;
     const numberedMatches: { num: string; index: number }[] = [];
-    
+
     while ((match = numberedPattern.exec(refSection)) !== null) {
       numberedMatches.push({ num: match[1], index: match.index });
     }
-    
+
     if (numberedMatches.length >= 3) {
       console.log(`Found ${numberedMatches.length} numbered references`);
       for (let i = 0; i < numberedMatches.length; i++) {
@@ -147,22 +147,22 @@ function parseReferences(fullText: string): Map<string, string> {
         const startIdx = current.index;
         const endIdx = next ? next.index : refSection.length;
         let refText = refSection.slice(startIdx, endIdx).trim();
-        
+
         // Remove the leading number
         refText = refText.replace(/^\d{1,3}\.\s*/, '');
-        
+
         if (refText.length > 10) {
           references.set(current.num, refText);
         }
       }
     }
   }
-  
+
   console.log(`Total parsed references: ${references.size}`);
   if (references.size > 0) {
     console.log('Sample references:', Array.from(references.entries()).slice(0, 3));
   }
-  
+
   return references;
 }
 
@@ -173,19 +173,19 @@ function extractTitleFromReference(refText: string): string {
   // Author(s). "Title." Journal...
   // Author(s). Title. Journal...
   // Author(s) (Year). Title. Journal...
-  
+
   // Look for quoted title first
   const quotedMatch = refText.match(/[""]([^""]+)[""]/);
   if (quotedMatch) {
     return quotedMatch[1];
   }
-  
+
   // Look for italicized or title after year
   const afterYearMatch = refText.match(/\(\d{4}\)\.\s*([^.]+)/);
   if (afterYearMatch) {
     return afterYearMatch[1].trim();
   }
-  
+
   // Look for title between first period and second period (common format)
   const parts = refText.split(/\.\s+/);
   if (parts.length >= 2) {
@@ -195,7 +195,7 @@ function extractTitleFromReference(refText: string): string {
       return potentialTitle;
     }
   }
-  
+
   // If all else fails, return first 150 chars
   return refText.slice(0, 150) + (refText.length > 150 ? '...' : '');
 }
@@ -206,19 +206,19 @@ function extractFirstAuthor(refText: string): string | null {
   // "Smith, J., Jones, A., ..." - take "Smith, J."
   // "Smith et al. (2020)" - take "Smith et al."
   // "John Smith, Alice Jones, ..." - take "John Smith"
-  
+
   // Look for "et al." pattern
   const etAlMatch = refText.match(/^([^,]+(?:,\s*[A-Z]\.?)?\s+et\s+al\.?)/i);
   if (etAlMatch) {
     return etAlMatch[1].trim();
   }
-  
+
   // Look for first author before "and" or comma with multiple authors
   const beforeAndMatch = refText.match(/^([^,]+(?:,\s*[A-Z]\.?)?)\s*(?:,\s*[A-Z]|,\s*and\s+|\s+and\s+)/i);
   if (beforeAndMatch) {
     return beforeAndMatch[1].trim();
   }
-  
+
   // Look for author before year in parentheses
   const beforeYearMatch = refText.match(/^([^(]+?)(?:\s*\(\d{4}\))/);
   if (beforeYearMatch) {
@@ -226,13 +226,13 @@ function extractFirstAuthor(refText: string): string | null {
     // Clean up trailing punctuation
     return author.replace(/[.,;:]+$/, '').trim();
   }
-  
+
   // Look for first segment before a period (author list typically ends with period)
   const firstSegment = refText.split(/\.\s+/)[0];
   if (firstSegment && firstSegment.length < 100) {
     return firstSegment.trim();
   }
-  
+
   return null;
 }
 
@@ -241,7 +241,7 @@ export function Reader() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  
+
   // Get the source route from location state (for proper back navigation)
   const sourceRoute = (location.state as { from?: string } | null)?.from;
 
@@ -270,7 +270,7 @@ export function Reader() {
   const [allPapers, setAllPapers] = useState<Map<string, Paper>>(new Map());
   const [documentReady, setDocumentReady] = useState(false);
   const [documentKey, setDocumentKey] = useState(0); // Used to force Document recreation
-  
+
   // Paper list sidebar state - load from localStorage
   const [showPaperList, setShowPaperList] = useState(() => {
     const saved = localStorage.getItem('reader-showPaperList');
@@ -283,7 +283,7 @@ export function Reader() {
   const [sortOption, setSortOption] = useState<SortOption>('date-desc');
   const [pdfContainerReady, setPdfContainerReady] = useState(false); // For fade-in effect
   const paperScrollPositions = useRef<Map<string, number>>(new Map()); // Store scroll positions per paper
-  
+
   // Metadata state
   const [metadata, setMetadata] = useState({
     firstAuthor: '',
@@ -300,7 +300,7 @@ export function Reader() {
   const metadataSaveTimeoutRef = useRef<number | null>(null);
   const isInitialMetadataLoadRef = useRef(true);
   const paperRef = useRef<Paper | null>(null);
-  
+
   // Edit paper modal state
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -321,7 +321,7 @@ export function Reader() {
     if (loadedPaper) {
       setPaper(loadedPaper);
       paperRef.current = loadedPaper;
-      
+
       // Mark paper as read if not already
       if (!loadedPaper.isRead) {
         const updatedPaper = { ...loadedPaper, isRead: true };
@@ -335,7 +335,7 @@ export function Reader() {
           return newMap;
         });
       }
-      
+
       // Load metadata if it exists
       if (loadedPaper.metadata) {
         setMetadata({
@@ -372,13 +372,13 @@ export function Reader() {
     // Reset references when switching papers
     setReferences(new Map());
     setReferencesLoaded(false);
-    
+
     // Clear existing PDF data first
     setPdfData(null);
-    
+
     // Increment documentKey to force Document component recreation
     setDocumentKey(prev => prev + 1);
-    
+
     if (file) {
       // Reset all document states before loading new document
       setDocumentReady(false);
@@ -387,13 +387,13 @@ export function Reader() {
       // Reset references when switching papers
       setReferences(new Map());
       setReferencesLoaded(false);
-      
+
       // Clear existing PDF data first
       setPdfData(null);
-      
+
       // Increment documentKey to force Document component recreation
       setDocumentKey(prev => prev + 1);
-      
+
       // Use setTimeout to ensure the Document component is fully unmounted
       setTimeout(() => {
         // Create a fresh copy of the ArrayBuffer for the Document component
@@ -407,7 +407,7 @@ export function Reader() {
     }
     setHighlights(loadedHighlights);
     setNotes(loadedNotes);
-    
+
     // Update reading list to only show items from current paper
     const currentPaperReadingList = loadedHighlights.filter(h => h.isFurtherReading);
     setReadingList(currentPaperReadingList);
@@ -453,21 +453,21 @@ export function Reader() {
   // Switch to a different paper while preserving scroll position
   const switchToPaper = useCallback((targetPaperId: string) => {
     if (targetPaperId === paperId) return;
-    
+
     // Save current scroll position before switching
     if (paperId && containerRef.current) {
       paperScrollPositions.current.set(paperId, containerRef.current.scrollTop);
     }
-    
+
     // Clear PDF state before switching to prevent ArrayBuffer detachment errors
     setPdfData(null);
     setDocumentReady(false);
     setNumPages(0);
     setPdfContainerReady(false);
-    
+
     // Clear page refs to prevent memory leak
     pageRefs.current.clear();
-    
+
     // Navigate to the new paper, preserving the source route
     navigate(`/reader/${targetPaperId}`, { state: { from: sourceRoute }, replace: true });
   }, [paperId, navigate, sourceRoute]);
@@ -476,20 +476,20 @@ export function Reader() {
   const togglePaperReadStatus = useCallback(async (e: React.MouseEvent<HTMLButtonElement>, paper: Paper) => {
     e.stopPropagation();
     const updatedPaper = { ...paper, isRead: !paper.isRead };
-    
+
     // Optimistically update local state immediately
     setAllPapers(prev => {
       const newMap = new Map(prev);
       newMap.set(updatedPaper.id, updatedPaper);
       return newMap;
     });
-    
+
     // Also update current paper if it's the one being toggled
     if (paper.id === paperId && paper) {
       setPaper(updatedPaper);
       paperRef.current = updatedPaper;
     }
-    
+
     // Save to database in background
     try {
       await updatePaper(updatedPaper);
@@ -512,20 +512,20 @@ export function Reader() {
   const togglePaperStarred = useCallback(async (e: React.MouseEvent<HTMLButtonElement>, paper: Paper) => {
     e.stopPropagation();
     const updatedPaper = { ...paper, isStarred: !paper.isStarred };
-    
+
     // Optimistically update local state immediately
     setAllPapers(prev => {
       const newMap = new Map(prev);
       newMap.set(updatedPaper.id, updatedPaper);
       return newMap;
     });
-    
+
     // Also update current paper if it's the one being toggled
     if (paper.id === paperId && paper) {
       setPaper(updatedPaper);
       paperRef.current = updatedPaper;
     }
-    
+
     // Save to database in background
     try {
       await updatePaper(updatedPaper);
@@ -571,7 +571,7 @@ export function Reader() {
     // Update immediately and after a short delay (for sidebar animation)
     updateWidth();
     const timeoutId = setTimeout(updateWidth, 250);
-    
+
     window.addEventListener('resize', updateWidth);
     return () => {
       window.removeEventListener('resize', updateWidth);
@@ -637,12 +637,12 @@ export function Reader() {
     const handleScroll = () => {
       // Add class to show scrollbar
       container.classList.add('is-scrolling');
-      
+
       // Clear existing timeout
       if (scrollTimeout) {
         clearTimeout(scrollTimeout);
       }
-      
+
       // Hide scrollbar after scrolling stops (300ms delay)
       scrollTimeout = window.setTimeout(() => {
         container.classList.remove('is-scrolling');
@@ -650,7 +650,7 @@ export function Reader() {
     };
 
     container.addEventListener('scroll', handleScroll, { passive: true });
-    
+
     return () => {
       container.removeEventListener('scroll', handleScroll);
       if (scrollTimeout) {
@@ -696,11 +696,11 @@ export function Reader() {
     setNumPages(0);
     setPdfData(null);
   };
-  
+
   // Extract references from PDF - reload from database to get fresh ArrayBuffer
   useEffect(() => {
     if (!paperId || referencesLoaded) return;
-    
+
     const extractReferences = async () => {
       try {
         // Reload the file from database to ensure we have a fresh, non-detached ArrayBuffer
@@ -710,11 +710,11 @@ export function Reader() {
           setReferencesLoaded(true);
           return;
         }
-        
+
         const pdfDataCopy = file.data.slice(0);
         const pdf = await pdfjs.getDocument({ data: pdfDataCopy }).promise;
         let fullText = '';
-        
+
         // Extract text from all pages
         const numPagesToExtract = pdf.numPages;
         for (let i = 1; i <= numPagesToExtract; i++) {
@@ -725,16 +725,16 @@ export function Reader() {
             .join(' ');
           fullText += pageText + '\n';
         }
-        
+
         // Parse references from the extracted text
         const parsedRefs = parseReferences(fullText);
         setReferences(parsedRefs);
         setReferencesLoaded(true);
-        
+
         if (parsedRefs.size > 0) {
           console.log(`Parsed ${parsedRefs.size} references from PDF`);
         }
-        
+
         // Clean up
         pdf.destroy();
       } catch (error) {
@@ -742,7 +742,7 @@ export function Reader() {
         setReferencesLoaded(true); // Mark as loaded to prevent retries
       }
     };
-    
+
     // Delay extraction slightly to let the main document load first
     const timer = setTimeout(extractReferences, 200);
     return () => clearTimeout(timer);
@@ -752,18 +752,18 @@ export function Reader() {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
-      
+
       const sidebar = document.querySelector('[data-sidebar="notes-metadata"]') as HTMLElement;
       if (!sidebar) return;
-      
+
       const sidebarRect = sidebar.getBoundingClientRect();
       const newHeight = sidebarRect.bottom - e.clientY;
-      
+
       // Constrain height between 200px and 70% of viewport
       const minHeight = 200;
       const maxHeight = window.innerHeight * 0.7;
       const constrainedHeight = Math.max(minHeight, Math.min(maxHeight, newHeight));
-      
+
       setMetadataPanelHeight(constrainedHeight);
     };
 
@@ -793,7 +793,7 @@ export function Reader() {
   // Detect reference numbers in selected text - more flexible matching
   const detectReference = (text: string): string | null => {
     const trimmed = text.trim();
-    
+
     // More flexible patterns that can match within text
     const patterns = [
       /\[(\d+(?:\s*[-–,]\s*\d+)*)\]/,     // [1], [1-3], [1, 2, 3], [1–3]
@@ -801,14 +801,14 @@ export function Reader() {
       /^(\d+)$/,                           // just number like "23"
       /^(\d+)\s*[-–]\s*(\d+)$/,           // range like "23-25" or "23–25"
     ];
-    
+
     for (const pattern of patterns) {
       const match = trimmed.match(pattern);
       if (match) {
         return match[1] || match[0];
       }
     }
-    
+
     // Also check if it's a short text that contains mostly numbers (likely a reference)
     if (trimmed.length <= 10 && /^\[?\(?\d/.test(trimmed)) {
       const numbers = trimmed.match(/\d+/g);
@@ -816,10 +816,10 @@ export function Reader() {
         return numbers.join(', ');
       }
     }
-    
+
     return null;
   };
-  
+
   // Check if selection looks like a reference
   const isLikelyReference = (text: string): boolean => {
     const trimmed = text.trim();
@@ -874,17 +874,17 @@ export function Reader() {
     const scrollTop = containerRef.current?.scrollTop || 0;
     const scrollLeft = containerRef.current?.scrollLeft || 0;
     const containerRect = containerRef.current?.getBoundingClientRect();
-    
+
     // Convert viewport coordinates to container-relative coordinates
     const containerLeft = containerRect?.left || 0;
     const containerTop = containerRect?.top || 0;
     const containerWidth = containerRect?.width || window.innerWidth;
-    
+
     // Calculate x position relative to container, accounting for horizontal scroll
     const relativeX = lastRect.right - containerLeft + scrollLeft + 8;
     // Ensure popup doesn't go off the right edge
     const maxX = containerWidth - 250;
-    
+
     setColorPickerPosition({
       x: Math.min(relativeX, maxX),
       y: lastRect.top - containerTop + scrollTop,
@@ -897,7 +897,7 @@ export function Reader() {
     // Don't use selectionchange as it fires during selection and interrupts the user
     document.addEventListener('mouseup', handleTextSelection);
     document.addEventListener('touchend', handleTextSelection);
-    
+
     return () => {
       document.removeEventListener('mouseup', handleTextSelection);
       document.removeEventListener('touchend', handleTextSelection);
@@ -921,9 +921,9 @@ export function Reader() {
   const getReferenceInfo = (refNumber: string): { title: string; fullCitation: string } | null => {
     // Handle comma-separated or range references - just use the first one
     const firstNum = refNumber.split(/[,\-–]/)[0].trim();
-    
+
     console.log(`Looking up reference [${firstNum}] in map with ${references.size} entries`);
-    
+
     const refText = references.get(firstNum);
     if (refText) {
       const title = extractTitleFromReference(refText);
@@ -931,7 +931,7 @@ export function Reader() {
       console.log(`Found reference [${firstNum}]: title="${title}", author="${author}"`);
       return { title: title || '', fullCitation: refText };
     }
-    
+
     console.log(`Reference [${firstNum}] not found in map`);
     return null;
   };
@@ -939,28 +939,28 @@ export function Reader() {
   // Merge overlapping rects to prevent double-highlighting on multi-line selections
   const mergeOverlappingRects = (rects: { x: number; y: number; width: number; height: number }[]) => {
     if (rects.length === 0) return rects;
-    
+
     // Sort by y first, then by x
     const sorted = [...rects].sort((a, b) => {
       const yDiff = a.y - b.y;
       if (Math.abs(yDiff) > 2) return yDiff; // Different lines
       return a.x - b.x; // Same line, sort by x
     });
-    
+
     const merged: typeof rects = [];
-    
+
     for (const rect of sorted) {
       if (merged.length === 0) {
         merged.push({ ...rect });
         continue;
       }
-      
+
       const last = merged[merged.length - 1];
-      
+
       // Check if rects are on the same line (y within tolerance) and overlap or touch
       const sameLine = Math.abs(rect.y - last.y) < 3;
       const overlapsOrTouches = rect.x <= last.x + last.width + 1;
-      
+
       if (sameLine && overlapsOrTouches) {
         // Merge: extend the last rect to include this one
         const newRight = Math.max(last.x + last.width, rect.x + rect.width);
@@ -970,7 +970,7 @@ export function Reader() {
         merged.push({ ...rect });
       }
     }
-    
+
     return merged;
   };
 
@@ -983,7 +983,7 @@ export function Reader() {
     // Get fresh selection rects at the moment of creation (fixes iPadOS offset issues)
     const selection = window.getSelection();
     let currentRects = selectionRects;
-    
+
     if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
       currentRects = Array.from(range.getClientRects());
@@ -1001,15 +1001,15 @@ export function Reader() {
         width: rect.width / effectiveScale,
         height: rect.height / effectiveScale,
       }));
-    
+
     if (rawRects.length === 0) return;
-    
+
     // Merge overlapping rects to prevent double-highlighting
     const rects = mergeOverlappingRects(rawRects);
 
     // Check if this looks like a reference
     const refNumber = detectReference(selectedText);
-    
+
     // Mark as further reading if:
     // Mark as further reading if user clicked the "Further Reading" button
     const markAsFurtherReading = isFurtherReading;
@@ -1017,7 +1017,7 @@ export function Reader() {
     // Get the reference title if available
     let noteText: string | undefined = note;
     let highlightText = selectedText;
-    
+
     if (refNumber && markAsFurtherReading) {
       const refInfo = getReferenceInfo(refNumber);
       if (refInfo) {
@@ -1104,12 +1104,12 @@ export function Reader() {
 
   // Reading list helpers
   const isReadingItemResolved = (highlight: Highlight) => highlight.note?.includes('✓');
-  
+
   const toggleReadingResolved = async (highlight: Highlight) => {
     const updated = {
       ...highlight,
-      note: highlight.note?.includes('✓') 
-        ? highlight.note.replace(' ✓', '') 
+      note: highlight.note?.includes('✓')
+        ? highlight.note.replace(' ✓', '')
         : (highlight.note || 'Reference') + ' ✓',
       updatedAt: new Date(),
     };
@@ -1125,7 +1125,7 @@ export function Reader() {
   // Autosave metadata with debounce
   useEffect(() => {
     if (!paperRef.current || isInitialMetadataLoadRef.current) return;
-    
+
     // Clear existing timeout
     if (metadataSaveTimeoutRef.current) {
       clearTimeout(metadataSaveTimeoutRef.current);
@@ -1135,7 +1135,7 @@ export function Reader() {
     metadataSaveTimeoutRef.current = window.setTimeout(async () => {
       const currentPaper = paperRef.current;
       if (!currentPaper) return;
-      
+
       try {
         const updatedPaper: Paper = {
           ...currentPaper,
@@ -1191,7 +1191,7 @@ export function Reader() {
 
   const handleAIAutofill = async () => {
     if (!paper) return;
-    
+
     setIsAIAutofilling(true);
     let extractionPdf: any = null;
     try {
@@ -1212,7 +1212,7 @@ export function Reader() {
       const pdfDataCopy = file.data.slice(0);
       extractionPdf = await pdfjs.getDocument({ data: pdfDataCopy }).promise;
       let fullText = '';
-      
+
       // Extract text from all pages
       const pagesToExtract = extractionPdf.numPages;
       for (let i = 1; i <= pagesToExtract; i++) {
@@ -1223,21 +1223,21 @@ export function Reader() {
           .join(' ');
         fullText += pageText + '\n';
       }
-      
+
       // Clean up the extraction PDF instance
       extractionPdf.destroy();
       extractionPdf = null;
 
       // Collect all existing notes from highlights and separate note objects
       const allUserNotes: string[] = [];
-      
+
       // Collect notes from highlights (highlight.note field)
       highlights.forEach((highlight) => {
         if (highlight.note && highlight.note.trim()) {
           allUserNotes.push(`Highlight: "${highlight.text}" - Note: ${highlight.note}`);
         }
       });
-      
+
       // Collect notes from separate Note objects
       notes.forEach((note) => {
         const relatedHighlight = highlights.find((h) => h.id === note.highlightId);
@@ -1253,7 +1253,7 @@ export function Reader() {
         : '';
 
       // Build the prompt
-      const researchContext = settings.researchContext 
+      const researchContext = settings.researchContext
         ? `\n\nMy Research Context:\n${settings.researchContext}\n\nPlease extract information relevant to my research focus.`
         : '';
 
@@ -1319,7 +1319,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
       const data = await response.json();
       const content = data.choices[0]?.message?.content?.trim() || '';
-      
+
       // Parse JSON response (handle markdown code blocks if present)
       let jsonContent = content;
       const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
@@ -1353,19 +1353,19 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             ...newMetadata,
           },
         };
-        
+
         // Save immediately
         await updatePaper(updatedPaper);
         setPaper(updatedPaper);
         paperRef.current = updatedPaper;
-        
+
         // Also update in allPapers map for sidebar
         setAllPapers(prev => {
           const newMap = new Map(prev);
           newMap.set(updatedPaper.id, updatedPaper);
           return newMap;
         });
-        
+
         // Update metadata state (this will not trigger autosave since we already saved)
         setMetadata(newMetadata);
       }
@@ -1393,7 +1393,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
     const effectiveColor = isFurtherReading && color === 'blue' ? 'purple' : color;
     return HIGHLIGHT_COLORS.find((c) => c.color === effectiveColor)?.bg || HIGHLIGHT_COLORS[0].bg;
   };
-  
+
   const getHighlightColor = (highlight: Highlight): HighlightColor => {
     // Force purple for further reading items that were previously blue
     if (highlight.isFurtherReading && highlight.color === 'blue') {
@@ -1420,7 +1420,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
     const highlightTop = firstRect.y * effectiveScale;
     const highlightHeight = firstRect.height * effectiveScale;
-    
+
     // Calculate cumulative offset from page element to scroll container
     // offsetTop only gives offset relative to offsetParent, not the scroll container
     let pageOffsetTop = 0;
@@ -1429,7 +1429,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
       pageOffsetTop += el.offsetTop;
       el = el.offsetParent as HTMLElement | null;
     }
-    
+
     const containerHeight = containerRef.current.clientHeight;
 
     // Calculate scroll position to center the highlight
@@ -1443,7 +1443,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
   const handleDownloadPDF = async () => {
     if (!pdfData || !paper) return;
-    
+
     // Create blob and download
     const blob = new Blob([pdfData], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
@@ -1457,10 +1457,10 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
   };
 
   // Only show highlights with notes in the sidebar (no pure highlights)
-  const highlightsWithNotes = highlights.filter(h => 
+  const highlightsWithNotes = highlights.filter(h =>
     notes.some(n => n.highlightId === h.id)
   );
-  
+
   const groupedHighlights = highlightsWithNotes.reduce(
     (acc, highlight) => {
       const pageNum = highlight.pageNumber;
@@ -1472,7 +1472,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
   );
 
   const isLoading = !pdfData;
-  
+
   // Get paper info from allPapers for immediate header updates (before full paper loads)
   const currentPaperInfo = paperId ? allPapers.get(paperId) : null;
   const displayTitle = paper?.title || currentPaperInfo?.title || 'Loading...';
@@ -1548,8 +1548,10 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             <div className="toolbar">
               <button
                 onClick={() => {
+                  // Use current effectiveScale as base when turning off fitToWidth
+                  const newScale = Math.max(0.5, effectiveScale - 0.1);
                   setFitToWidth(false);
-                  setScale((s) => Math.max(0.5, s - 0.1));
+                  setScale(newScale);
                 }}
                 className="toolbar-btn"
                 title="Zoom Out"
@@ -1561,8 +1563,10 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               </span>
               <button
                 onClick={() => {
+                  // Use current effectiveScale as base when turning off fitToWidth
+                  const newScale = Math.min(3, effectiveScale + 0.1);
                   setFitToWidth(false);
-                  setScale((s) => Math.min(3, s + 0.1));
+                  setScale(newScale);
                 }}
                 className="toolbar-btn"
                 title="Zoom In"
@@ -1572,7 +1576,11 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               <div className="w-px h-4 bg-[var(--border-default)] mx-0.5" />
               <button
                 onClick={() => setFitToWidth(!fitToWidth)}
-                className={`toolbar-btn ${fitToWidth ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}
+                className="toolbar-btn"
+                style={{
+                  color: fitToWidth ? '#3b82f6' : 'var(--text-muted)',
+                  backgroundColor: fitToWidth ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                }}
                 title="Fit to Width"
               >
                 <Maximize2 className="w-4 h-4" />
@@ -1594,110 +1602,104 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Paper List */}
-        <div 
-          className={`flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-out ${
-            showPaperList ? 'w-64' : 'w-0'
-          }`}
-        >
-          <div 
-            className={`w-64 h-full flex flex-col bg-[var(--bg-secondary)] border-r border-[var(--border-default)] transition-transform duration-200 ease-out ${
-              showPaperList ? 'translate-x-0' : '-translate-x-full'
+        <div
+          className={`flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-out ${showPaperList ? 'w-64' : 'w-0'
             }`}
+        >
+          <div
+            className={`w-64 h-full flex flex-col bg-[var(--bg-secondary)] border-r border-[var(--border-default)] transition-transform duration-200 ease-out ${showPaperList ? 'translate-x-0' : '-translate-x-full'
+              }`}
           >
-          <div className="p-3 border-b border-[var(--border-default)] flex-shrink-0">
-            <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Papers</span>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {Array.from(allPapers.values())
-              .sort((a, b) => {
-                switch (sortOption) {
-                  case 'title-asc':
-                    return a.title.localeCompare(b.title);
-                  case 'title-desc':
-                    return b.title.localeCompare(a.title);
-                  case 'date-asc':
-                    return new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime();
-                  case 'date-desc':
-                  default:
-                    return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
-                }
-              })
-              .map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => switchToPaper(p.id)}
-                  className={`group w-full text-left px-3 py-2.5 border-b border-[var(--border-muted)] transition-colors ${
-                    p.id === paperId
-                      ? 'bg-[var(--bg-tertiary)]'
-                      : 'hover:bg-[var(--bg-tertiary)]/50'
-                  }`}
-                >
-                  <div className="flex items-start gap-2">
-                    <FileText className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
-                      p.id === paperId ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
-                    }`} />
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-xs leading-snug line-clamp-2 ${
-                        p.id === paperId 
-                          ? 'text-[var(--text-primary)] font-semibold' 
-                          : 'text-[var(--text-primary)] font-normal opacity-80'
-                      }`}>
-                        {p.title}
-                      </p>
-                      {p.authors && (
-                        <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate">
-                          {p.authors.split(',')[0]}
+            <div className="p-3 border-b border-[var(--border-default)] flex-shrink-0">
+              <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Papers</span>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {Array.from(allPapers.values())
+                .sort((a, b) => {
+                  switch (sortOption) {
+                    case 'title-asc':
+                      return a.title.localeCompare(b.title);
+                    case 'title-desc':
+                      return b.title.localeCompare(a.title);
+                    case 'date-asc':
+                      return new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime();
+                    case 'date-desc':
+                    default:
+                      return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+                  }
+                })
+                .map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => switchToPaper(p.id)}
+                    className={`group w-full text-left px-3 py-2.5 border-b border-[var(--border-muted)] transition-colors ${p.id === paperId
+                        ? 'bg-[var(--bg-tertiary)]'
+                        : 'hover:bg-[var(--bg-tertiary)]/50'
+                      }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <FileText className={`w-4 h-4 flex-shrink-0 mt-0.5 ${p.id === paperId ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
+                        }`} />
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-xs leading-snug line-clamp-2 ${p.id === paperId
+                            ? 'text-[var(--text-primary)] font-semibold'
+                            : 'text-[var(--text-primary)] font-normal opacity-80'
+                          }`}>
+                          {p.title}
                         </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button
-                        onClick={(e) => togglePaperStarred(e, p)}
-                        className={`p-0.5 rounded transition-all ${
-                          p.isStarred
-                            ? 'text-yellow-500'
-                            : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
-                        }`}
-                        title={p.isStarred ? "Unstar" : "Star"}
-                      >
-                        <Star className={`w-3 h-3 ${p.isStarred ? 'fill-current' : ''}`} />
-                      </button>
-                      <div className="relative flex items-center justify-center w-3 h-3">
-                        {!p.isRead ? (
-                          <button
-                            onClick={(e) => togglePaperReadStatus(e, p)}
-                            className="relative w-3 h-3 flex items-center justify-center group/button"
-                            title="Mark as read"
-                          >
-                            {/* Outer circle with faint blue fill - only on hover (2x dot width = 3px) */}
-                            <div className="absolute inset-0 w-3 h-3 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
-                            {/* Inner blue dot - always visible, centered */}
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-500" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={(e) => togglePaperReadStatus(e, p)}
-                            className="relative w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
-                            title="Mark as unread"
-                          >
-                            {/* Outer circle with faint grey fill - only on hover (2x dot width = 3px) */}
-                            <div className="absolute inset-0 w-3 h-3 rounded-full bg-[var(--text-muted)]/15 opacity-0 group-hover/button:opacity-100 transition-opacity" />
-                            {/* Inner grey dot - centered */}
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
-                          </button>
+                        {p.authors && (
+                          <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate">
+                            {p.authors.split(',')[0]}
+                          </p>
                         )}
                       </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          onClick={(e) => togglePaperStarred(e, p)}
+                          className={`p-0.5 rounded transition-all ${p.isStarred
+                              ? 'text-yellow-500'
+                              : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
+                            }`}
+                          title={p.isStarred ? "Unstar" : "Star"}
+                        >
+                          <Star className={`w-3 h-3 ${p.isStarred ? 'fill-current' : ''}`} />
+                        </button>
+                        <div className="relative flex items-center justify-center w-3 h-3">
+                          {!p.isRead ? (
+                            <button
+                              onClick={(e) => togglePaperReadStatus(e, p)}
+                              className="relative w-3 h-3 flex items-center justify-center group/button"
+                              title="Mark as read"
+                            >
+                              {/* Outer circle with faint blue fill - only on hover (2x dot width = 3px) */}
+                              <div className="absolute inset-0 w-3 h-3 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                              {/* Inner blue dot - always visible, centered */}
+                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-500" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => togglePaperReadStatus(e, p)}
+                              className="relative w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
+                              title="Mark as unread"
+                            >
+                              {/* Outer circle with faint grey fill - only on hover (2x dot width = 3px) */}
+                              <div className="absolute inset-0 w-3 h-3 rounded-full bg-[var(--text-muted)]/15 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                              {/* Inner grey dot - centered */}
+                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
-          </div>
+                  </button>
+                ))}
+            </div>
           </div>
         </div>
 
         {/* PDF Viewer */}
-        <div 
-          ref={containerRef} 
+        <div
+          ref={containerRef}
           className="pdf-viewer-container flex-1 overflow-auto relative"
           style={{ background: 'var(--bg-tertiary)' }}
           onClick={() => {
@@ -1710,10 +1712,9 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           }}
         >
           {/* Overlay that fades out when PDF is ready */}
-          <div 
-            className={`absolute inset-0 z-40 pointer-events-none transition-opacity duration-300 flex items-center justify-center ${
-              pdfContainerReady ? 'opacity-0' : 'opacity-100'
-            }`}
+          <div
+            className={`absolute inset-0 z-40 pointer-events-none transition-opacity duration-300 flex items-center justify-center ${pdfContainerReady ? 'opacity-0' : 'opacity-100'
+              }`}
             style={{ background: 'var(--bg-tertiary)' }}
           >
             {isLoading && (
@@ -1741,239 +1742,238 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                   </div>
                 }
               >
-              {documentReady && numPages > 0 && Array.from({ length: numPages }, (_, index) => {
-                const pageNum = index + 1;
-                const pageHighlights = highlights.filter((h) => h.pageNumber === pageNum);
+                {documentReady && numPages > 0 && Array.from({ length: numPages }, (_, index) => {
+                  const pageNum = index + 1;
+                  const pageHighlights = highlights.filter((h) => h.pageNumber === pageNum);
 
-                return (
-                  <div
-                    key={pageNum}
-                    data-page={pageNum}
-                    className="relative mb-4"
-                    onClick={(e) => {
-                      // Dismiss floating editor when clicking on page background (only if no text entered)
-                      if (editingHighlight && !noteInput.trim() && e.target === e.currentTarget) {
-                        setEditingHighlight(null);
-                        setEditingHighlightPosition(null);
-                        setNoteInput('');
-                      }
-                    }}
-                  >
-                    {/* Wrapper that positions highlights relative to Page element */}
+                  return (
                     <div
-                      ref={(el) => {
-                        if (el) pageRefs.current.set(pageNum, el);
+                      key={pageNum}
+                      data-page={pageNum}
+                      className="relative mb-4"
+                      onClick={(e) => {
+                        // Dismiss floating editor when clicking on page background (only if no text entered)
+                        if (editingHighlight && !noteInput.trim() && e.target === e.currentTarget) {
+                          setEditingHighlight(null);
+                          setEditingHighlightPosition(null);
+                          setNoteInput('');
+                        }
                       }}
-                      className="relative inline-block"
                     >
-                      <Page
-                        pageNumber={pageNum}
-                        scale={effectiveScale}
-                        className="shadow-lg rounded-sm overflow-hidden block"
-                        renderAnnotationLayer={false}
-                      />
-                    {/* Highlight Overlays - two layers: visual (below text) and click (above text) */}
-                    {pageHighlights.map((highlight) => {
-                      const isHovered = hoveredNoteHighlightId === highlight.id;
-                      const isEditing = editingHighlight?.id === highlight.id;
-                      
-                      return (
-                        <div key={highlight.id}>
-                          {/* Visual layer - below text, no pointer events */}
-                          {highlight.rects.map((rect, idx) => (
+                      {/* Wrapper that positions highlights relative to Page element */}
+                      <div
+                        ref={(el) => {
+                          if (el) pageRefs.current.set(pageNum, el);
+                        }}
+                        className="relative inline-block"
+                      >
+                        <Page
+                          pageNumber={pageNum}
+                          scale={effectiveScale}
+                          className="shadow-lg rounded-sm overflow-hidden block"
+                          renderAnnotationLayer={false}
+                        />
+                        {/* Highlight Overlays - two layers: visual (below text) and click (above text) */}
+                        {pageHighlights.map((highlight) => {
+                          const isHovered = hoveredNoteHighlightId === highlight.id;
+                          const isEditing = editingHighlight?.id === highlight.id;
+
+                          return (
+                            <div key={highlight.id}>
+                              {/* Visual layer - below text, no pointer events */}
+                              {highlight.rects.map((rect, idx) => (
+                                <div
+                                  key={`visual-${idx}`}
+                                  className={`absolute pointer-events-none transition-all duration-300 ${isHovered ? 'animate-highlight-pulse' : ''
+                                    }`}
+                                  style={{
+                                    left: rect.x * effectiveScale,
+                                    top: rect.y * effectiveScale,
+                                    width: rect.width * effectiveScale,
+                                    height: rect.height * effectiveScale,
+                                    backgroundColor: getHighlightBg(highlight.color, highlight.isFurtherReading),
+                                    zIndex: 1,
+                                    mixBlendMode: 'multiply',
+                                    opacity: isHovered || isEditing ? 1 : 0.85,
+                                    filter: isHovered || isEditing ? 'saturate(1.5) brightness(0.95)' : 'none',
+                                    boxShadow: isHovered ? `0 0 8px 2px ${getHighlightBg(highlight.color, highlight.isFurtherReading)}` : 'none',
+                                  }}
+                                />
+                              ))}
+                              {/* Click layer - above text, transparent */}
+                              {highlight.rects.map((rect, idx) => (
+                                <div
+                                  key={`click-${idx}`}
+                                  className="absolute cursor-pointer"
+                                  style={{
+                                    left: rect.x * effectiveScale,
+                                    top: rect.y * effectiveScale,
+                                    width: rect.width * effectiveScale,
+                                    height: rect.height * effectiveScale,
+                                    zIndex: 15,
+                                    backgroundColor: 'transparent',
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+
+                                    // Get click position relative to the page container
+                                    const pageEl = pageRefs.current.get(pageNum);
+                                    if (!pageEl) return;
+                                    const pageRect = pageEl.getBoundingClientRect();
+                                    const clickX = e.clientX - pageRect.left;
+                                    const clickY = e.clientY - pageRect.top;
+
+                                    // Find the rect closest to the click position
+                                    const validRects = highlight.rects.filter(r => r.width > 5 && r.height > 5);
+                                    if (validRects.length === 0) return;
+
+                                    // Find which rect was clicked (or closest to click)
+                                    let closestRect = validRects[0];
+                                    let minDist = Infinity;
+                                    for (const rect of validRects) {
+                                      const rectCenterX = (rect.x + rect.width / 2) * effectiveScale;
+                                      const rectCenterY = (rect.y + rect.height / 2) * effectiveScale;
+                                      const dist = Math.abs(rectCenterY - clickY) + Math.abs(rectCenterX - clickX) * 0.5;
+                                      if (dist < minDist) {
+                                        minDist = dist;
+                                        closestRect = rect;
+                                      }
+                                    }
+
+                                    // Position popup above the clicked rect, centered on click X
+                                    const popupX = clickX;
+                                    const popupY = closestRect.y * effectiveScale - 10;
+                                    setEditingHighlightPosition({ x: popupX, y: popupY });
+                                    setEditingHighlight(highlight);
+                                    setNoteInput('');
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          );
+                        })}
+
+                        {/* Floating Highlight Editor - shown when a highlight on this page is clicked */}
+                        {editingHighlight && editingHighlightPosition && editingHighlight.pageNumber === pageNum && (() => {
+                          const editColorInfo = HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(editingHighlight));
+                          const highlightHasNotes = notes.some(n => n.highlightId === editingHighlight.id);
+
+                          // Get page width to constrain popup position
+                          const pageEl = pageRefs.current.get(pageNum);
+                          const pageWidth = pageEl?.getBoundingClientRect().width || 600;
+                          const popupWidth = 300; // approximate popup width
+                          const halfPopup = popupWidth / 2;
+
+                          // Clamp x position so popup stays within page bounds
+                          const clampedX = Math.max(halfPopup, Math.min(editingHighlightPosition.x, pageWidth - halfPopup));
+
+                          return (
                             <div
-                              key={`visual-${idx}`}
-                              className={`absolute pointer-events-none transition-all duration-300 ${
-                                isHovered ? 'animate-highlight-pulse' : ''
-                              }`}
+                              className="absolute z-50 animate-scale-in"
                               style={{
-                                left: rect.x * effectiveScale,
-                                top: rect.y * effectiveScale,
-                                width: rect.width * effectiveScale,
-                                height: rect.height * effectiveScale,
-                                backgroundColor: getHighlightBg(highlight.color, highlight.isFurtherReading),
-                                zIndex: 1,
-                                mixBlendMode: 'multiply',
-                                opacity: isHovered || isEditing ? 1 : 0.85,
-                                filter: isHovered || isEditing ? 'saturate(1.5) brightness(0.95)' : 'none',
-                                boxShadow: isHovered ? `0 0 8px 2px ${getHighlightBg(highlight.color, highlight.isFurtherReading)}` : 'none',
+                                left: clampedX,
+                                top: editingHighlightPosition.y,
+                                transform: 'translate(-50%, -100%)',
                               }}
-                            />
-                          ))}
-                          {/* Click layer - above text, transparent */}
-                          {highlight.rects.map((rect, idx) => (
-                            <div
-                              key={`click-${idx}`}
-                              className="absolute cursor-pointer"
-                              style={{
-                                left: rect.x * effectiveScale,
-                                top: rect.y * effectiveScale,
-                                width: rect.width * effectiveScale,
-                                height: rect.height * effectiveScale,
-                                zIndex: 15,
-                                backgroundColor: 'transparent',
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                
-                                // Get click position relative to the page container
-                                const pageEl = pageRefs.current.get(pageNum);
-                                if (!pageEl) return;
-                                const pageRect = pageEl.getBoundingClientRect();
-                                const clickX = e.clientX - pageRect.left;
-                                const clickY = e.clientY - pageRect.top;
-                                
-                                // Find the rect closest to the click position
-                                const validRects = highlight.rects.filter(r => r.width > 5 && r.height > 5);
-                                if (validRects.length === 0) return;
-                                
-                                // Find which rect was clicked (or closest to click)
-                                let closestRect = validRects[0];
-                                let minDist = Infinity;
-                                for (const rect of validRects) {
-                                  const rectCenterX = (rect.x + rect.width / 2) * effectiveScale;
-                                  const rectCenterY = (rect.y + rect.height / 2) * effectiveScale;
-                                  const dist = Math.abs(rectCenterY - clickY) + Math.abs(rectCenterX - clickX) * 0.5;
-                                  if (dist < minDist) {
-                                    minDist = dist;
-                                    closestRect = rect;
-                                  }
-                                }
-                                
-                                // Position popup above the clicked rect, centered on click X
-                                const popupX = clickX;
-                                const popupY = closestRect.y * effectiveScale - 10;
-                                setEditingHighlightPosition({ x: popupX, y: popupY });
-                                setEditingHighlight(highlight);
-                                setNoteInput('');
-                              }}
-                            />
-                          ))}
-                        </div>
-                      );
-                    })}
-                    
-                    {/* Floating Highlight Editor - shown when a highlight on this page is clicked */}
-                    {editingHighlight && editingHighlightPosition && editingHighlight.pageNumber === pageNum && (() => {
-                      const editColorInfo = HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(editingHighlight));
-                      const highlightHasNotes = notes.some(n => n.highlightId === editingHighlight.id);
-                      
-                      // Get page width to constrain popup position
-                      const pageEl = pageRefs.current.get(pageNum);
-                      const pageWidth = pageEl?.getBoundingClientRect().width || 600;
-                      const popupWidth = 300; // approximate popup width
-                      const halfPopup = popupWidth / 2;
-                      
-                      // Clamp x position so popup stays within page bounds
-                      const clampedX = Math.max(halfPopup, Math.min(editingHighlightPosition.x, pageWidth - halfPopup));
-                      
-                      return (
-                        <div
-                          className="absolute z-50 animate-scale-in"
-                          style={{
-                            left: clampedX,
-                            top: editingHighlightPosition.y,
-                            transform: 'translate(-50%, -100%)',
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div 
-                            className="rounded-xl overflow-hidden shadow-xl"
-                            style={{
-                              backgroundColor: editColorInfo?.bg || '#fef9c3',
-                              minWidth: '280px',
-                              maxWidth: '320px',
-                            }}
-                          >
-                            {/* Color picker bar */}
-                            <div 
-                              className="px-3 py-2 flex items-center justify-between border-b"
-                              style={{ borderColor: `${editColorInfo?.border}30` }}
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              <div className="flex items-center gap-2">
-                                {HIGHLIGHT_COLORS.map(({ color, bg, border }) => (
-                                  <button
-                                    key={color}
-                                    onClick={() => handleChangeHighlightColor(editingHighlight, color)}
-                                    className="w-6 h-6 rounded-full transition-all hover:scale-110"
-                                    style={{
-                                      backgroundColor: bg,
-                                      border: editingHighlight.color === color ? `2px solid ${border}` : '2px solid transparent',
-                                      boxShadow: editingHighlight.color === color ? `0 0 0 2px white` : 'none',
-                                    }}
-                                    title={color.charAt(0).toUpperCase() + color.slice(1)}
-                                  />
-                                ))}
-                              </div>
-                              <button
-                                onClick={() => handleDeleteHighlight(editingHighlight.id)}
-                                className="p-1.5 rounded-full hover:bg-red-100 transition-colors text-[var(--text-muted)] hover:text-red-500"
-                                title="Delete highlight"
+                              <div
+                                className="rounded-xl overflow-hidden shadow-xl"
+                                style={{
+                                  backgroundColor: editColorInfo?.bg || '#fef9c3',
+                                  minWidth: '280px',
+                                  maxWidth: '320px',
+                                }}
                               >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                            
-                            {/* Note input */}
-                            <div className="p-3">
-                              <textarea
-                                value={noteInput}
-                                onChange={(e) => setNoteInput(e.target.value)}
-                                placeholder="Add a note..."
-                                rows={2}
-                                autoFocus
-                                className="w-full text-xs py-2 px-3 mb-2 resize-none bg-white/80 border-0"
-                                style={{ 
-                                  borderRadius: '8px',
-                                  color: editColorInfo?.dark || '#78350f',
-                                  outline: 'none',
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                                    e.preventDefault();
-                                    if (noteInput.trim()) {
-                                      handleAddNote();
-                                    }
-                                  } else if (e.key === 'Escape') {
-                                    setEditingHighlight(null);
-                                    setEditingHighlightPosition(null);
-                                    setNoteInput('');
-                                  }
-                                }}
-                              />
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => {
-                                    setEditingHighlight(null);
-                                    setEditingHighlightPosition(null);
-                                    setNoteInput('');
-                                  }}
-                                  className="flex-1 text-xs py-1.5 px-3 rounded-full bg-white/50 hover:bg-white/80 transition-colors"
-                                  style={{ color: editColorInfo?.dark || '#78350f' }}
+                                {/* Color picker bar */}
+                                <div
+                                  className="px-3 py-2 flex items-center justify-between border-b"
+                                  style={{ borderColor: `${editColorInfo?.border}30` }}
                                 >
-                                  {highlightHasNotes ? 'Close' : 'Cancel'}
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    if (noteInput.trim()) {
-                                      handleAddNote();
-                                    }
-                                  }}
-                                  disabled={!noteInput.trim()}
-                                  className="flex-1 btn-primary text-xs py-1.5 px-3 disabled:opacity-50"
-                                >
-                                  Save
-                                </button>
+                                  <div className="flex items-center gap-2">
+                                    {HIGHLIGHT_COLORS.map(({ color, bg, border }) => (
+                                      <button
+                                        key={color}
+                                        onClick={() => handleChangeHighlightColor(editingHighlight, color)}
+                                        className="w-6 h-6 rounded-full transition-all hover:scale-110"
+                                        style={{
+                                          backgroundColor: bg,
+                                          border: editingHighlight.color === color ? `2px solid ${border}` : '2px solid transparent',
+                                          boxShadow: editingHighlight.color === color ? `0 0 0 2px white` : 'none',
+                                        }}
+                                        title={color.charAt(0).toUpperCase() + color.slice(1)}
+                                      />
+                                    ))}
+                                  </div>
+                                  <button
+                                    onClick={() => handleDeleteHighlight(editingHighlight.id)}
+                                    className="p-1.5 rounded-full hover:bg-red-100 transition-colors text-[var(--text-muted)] hover:text-red-500"
+                                    title="Delete highlight"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+
+                                {/* Note input */}
+                                <div className="p-3">
+                                  <textarea
+                                    value={noteInput}
+                                    onChange={(e) => setNoteInput(e.target.value)}
+                                    placeholder="Add a note..."
+                                    rows={2}
+                                    autoFocus
+                                    className="w-full text-xs py-2 px-3 mb-2 resize-none bg-white/80 border-0"
+                                    style={{
+                                      borderRadius: '8px',
+                                      color: editColorInfo?.dark || '#78350f',
+                                      outline: 'none',
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                        e.preventDefault();
+                                        if (noteInput.trim()) {
+                                          handleAddNote();
+                                        }
+                                      } else if (e.key === 'Escape') {
+                                        setEditingHighlight(null);
+                                        setEditingHighlightPosition(null);
+                                        setNoteInput('');
+                                      }
+                                    }}
+                                  />
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        setEditingHighlight(null);
+                                        setEditingHighlightPosition(null);
+                                        setNoteInput('');
+                                      }}
+                                      className="flex-1 text-xs py-1.5 px-3 rounded-full bg-white/50 hover:bg-white/80 transition-colors"
+                                      style={{ color: editColorInfo?.dark || '#78350f' }}
+                                    >
+                                      {highlightHasNotes ? 'Close' : 'Cancel'}
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (noteInput.trim()) {
+                                          handleAddNote();
+                                        }
+                                      }}
+                                      disabled={!noteInput.trim()}
+                                      className="flex-1 btn-primary text-xs py-1.5 px-3 disabled:opacity-50"
+                                    >
+                                      Save
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    </div>{/* Close the inner wrapper for highlights */}
-                  </div>
-                );
-              })}
+                          );
+                        })()}
+                      </div>{/* Close the inner wrapper for highlights */}
+                    </div>
+                  );
+                })}
               </Document>
             )}
           </div>
@@ -1983,11 +1983,11 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             const detectedRef = detectReference(selectedText);
             const looksLikeRef = isLikelyReference(selectedText);
             const showRefButton = detectedRef || looksLikeRef;
-            
+
             // Get reference info if available
             const refInfo = detectedRef ? getReferenceInfo(detectedRef) : null;
             const hasRefTitle = refInfo && refInfo.title;
-            
+
             return (
               <div
                 className="absolute z-50 animate-scale-in"
@@ -2000,7 +2000,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               >
                 {/* Show reference info with Add to Reading List button */}
                 {showRefButton && hasRefTitle && (
-                  <div 
+                  <div
                     className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl shadow-lg"
                     style={{ maxWidth: '400px' }}
                   >
@@ -2008,7 +2008,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       <p className="text-[13px] text-[var(--text-primary)] leading-relaxed mb-4">
                         {refInfo.fullCitation}
                       </p>
-                      
+
                       <button
                         onClick={() => {
                           createHighlight('purple', true, citationNoteInput.trim() || undefined);
@@ -2022,10 +2022,10 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     </div>
                   </div>
                 )}
-                
+
                 {/* Fallback for detected ref without title */}
                 {showRefButton && detectedRef && !hasRefTitle && (
-                  <div 
+                  <div
                     className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl shadow-lg"
                     style={{ minWidth: '200px' }}
                   >
@@ -2033,7 +2033,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       <p className="text-[13px] text-[var(--text-secondary)] text-center mb-4">
                         Reference [{detectedRef}]
                       </p>
-                      
+
                       <button
                         onClick={() => {
                           createHighlight('purple', true, citationNoteInput.trim() || undefined);
@@ -2047,7 +2047,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     </div>
                   </div>
                 )}
-                
+
                 {/* Color picker for regular highlights (when no reference detected) */}
                 {!showRefButton && (
                   <div className="color-picker-popup justify-center">
@@ -2068,365 +2068,360 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
         </div>
 
         {/* Right Sidebar - Notes and Metadata */}
-        <div 
-          className={`flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-out ${
-            showRightPanel ? 'w-80' : 'w-0'
-          }`}
-        >
-          <div 
-            className={`w-80 h-full flex flex-col border-l border-[var(--border-default)] relative transition-transform duration-200 ease-out ${
-              showRightPanel ? 'translate-x-0' : 'translate-x-full'
+        <div
+          className={`flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-out ${showRightPanel ? 'w-80' : 'w-0'
             }`}
+        >
+          <div
+            className={`w-80 h-full flex flex-col border-l border-[var(--border-default)] relative transition-transform duration-200 ease-out ${showRightPanel ? 'translate-x-0' : 'translate-x-full'
+              }`}
             data-sidebar="notes-metadata"
           >
-          {/* Loading overlay for right sidebar */}
-          {isLoading && (
-            <div className="absolute inset-0 z-40 bg-[var(--bg-primary)] flex items-center justify-center">
-              <Loader2 className="w-6 h-6 text-[var(--text-muted)] animate-spin" />
-            </div>
-          )}
-          {/* Notes Sidebar */}
-          <div className="flex flex-col overflow-hidden" style={{ height: `calc(100% - ${metadataPanelHeight}px)` }}>
-            {/* Tab Header */}
-            <div className="p-2 border-b border-[var(--border-default)] flex-shrink-0">
-              <div className="segmented-control w-full justify-center">
-                <button
-                  onClick={() => setSidebarTab('notes')}
-                  className={`flex-1 justify-center ${sidebarTab === 'notes' ? 'active' : ''}`}
-                >
-                  <StickyNote className="w-3.5 h-3.5 mr-1" />
-                  Notes
-                  {highlights.length > 0 && (
-                    <span className="ml-1 text-[10px] opacity-60">({highlights.length})</span>
-                  )}
-                </button>
-                <button
-                  onClick={() => setSidebarTab('reading')}
-                  className={`flex-1 justify-center ${sidebarTab === 'reading' ? 'active' : ''}`}
-                >
-                  <BookMarked className="w-3.5 h-3.5 mr-1" />
-                  Reading
-                  {readingList.length > 0 && (
-                    <span className="ml-1 text-[10px] opacity-60">({readingList.length})</span>
-                  )}
-                </button>
+            {/* Loading overlay for right sidebar */}
+            {isLoading && (
+              <div className="absolute inset-0 z-40 bg-[var(--bg-primary)] flex items-center justify-center">
+                <Loader2 className="w-6 h-6 text-[var(--text-muted)] animate-spin" />
               </div>
-            </div>
+            )}
+            {/* Notes Sidebar */}
+            <div className="flex flex-col overflow-hidden" style={{ height: `calc(100% - ${metadataPanelHeight}px)` }}>
+              {/* Tab Header */}
+              <div className="p-2 border-b border-[var(--border-default)] flex-shrink-0">
+                <div className="segmented-control w-full justify-center">
+                  <button
+                    onClick={() => setSidebarTab('notes')}
+                    className={`flex-1 justify-center ${sidebarTab === 'notes' ? 'active' : ''}`}
+                  >
+                    <StickyNote className="w-3.5 h-3.5 mr-1" />
+                    Notes
+                    {highlights.length > 0 && (
+                      <span className="ml-1 text-[10px] opacity-60">({highlights.length})</span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setSidebarTab('reading')}
+                    className={`flex-1 justify-center ${sidebarTab === 'reading' ? 'active' : ''}`}
+                  >
+                    <BookMarked className="w-3.5 h-3.5 mr-1" />
+                    Reading
+                    {readingList.length > 0 && (
+                      <span className="ml-1 text-[10px] opacity-60">({readingList.length})</span>
+                    )}
+                  </button>
+                </div>
+              </div>
 
-            <div className="flex-1 overflow-y-auto p-3">
-              {/* Notes Tab */}
-              {sidebarTab === 'notes' && (
-                <>
-                  {Object.keys(groupedHighlights).length === 0 ? (
-                    <div className="text-center py-8">
-                      <StickyNote className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-2" />
-                      <p className="text-[var(--text-muted)] text-xs">
-                        Click on a highlight to add a note
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {Object.entries(groupedHighlights)
-                        .sort(([a], [b]) => Number(a) - Number(b))
-                        .map(([pageNum, pageHighlights]) => (
-                          <div key={pageNum}>
-                            <button
-                              onClick={() => scrollToPage(Number(pageNum))}
-                              className="text-[10px] font-medium text-[var(--text-muted)] mb-1.5 hover:text-[var(--accent-primary)] transition-colors uppercase tracking-wide"
-                            >
-                              Page {pageNum}
-                            </button>
-                            {pageHighlights.map((highlight) => {
-                              const highlightNotes = notes.filter(
-                                (n) => n.highlightId === highlight.id
-                              );
-
-                              const highlightColorInfo = HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(highlight));
-                              
-                              return (
-                                <Fragment key={highlight.id}>
-                                  {/* Render each note as a separate sticky card */}
-                                  {/* Render each note as a separate sticky card */}
-                                  {highlightNotes.map((note) => (
-                                    <div
-                                      key={note.id}
-                                      className="rounded-lg mb-3 transition-all cursor-pointer group overflow-hidden relative hover:scale-[1.02] hover:shadow-lg"
-                                      style={{
-                                        backgroundColor: highlightColorInfo?.bg || '#fef9c3',
-                                        boxShadow: `0 1px 3px ${highlightColorInfo?.shadow || 'rgba(251, 191, 36, 0.15)'}, 0 1px 2px ${highlightColorInfo?.shadow || 'rgba(251, 191, 36, 0.15)'}`,
-                                        transformOrigin: 'center center',
-                                      }}
-                                      onMouseEnter={() => setHoveredNoteHighlightId(highlight.id)}
-                                      onMouseLeave={() => setHoveredNoteHighlightId(null)}
-                                      onClick={() => {
-                                        scrollToHighlight(highlight);
-                                        // Calculate position for floating editor - use bounding box of VALID rects only
-                                        const validRects = highlight.rects.filter(r => r.width > 5 && r.height > 5);
-                                        if (validRects.length > 0) {
-                                          const minX = Math.min(...validRects.map(r => r.x));
-                                          const maxX = Math.max(...validRects.map(r => r.x + r.width));
-                                          const minY = Math.min(...validRects.map(r => r.y));
-                                          const popupX = ((minX + maxX) / 2) * effectiveScale;
-                                          const popupY = minY * effectiveScale - 10;
-                                          setEditingHighlightPosition({ x: popupX, y: popupY });
-                                        }
-                                        setEditingHighlight(highlight);
-                                        setNoteInput('');
-                                      }}
-                                    >
-                                      {/* Delete button - top right */}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeleteNote(note.id);
-                                        }}
-                                        className="absolute top-2 right-2 p-1 rounded-full hover:text-[var(--accent-red)] hover:bg-white/50 opacity-0 group-hover:opacity-100 transition-all"
-                                        style={{ color: highlightColorInfo?.accent || '#ca8a04' }}
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                      
-                                      {/* Main content */}
-                                      <div className="p-3 pb-2 pr-8">
-                                        {/* Quoted highlight text - dark readable color */}
-                                        <p 
-                                          className="text-[10px] italic line-clamp-2 mb-2"
-                                          style={{ color: highlightColorInfo?.dark || '#78350f' }}
-                                        >
-                                          "{highlight.text}"
-                                        </p>
-                                        
-                                        {/* Note content - near black for emphasis */}
-                                        <p className="text-xs font-medium text-[var(--text-primary)]">
-                                          {note.content}
-                                        </p>
-                                      </div>
-                                      
-                                      {/* Footer with darker tint */}
-                                      <div 
-                                        className="px-3 py-2 flex items-center justify-between"
-                                        style={{ backgroundColor: `${highlightColorInfo?.border || '#fbbf24'}20` }}
-                                      >
-                                        <span 
-                                          className="text-[9px] font-medium"
-                                          style={{ color: highlightColorInfo?.dark || '#78350f' }}
-                                        >
-                                          {new Date(note.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                        </span>
-                                        <ChevronRight 
-                                          className="w-3.5 h-3.5" 
-                                          style={{ color: highlightColorInfo?.accent || '#ca8a04' }}
-                                        />
-                                      </div>
-                                    </div>
-                                  ))}
-                                </Fragment>
-                              );
-                            })}
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Reading List Tab */}
-              {sidebarTab === 'reading' && (
-                <>
-                  {readingList.length === 0 ? (
-                    <div className="text-center py-8">
-                      <BookMarked className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-2" />
-                      <p className="text-[var(--text-muted)] text-xs">
-                        No references saved yet
-                      </p>
-                      <p className="text-[var(--text-muted)] text-[10px] mt-1">
-                        Highlight a reference to add it
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {readingList.map((item) => {
-                        const itemPaper = allPapers.get(item.paperId);
-                        const resolved = isReadingItemResolved(item);
-                        const isCurrentPaper = item.paperId === paperId;
-
-                        return (
-                          <div
-                            key={item.id}
-                            className={`p-3 rounded-xl border transition-all ${
-                              resolved
-                                ? 'bg-[var(--bg-secondary)] border-[var(--border-muted)] opacity-60'
-                                : isCurrentPaper
-                                ? 'bg-[var(--bg-secondary)] border-[var(--border-default)]'
-                                : 'bg-[var(--bg-card)] border-[var(--border-default)]'
-                            }`}
-                          >
-                            <div className="flex items-start gap-2.5">
+              <div className="flex-1 overflow-y-auto p-3">
+                {/* Notes Tab */}
+                {sidebarTab === 'notes' && (
+                  <>
+                    {Object.keys(groupedHighlights).length === 0 ? (
+                      <div className="text-center py-8">
+                        <StickyNote className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-2" />
+                        <p className="text-[var(--text-muted)] text-xs">
+                          Click on a highlight to add a note
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {Object.entries(groupedHighlights)
+                          .sort(([a], [b]) => Number(a) - Number(b))
+                          .map(([pageNum, pageHighlights]) => (
+                            <div key={pageNum}>
                               <button
-                                onClick={() => toggleReadingResolved(item)}
-                                className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
-                                  resolved
-                                    ? 'border-[var(--text-secondary)] bg-[var(--text-secondary)]'
-                                    : 'border-[var(--border-default)] hover:border-[var(--text-secondary)]'
-                                }`}
-                                style={{ width: '18px', height: '18px' }}
+                                onClick={() => scrollToPage(Number(pageNum))}
+                                className="text-[10px] font-medium text-[var(--text-muted)] mb-1.5 hover:text-[var(--accent-primary)] transition-colors uppercase tracking-wide"
                               >
-                                {resolved && <Check className="w-2.5 h-2.5 text-white" />}
+                                Page {pageNum}
                               </button>
+                              {pageHighlights.map((highlight) => {
+                                const highlightNotes = notes.filter(
+                                  (n) => n.highlightId === highlight.id
+                                );
 
-                              {/* Color indicator */}
-                              <div
-                                className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1"
-                                style={{ 
-                                  backgroundColor: HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(item))?.border 
-                                }}
-                              />
+                                const highlightColorInfo = HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(highlight));
 
-                              <div className="flex-1 min-w-0">
-                                <p
-                                  className={`text-xs text-[var(--text-primary)] leading-relaxed ${
-                                    resolved ? 'line-through' : ''
-                                  }`}
+                                return (
+                                  <Fragment key={highlight.id}>
+                                    {/* Render each note as a separate sticky card */}
+                                    {/* Render each note as a separate sticky card */}
+                                    {highlightNotes.map((note) => (
+                                      <div
+                                        key={note.id}
+                                        className="rounded-lg mb-3 transition-all cursor-pointer group overflow-hidden relative hover:scale-[1.02] hover:shadow-lg"
+                                        style={{
+                                          backgroundColor: highlightColorInfo?.bg || '#fef9c3',
+                                          boxShadow: `0 1px 3px ${highlightColorInfo?.shadow || 'rgba(251, 191, 36, 0.15)'}, 0 1px 2px ${highlightColorInfo?.shadow || 'rgba(251, 191, 36, 0.15)'}`,
+                                          transformOrigin: 'center center',
+                                        }}
+                                        onMouseEnter={() => setHoveredNoteHighlightId(highlight.id)}
+                                        onMouseLeave={() => setHoveredNoteHighlightId(null)}
+                                        onClick={() => {
+                                          scrollToHighlight(highlight);
+                                          // Calculate position for floating editor - use bounding box of VALID rects only
+                                          const validRects = highlight.rects.filter(r => r.width > 5 && r.height > 5);
+                                          if (validRects.length > 0) {
+                                            const minX = Math.min(...validRects.map(r => r.x));
+                                            const maxX = Math.max(...validRects.map(r => r.x + r.width));
+                                            const minY = Math.min(...validRects.map(r => r.y));
+                                            const popupX = ((minX + maxX) / 2) * effectiveScale;
+                                            const popupY = minY * effectiveScale - 10;
+                                            setEditingHighlightPosition({ x: popupX, y: popupY });
+                                          }
+                                          setEditingHighlight(highlight);
+                                          setNoteInput('');
+                                        }}
+                                      >
+                                        {/* Delete button - top right */}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteNote(note.id);
+                                          }}
+                                          className="absolute top-2 right-2 p-1 rounded-full hover:text-[var(--accent-red)] hover:bg-white/50 opacity-0 group-hover:opacity-100 transition-all"
+                                          style={{ color: highlightColorInfo?.accent || '#ca8a04' }}
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+
+                                        {/* Main content */}
+                                        <div className="p-3 pb-2 pr-8">
+                                          {/* Quoted highlight text - dark readable color */}
+                                          <p
+                                            className="text-[10px] italic line-clamp-2 mb-2"
+                                            style={{ color: highlightColorInfo?.dark || '#78350f' }}
+                                          >
+                                            "{highlight.text}"
+                                          </p>
+
+                                          {/* Note content - near black for emphasis */}
+                                          <p className="text-xs font-medium text-[var(--text-primary)]">
+                                            {note.content}
+                                          </p>
+                                        </div>
+
+                                        {/* Footer with darker tint */}
+                                        <div
+                                          className="px-3 py-2 flex items-center justify-between"
+                                          style={{ backgroundColor: `${highlightColorInfo?.border || '#fbbf24'}20` }}
+                                        >
+                                          <span
+                                            className="text-[9px] font-medium"
+                                            style={{ color: highlightColorInfo?.dark || '#78350f' }}
+                                          >
+                                            {new Date(note.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                          </span>
+                                          <ChevronRight
+                                            className="w-3.5 h-3.5"
+                                            style={{ color: highlightColorInfo?.accent || '#ca8a04' }}
+                                          />
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </Fragment>
+                                );
+                              })}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Reading List Tab */}
+                {sidebarTab === 'reading' && (
+                  <>
+                    {readingList.length === 0 ? (
+                      <div className="text-center py-8">
+                        <BookMarked className="w-8 h-8 mx-auto text-[var(--text-muted)] mb-2" />
+                        <p className="text-[var(--text-muted)] text-xs">
+                          No references saved yet
+                        </p>
+                        <p className="text-[var(--text-muted)] text-[10px] mt-1">
+                          Highlight a reference to add it
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {readingList.map((item) => {
+                          const itemPaper = allPapers.get(item.paperId);
+                          const resolved = isReadingItemResolved(item);
+                          const isCurrentPaper = item.paperId === paperId;
+
+                          return (
+                            <div
+                              key={item.id}
+                              className={`p-3 rounded-xl border transition-all ${resolved
+                                  ? 'bg-[var(--bg-secondary)] border-[var(--border-muted)] opacity-60'
+                                  : isCurrentPaper
+                                    ? 'bg-[var(--bg-secondary)] border-[var(--border-default)]'
+                                    : 'bg-[var(--bg-card)] border-[var(--border-default)]'
+                                }`}
+                            >
+                              <div className="flex items-start gap-2.5">
+                                <button
+                                  onClick={() => toggleReadingResolved(item)}
+                                  className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${resolved
+                                      ? 'border-[var(--text-secondary)] bg-[var(--text-secondary)]'
+                                      : 'border-[var(--border-default)] hover:border-[var(--text-secondary)]'
+                                    }`}
+                                  style={{ width: '18px', height: '18px' }}
                                 >
-                                  {item.text}
-                                </p>
+                                  {resolved && <Check className="w-2.5 h-2.5 text-white" />}
+                                </button>
 
-                                {itemPaper && (
-                                  <button
-                                    onClick={() => {
-                                      if (isCurrentPaper) {
-                                        scrollToPage(item.pageNumber);
-                                      } else {
-                                        navigate(`/reader/${itemPaper.id}`, { state: { from: sourceRoute }, replace: true });
-                                      }
-                                    }}
-                                    className="flex items-center gap-1 mt-1.5 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
-                                  >
-                                    <span className="truncate max-w-[140px]">{itemPaper.title}</span>
-                                    <span>· p.{item.pageNumber}</span>
-                                  </button>
-                                )}
+                                {/* Color indicator */}
+                                <div
+                                  className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1"
+                                  style={{
+                                    backgroundColor: HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(item))?.border
+                                  }}
+                                />
 
-                                {!resolved && (
-                                  <button
-                                    onClick={() => searchGoogleScholar(item.text)}
-                                    className="flex items-center gap-1 mt-2 px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-[10px] hover:text-[var(--text-primary)] transition-colors"
+                                <div className="flex-1 min-w-0">
+                                  <p
+                                    className={`text-xs text-[var(--text-primary)] leading-relaxed ${resolved ? 'line-through' : ''
+                                      }`}
                                   >
-                                    <ExternalLink className="w-2.5 h-2.5" />
-                                    Search Scholar
-                                  </button>
-                                )}
+                                    {item.text}
+                                  </p>
+
+                                  {itemPaper && (
+                                    <button
+                                      onClick={() => {
+                                        if (isCurrentPaper) {
+                                          scrollToPage(item.pageNumber);
+                                        } else {
+                                          navigate(`/reader/${itemPaper.id}`, { state: { from: sourceRoute }, replace: true });
+                                        }
+                                      }}
+                                      className="flex items-center gap-1 mt-1.5 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+                                    >
+                                      <span className="truncate max-w-[140px]">{itemPaper.title}</span>
+                                      <span>· p.{item.pageNumber}</span>
+                                    </button>
+                                  )}
+
+                                  {!resolved && (
+                                    <button
+                                      onClick={() => searchGoogleScholar(item.text)}
+                                      className="flex items-center gap-1 mt-2 px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-[10px] hover:text-[var(--text-primary)] transition-colors"
+                                    >
+                                      <ExternalLink className="w-2.5 h-2.5" />
+                                      Search Scholar
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Draggable Divider */}
-          <div
-            className="relative h-1 bg-[var(--border-default)] cursor-row-resize hover:bg-[var(--accent-primary)] transition-colors flex-shrink-0"
-            onMouseDown={(e) => {
-              setIsDragging(true);
-              e.preventDefault();
-            }}
-            style={{
-              cursor: 'row-resize',
-            }}
-          >
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-12 h-0.5 bg-[var(--text-muted)] opacity-30"></div>
-            </div>
-          </div>
-
-          {/* Insight Panel */}
-          <div 
-            className="flex-shrink-0 bg-[var(--bg-card)] overflow-hidden flex flex-col"
-            style={{ height: `${metadataPanelHeight}px` }}
-          >
-            <div className="p-3 overflow-y-auto flex-1">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-semibold text-[var(--text-primary)]">Insight</h3>
-                <button
-                  onClick={handleAIAutofill}
-                  disabled={isAIAutofilling}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="AI Autofill"
-                >
-                  {isAIAutofilling ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-3 h-3" />
-                  )}
-                  {isAIAutofilling ? 'AI...' : 'AI'}
-                </button>
-              </div>
-
-              <div className="space-y-2.5">
-
-                {/* Methodology */}
-                <div>
-                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
-                    Methodology
-                  </label>
-                  <textarea
-                    value={metadata.methodology}
-                    onChange={(e) => setMetadata(prev => ({ ...prev, methodology: e.target.value }))}
-                    placeholder="Research methodology..."
-                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)] resize-none"
-                    rows={5}
-                  />
-                </div>
-
-                {/* Conclusion */}
-                <div>
-                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
-                    Conclusion
-                  </label>
-                  <textarea
-                    value={metadata.conclusion}
-                    onChange={(e) => setMetadata(prev => ({ ...prev, conclusion: e.target.value }))}
-                    placeholder="Key conclusions..."
-                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)] resize-none"
-                    rows={5}
-                  />
-                </div>
-
-                {/* Limitation */}
-                <div>
-                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
-                    Limitation
-                  </label>
-                  <textarea
-                    value={metadata.limitation}
-                    onChange={(e) => setMetadata(prev => ({ ...prev, limitation: e.target.value }))}
-                    placeholder="Limitations..."
-                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)] resize-none"
-                    rows={5}
-                  />
-                </div>
-
-                {/* Notes (Learnings) */}
-                <div>
-                  <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
-                    Notes
-                  </label>
-                  <textarea
-                    value={metadata.notes}
-                    onChange={(e) => setMetadata(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Learnings for your research..."
-                    className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)] resize-none"
-                    rows={5}
-                  />
-                </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
-          </div>
+
+            {/* Draggable Divider */}
+            <div
+              className="relative h-1 bg-[var(--border-default)] cursor-row-resize hover:bg-[var(--accent-primary)] transition-colors flex-shrink-0"
+              onMouseDown={(e) => {
+                setIsDragging(true);
+                e.preventDefault();
+              }}
+              style={{
+                cursor: 'row-resize',
+              }}
+            >
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-12 h-0.5 bg-[var(--text-muted)] opacity-30"></div>
+              </div>
+            </div>
+
+            {/* Insight Panel */}
+            <div
+              className="flex-shrink-0 bg-[var(--bg-card)] overflow-hidden flex flex-col"
+              style={{ height: `${metadataPanelHeight}px` }}
+            >
+              <div className="p-3 overflow-y-auto flex-1">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">Insight</h3>
+                  <button
+                    onClick={handleAIAutofill}
+                    disabled={isAIAutofilling}
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="AI Autofill"
+                  >
+                    {isAIAutofilling ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3" />
+                    )}
+                    {isAIAutofilling ? 'AI...' : 'AI'}
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+
+                  {/* Methodology */}
+                  <div>
+                    <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
+                      Methodology
+                    </label>
+                    <textarea
+                      value={metadata.methodology}
+                      onChange={(e) => setMetadata(prev => ({ ...prev, methodology: e.target.value }))}
+                      placeholder="Research methodology..."
+                      className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)] resize-none"
+                      rows={5}
+                    />
+                  </div>
+
+                  {/* Conclusion */}
+                  <div>
+                    <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
+                      Conclusion
+                    </label>
+                    <textarea
+                      value={metadata.conclusion}
+                      onChange={(e) => setMetadata(prev => ({ ...prev, conclusion: e.target.value }))}
+                      placeholder="Key conclusions..."
+                      className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)] resize-none"
+                      rows={5}
+                    />
+                  </div>
+
+                  {/* Limitation */}
+                  <div>
+                    <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
+                      Limitation
+                    </label>
+                    <textarea
+                      value={metadata.limitation}
+                      onChange={(e) => setMetadata(prev => ({ ...prev, limitation: e.target.value }))}
+                      placeholder="Limitations..."
+                      className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)] resize-none"
+                      rows={5}
+                    />
+                  </div>
+
+                  {/* Notes (Learnings) */}
+                  <div>
+                    <label className="block text-[10px] font-medium text-[var(--text-secondary)] mb-1 tracking-wide">
+                      Notes
+                    </label>
+                    <textarea
+                      value={metadata.notes}
+                      onChange={(e) => setMetadata(prev => ({ ...prev, notes: e.target.value }))}
+                      placeholder="Learnings for your research..."
+                      className="w-full text-xs p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] focus:bg-[var(--bg-card)] resize-none"
+                      rows={5}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
