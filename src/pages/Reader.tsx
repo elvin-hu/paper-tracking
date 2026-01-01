@@ -1915,15 +1915,15 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                   style={{ borderColor: `${editColorInfo?.border}30` }}
                                 >
                                   <div className="flex items-center gap-2">
-                                    {HIGHLIGHT_COLORS.map(({ color, bg, bgDark, border }) => (
+                                    {HIGHLIGHT_COLORS.map(({ color, border }) => (
                                       <button
                                         key={color}
                                         onClick={() => handleChangeHighlightColor(editingHighlight, color)}
                                         className="w-6 h-6 rounded-full transition-all hover:scale-110"
                                         style={{
-                                          backgroundColor: isDarkMode ? bgDark : bg,
-                                          border: editingHighlight.color === color ? `2px solid ${border}` : '2px solid transparent',
-                                          boxShadow: editingHighlight.color === color ? `0 0 0 2px ${isDarkMode ? 'rgba(0,0,0,0.5)' : 'white'}` : 'none',
+                                          backgroundColor: border,
+                                          border: editingHighlight.color === color ? `2px solid ${isDarkMode ? 'white' : border}` : '2px solid transparent',
+                                          boxShadow: editingHighlight.color === color ? `0 0 0 2px ${isDarkMode ? 'rgba(255,255,255,0.3)' : 'white'}` : 'none',
                                         }}
                                         title={color.charAt(0).toUpperCase() + color.slice(1)}
                                       />
