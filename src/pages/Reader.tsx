@@ -1644,8 +1644,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                 {/* Search Input Container - clicking anywhere focuses input */}
                 <div
                   className={`flex-1 flex items-center gap-1.5 rounded-lg px-2 cursor-text transition-colors ${searchFocused
-                      ? 'bg-[var(--bg-card)] ring-1 ring-[var(--border-default)]'
-                      : 'bg-[var(--bg-tertiary)]'
+                    ? 'bg-[var(--bg-card)] ring-1 ring-[var(--border-default)]'
+                    : 'bg-[var(--bg-tertiary)]'
                     }`}
                   style={{ height: '28px' }}
                   onClick={(e) => {
@@ -1666,8 +1666,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     onFocus={() => setSearchFocused(true)}
                     onBlur={() => setSearchFocused(false)}
                     placeholder="Search"
-                    className="flex-1 min-w-0 text-xs bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
-                    style={{ border: 'none', boxShadow: 'none', padding: 0, height: 'auto' }}
+                    className="flex-1 min-w-0 text-xs bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none caret-[var(--text-primary)]"
+                    style={{ border: 'none', boxShadow: 'none', padding: '0 0 0 1px', height: 'auto' }}
                   />
                   {paperSearch && (
                     <button
