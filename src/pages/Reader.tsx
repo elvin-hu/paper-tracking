@@ -87,11 +87,11 @@ function parseReferences(fullText: string): Map<string, string> {
   for (const pattern of refSectionPatterns) {
     const match = normalizedText.match(pattern);
     if (match && match.index !== undefined) {
-      // Find it in the last 40% of the document (references are usually at the end)
-      const lastPortion = normalizedText.slice(Math.floor(normalizedText.length * 0.6));
+      // Find it in the last 50% of the document (references are usually at the end)
+      const lastPortion = normalizedText.slice(Math.floor(normalizedText.length * 0.5));
       const matchInLastPortion = lastPortion.match(pattern);
       if (matchInLastPortion && matchInLastPortion.index !== undefined) {
-        refSectionStart = Math.floor(normalizedText.length * 0.6) + matchInLastPortion.index + matchInLastPortion[0].length;
+        refSectionStart = Math.floor(normalizedText.length * 0.5) + matchInLastPortion.index + matchInLastPortion[0].length;
         console.log(`Found references section at position ${refSectionStart} using pattern: ${pattern}`);
         break;
       }
