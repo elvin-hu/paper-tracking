@@ -2144,9 +2144,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
           {/* Inline Color Picker */}
           {showColorPicker && (() => {
-            console.log('=== COLOR PICKER POPUP OPENED ===');
-            console.log('readingList:', readingList);
-
             const detectedRef = detectReference(selectedText);
             const looksLikeRef = isLikelyReference(selectedText);
             const showRefButton = detectedRef || looksLikeRef;
@@ -2156,30 +2153,14 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             const hasRefTitle = refInfo && refInfo.title;
 
             // Check if this reference is already in the reading list
-            // When added to reading list, the reference number is stored in the note field (e.g., "[1] Full citation...")
-            // The text field contains the title, so we need to check the note field for the reference number
-
-            // Debug logging
-            console.log('=== Reading List Duplicate Check ===');
-            console.log('selectedText:', selectedText);
-            console.log('detectedRef:', detectedRef);
-            console.log('readingList items:', readingList.map(item => ({
-              text: item.text,
-              note: item.note,
-              isFurtherReading: item.isFurtherReading
-            })));
-
-            const isAlreadyInReadingList = detectedRef
-              ? readingList.some(item => {
-                const matches = item.note && item.note.startsWith(`[${detectedRef}]`);
-                console.log(`Checking item note "${item.note?.slice(0, 30)}..." for [${detectedRef}]: ${matches}`);
-                return matches;
-              })
+            // The reading list item's text field contains the reference title, so we compare against refInfo.title
+            const isAlreadyInReadingList = hasRefTitle
+              ? readingList.some(item =>
+                item.text.trim().toLowerCase() === refInfo.title.trim().toLowerCase()
+              )
               : readingList.some(item =>
                 item.text.trim().toLowerCase() === selectedText.trim().toLowerCase()
               );
-
-            console.log('isAlreadyInReadingList:', isAlreadyInReadingList);
 
             return (
               <div
