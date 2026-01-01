@@ -2153,9 +2153,15 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             const hasRefTitle = refInfo && refInfo.title;
 
             // Check if this reference is already in the reading list
-            const isAlreadyInReadingList = readingList.some(item =>
-              item.text.trim().toLowerCase() === selectedText.trim().toLowerCase()
-            );
+            // When added to reading list, the reference number is stored in the note field (e.g., "[1] Full citation...")
+            // The text field contains the title, so we need to check the note field for the reference number
+            const isAlreadyInReadingList = detectedRef
+              ? readingList.some(item =>
+                item.note && item.note.startsWith(`[${detectedRef}]`)
+              )
+              : readingList.some(item =>
+                item.text.trim().toLowerCase() === selectedText.trim().toLowerCase()
+              );
 
             return (
               <div
@@ -2185,8 +2191,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                         }}
                         disabled={isAlreadyInReadingList}
                         className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-opacity ${isAlreadyInReadingList
-                            ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed'
-                            : 'bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90'
+                          ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed'
+                          : 'bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90'
                           }`}
                       >
                         {isAlreadyInReadingList ? (
@@ -2220,8 +2226,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                         }}
                         disabled={isAlreadyInReadingList}
                         className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-opacity ${isAlreadyInReadingList
-                            ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed'
-                            : 'bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90'
+                          ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed'
+                          : 'bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90'
                           }`}
                       >
                         {isAlreadyInReadingList ? (
