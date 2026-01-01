@@ -23,6 +23,8 @@ import {
   Star,
   Trash2,
   Info,
+  Search,
+  ArrowUpDown,
 } from 'lucide-react';
 import type { Paper, Highlight, Note, HighlightColor, SortOption } from '../types';
 import {
@@ -291,6 +293,9 @@ export function Reader() {
     return saved !== null ? saved === 'true' : true;
   });
   const [sortOption, setSortOption] = useState<SortOption>('date-desc');
+  const [paperSearch, setPaperSearch] = useState(''); // Search query for paper sidebar
+  const [expandSearch, setExpandSearch] = useState(false); // Whether to search all papers or just visible ones
+  const [showSortDropdown, setShowSortDropdown] = useState(false); // Sort dropdown visibility
   const [pdfContainerReady, setPdfContainerReady] = useState(false); // For fade-in effect
   const paperScrollPositions = useRef<Map<string, number>>(new Map()); // Store scroll positions per paper
 
@@ -1632,12 +1637,105 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             className={`w-64 h-full flex flex-col bg-[var(--bg-secondary)] border-r border-[var(--border-default)] transition-transform duration-200 ease-out ${showPaperList ? 'translate-x-0' : '-translate-x-full'
               }`}
           >
-            <div className="p-3 border-b border-[var(--border-default)] flex-shrink-0">
-              <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Papers</span>
+            {/* Sticky Search Bar + Sort */}
+            <div className="p-2 border-b border-[var(--border-default)] flex-shrink-0 sticky top-0 bg-[var(--bg-secondary)] z-10">
+              <div className="flex items-center gap-1.5">
+                {/* Search Input */}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" />
+                  <input
+                    type="text"
+                    value={paperSearch}
+                    onChange={(e) => {
+                      setPaperSearch(e.target.value);
+                      setExpandSearch(false); // Reset expand when search changes
+                    }}
+                    placeholder="Search papers..."
+                    className="w-full pl-7 pr-2 py-1.5 text-xs bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:bg-[var(--bg-card)] focus:border-[var(--accent-primary)] transition-colors"
+                  />
+                  {paperSearch && (
+                    <button
+                      onClick={() => {
+                        setPaperSearch('');
+                        setExpandSearch(false);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Sort Button */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowSortDropdown(!showSortDropdown)}
+                    className="p-1.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                    title="Sort papers"
+                  >
+                    <ArrowUpDown className="w-3.5 h-3.5" />
+                  </button>
+
+                  {showSortDropdown && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShowSortDropdown(false)}
+                      />
+                      <div className="absolute right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
+                        {[
+                          { value: 'date-desc' as SortOption, label: 'Newest first' },
+                          { value: 'date-asc' as SortOption, label: 'Oldest first' },
+                          { value: 'title-asc' as SortOption, label: 'Title A-Z' },
+                          { value: 'title-desc' as SortOption, label: 'Title Z-A' },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => {
+                              setSortOption(opt.value);
+                              setShowSortDropdown(false);
+                            }}
+                            className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${sortOption === opt.value
+                                ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
+                                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                              }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
+
             <div className="flex-1 overflow-y-auto">
-              {Array.from(allPapers.values())
-                .sort((a, b) => {
+              {(() => {
+                // Filter papers based on search query
+                const allPapersArray = Array.from(allPapers.values());
+                const searchLower = paperSearch.toLowerCase().trim();
+
+                // Get visible papers (those with highlights/notes in current session, or recently accessed)
+                // For simplicity, we'll consider all papers as "visible" initially
+                // In a more advanced implementation, you could track which papers the user has interacted with
+
+                let filteredPapers = allPapersArray;
+
+                if (searchLower) {
+                  // Filter by search query
+                  filteredPapers = allPapersArray.filter(p =>
+                    p.title.toLowerCase().includes(searchLower) ||
+                    (p.authors && p.authors.toLowerCase().includes(searchLower)) ||
+                    (p.tags && p.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+                  );
+
+                  // If not expanding and no results in visible scope, show empty
+                  // For now, we search all papers but allow "expand" to be shown if results are limited
+                }
+
+                // Sort papers
+                const sortedPapers = filteredPapers.sort((a, b) => {
                   switch (sortOption) {
                     case 'title-asc':
                       return a.title.localeCompare(b.title);
@@ -1649,72 +1747,102 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     default:
                       return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
                   }
-                })
-                .map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => switchToPaper(p.id)}
-                    className={`group w-full text-left px-3 py-2.5 border-b border-[var(--border-muted)] transition-colors ${p.id === paperId
-                      ? 'bg-[var(--bg-tertiary)]'
-                      : 'hover:bg-[var(--bg-tertiary)]/50'
-                      }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <FileText className={`w-4 h-4 flex-shrink-0 mt-0.5 ${p.id === paperId ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
-                        }`} />
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-xs leading-snug line-clamp-2 ${p.id === paperId
-                          ? 'text-[var(--text-primary)] font-semibold'
-                          : 'text-[var(--text-primary)] font-normal opacity-80'
-                          }`}>
-                          {p.title}
-                        </p>
-                        {p.authors && (
-                          <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate">
-                            {p.authors.split(',')[0]}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <button
-                          onClick={(e) => togglePaperStarred(e, p)}
-                          className={`p-0.5 rounded transition-all ${p.isStarred
-                            ? 'text-yellow-500'
-                            : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
-                            }`}
-                          title={p.isStarred ? "Unstar" : "Star"}
-                        >
-                          <Star className={`w-3 h-3 ${p.isStarred ? 'fill-current' : ''}`} />
-                        </button>
-                        <div className="relative flex items-center justify-center w-3 h-3">
-                          {!p.isRead ? (
-                            <button
-                              onClick={(e) => togglePaperReadStatus(e, p)}
-                              className="relative w-3 h-3 flex items-center justify-center group/button"
-                              title="Mark as read"
-                            >
-                              {/* Outer circle with faint blue fill - only on hover (2x dot width = 3px) */}
-                              <div className="absolute inset-0 w-3 h-3 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
-                              {/* Inner blue dot - always visible, centered */}
-                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-500" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={(e) => togglePaperReadStatus(e, p)}
-                              className="relative w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
-                              title="Mark as unread"
-                            >
-                              {/* Outer circle with faint grey fill - only on hover (2x dot width = 3px) */}
-                              <div className="absolute inset-0 w-3 h-3 rounded-full bg-[var(--text-muted)]/15 opacity-0 group-hover/button:opacity-100 transition-opacity" />
-                              {/* Inner grey dot - centered */}
-                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                });
+
+                // Limit results if not expanded
+                const maxResultsWhenNotExpanded = 10;
+                const limitResults = searchLower && !expandSearch && sortedPapers.length > maxResultsWhenNotExpanded;
+                const displayPapers = limitResults ? sortedPapers.slice(0, maxResultsWhenNotExpanded) : sortedPapers;
+                const hiddenCount = limitResults ? sortedPapers.length - maxResultsWhenNotExpanded : 0;
+
+                if (searchLower && sortedPapers.length === 0) {
+                  return (
+                    <div className="p-4 text-center">
+                      <p className="text-xs text-[var(--text-muted)]">No papers found</p>
                     </div>
-                  </button>
-                ))}
+                  );
+                }
+
+                return (
+                  <>
+                    {displayPapers.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => switchToPaper(p.id)}
+                        className={`group w-full text-left px-3 py-2.5 border-b border-[var(--border-muted)] transition-colors ${p.id === paperId
+                          ? 'bg-[var(--bg-tertiary)]'
+                          : 'hover:bg-[var(--bg-tertiary)]/50'
+                          }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <FileText className={`w-4 h-4 flex-shrink-0 mt-0.5 ${p.id === paperId ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
+                            }`} />
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-xs leading-snug line-clamp-2 ${p.id === paperId
+                              ? 'text-[var(--text-primary)] font-semibold'
+                              : 'text-[var(--text-primary)] font-normal opacity-80'
+                              }`}>
+                              {p.title}
+                            </p>
+                            {p.authors && (
+                              <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate">
+                                {p.authors.split(',')[0]}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <button
+                              onClick={(e) => togglePaperStarred(e, p)}
+                              className={`p-0.5 rounded transition-all ${p.isStarred
+                                ? 'text-yellow-500'
+                                : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
+                                }`}
+                              title={p.isStarred ? "Unstar" : "Star"}
+                            >
+                              <Star className={`w-3 h-3 ${p.isStarred ? 'fill-current' : ''}`} />
+                            </button>
+                            <div className="relative flex items-center justify-center w-3 h-3">
+                              {!p.isRead ? (
+                                <button
+                                  onClick={(e) => togglePaperReadStatus(e, p)}
+                                  className="relative w-3 h-3 flex items-center justify-center group/button"
+                                  title="Mark as read"
+                                >
+                                  {/* Outer circle with faint blue fill - only on hover (2x dot width = 3px) */}
+                                  <div className="absolute inset-0 w-3 h-3 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                                  {/* Inner blue dot - always visible, centered */}
+                                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => togglePaperReadStatus(e, p)}
+                                  className="relative w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
+                                  title="Mark as unread"
+                                >
+                                  {/* Outer circle with faint grey fill - only on hover (2x dot width = 3px) */}
+                                  <div className="absolute inset-0 w-3 h-3 rounded-full bg-[var(--text-muted)]/15 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                                  {/* Inner grey dot - centered */}
+                                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+
+                    {/* Expand search button */}
+                    {hiddenCount > 0 && (
+                      <button
+                        onClick={() => setExpandSearch(true)}
+                        className="w-full py-2.5 text-xs text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)]/50 transition-colors border-b border-[var(--border-muted)]"
+                      >
+                        Show {hiddenCount} more result{hiddenCount !== 1 ? 's' : ''}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
