@@ -47,13 +47,23 @@ import 'react-pdf/dist/Page/TextLayer.css';
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 // Pastel color palette for highlights - consistent with NotesPage
-const HIGHLIGHT_COLORS: { color: HighlightColor; bg: string; border: string; accent: string; dark: string; shadow: string }[] = [
-  { color: 'yellow', bg: '#fef9c3', border: '#fbbf24', accent: '#ca8a04', dark: '#78350f', shadow: 'rgba(180, 130, 20, 0.25)' },
-  { color: 'green', bg: '#dcfce7', border: '#4ade80', accent: '#16a34a', dark: '#14532d', shadow: 'rgba(34, 160, 70, 0.25)' },
-  { color: 'blue', bg: '#dbeafe', border: '#3b82f6', accent: '#2563eb', dark: '#1e3a5f', shadow: 'rgba(45, 100, 200, 0.25)' },
-  { color: 'red', bg: '#fee2e2', border: '#f87171', accent: '#dc2626', dark: '#7f1d1d', shadow: 'rgba(200, 80, 80, 0.25)' },
-  { color: 'purple', bg: '#f3e8ff', border: '#a855f7', accent: '#9333ea', dark: '#581c87', shadow: 'rgba(140, 70, 200, 0.25)' },
-];
+// bgDark and textDark are for dark mode variants
+const HIGHLIGHT_COLORS: {
+  color: HighlightColor;
+  bg: string;
+  bgDark: string; // Darker, muted background for dark mode
+  border: string;
+  accent: string;
+  dark: string;
+  textDark: string; // Light text for dark mode
+  shadow: string
+}[] = [
+    { color: 'yellow', bg: '#fef9c3', bgDark: '#3d3522', border: '#fbbf24', accent: '#ca8a04', dark: '#78350f', textDark: '#fef3c7', shadow: 'rgba(180, 130, 20, 0.25)' },
+    { color: 'green', bg: '#dcfce7', bgDark: '#1a3329', border: '#4ade80', accent: '#16a34a', dark: '#14532d', textDark: '#dcfce7', shadow: 'rgba(34, 160, 70, 0.25)' },
+    { color: 'blue', bg: '#dbeafe', bgDark: '#1e2d3d', border: '#3b82f6', accent: '#2563eb', dark: '#1e3a5f', textDark: '#dbeafe', shadow: 'rgba(45, 100, 200, 0.25)' },
+    { color: 'red', bg: '#fee2e2', bgDark: '#3d1f1f', border: '#f87171', accent: '#dc2626', dark: '#7f1d1d', textDark: '#fee2e2', shadow: 'rgba(200, 80, 80, 0.25)' },
+    { color: 'purple', bg: '#f3e8ff', bgDark: '#2d1f3d', border: '#a855f7', accent: '#9333ea', dark: '#581c87', textDark: '#f3e8ff', shadow: 'rgba(140, 70, 200, 0.25)' },
+  ];
 
 // Parse references from PDF text
 function parseReferences(fullText: string): Map<string, string> {
@@ -303,6 +313,18 @@ export function Reader() {
 
   // Edit paper modal state
   const [showEditModal, setShowEditModal] = useState(false);
+
+  // Dark mode detection
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -1633,8 +1655,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     key={p.id}
                     onClick={() => switchToPaper(p.id)}
                     className={`group w-full text-left px-3 py-2.5 border-b border-[var(--border-muted)] transition-colors ${p.id === paperId
-                        ? 'bg-[var(--bg-tertiary)]'
-                        : 'hover:bg-[var(--bg-tertiary)]/50'
+                      ? 'bg-[var(--bg-tertiary)]'
+                      : 'hover:bg-[var(--bg-tertiary)]/50'
                       }`}
                   >
                     <div className="flex items-start gap-2">
@@ -1642,8 +1664,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                         }`} />
                       <div className="min-w-0 flex-1">
                         <p className={`text-xs leading-snug line-clamp-2 ${p.id === paperId
-                            ? 'text-[var(--text-primary)] font-semibold'
-                            : 'text-[var(--text-primary)] font-normal opacity-80'
+                          ? 'text-[var(--text-primary)] font-semibold'
+                          : 'text-[var(--text-primary)] font-normal opacity-80'
                           }`}>
                           {p.title}
                         </p>
@@ -1657,8 +1679,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                         <button
                           onClick={(e) => togglePaperStarred(e, p)}
                           className={`p-0.5 rounded transition-all ${p.isStarred
-                              ? 'text-yellow-500'
-                              : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
+                            ? 'text-yellow-500'
+                            : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
                             }`}
                           title={p.isStarred ? "Unstar" : "Star"}
                         >
@@ -1880,7 +1902,9 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                               <div
                                 className="rounded-xl overflow-hidden shadow-xl"
                                 style={{
-                                  backgroundColor: editColorInfo?.bg || '#fef9c3',
+                                  backgroundColor: isDarkMode
+                                    ? (editColorInfo?.bgDark || '#3d3522')
+                                    : (editColorInfo?.bg || '#fef9c3'),
                                   minWidth: '280px',
                                   maxWidth: '320px',
                                 }}
@@ -1891,15 +1915,15 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                   style={{ borderColor: `${editColorInfo?.border}30` }}
                                 >
                                   <div className="flex items-center gap-2">
-                                    {HIGHLIGHT_COLORS.map(({ color, bg, border }) => (
+                                    {HIGHLIGHT_COLORS.map(({ color, bg, bgDark, border }) => (
                                       <button
                                         key={color}
                                         onClick={() => handleChangeHighlightColor(editingHighlight, color)}
                                         className="w-6 h-6 rounded-full transition-all hover:scale-110"
                                         style={{
-                                          backgroundColor: bg,
+                                          backgroundColor: isDarkMode ? bgDark : bg,
                                           border: editingHighlight.color === color ? `2px solid ${border}` : '2px solid transparent',
-                                          boxShadow: editingHighlight.color === color ? `0 0 0 2px white` : 'none',
+                                          boxShadow: editingHighlight.color === color ? `0 0 0 2px ${isDarkMode ? 'rgba(0,0,0,0.5)' : 'white'}` : 'none',
                                         }}
                                         title={color.charAt(0).toUpperCase() + color.slice(1)}
                                       />
@@ -1907,7 +1931,11 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                   </div>
                                   <button
                                     onClick={() => handleDeleteHighlight(editingHighlight.id)}
-                                    className="p-1.5 rounded-full hover:bg-red-100 transition-colors text-[var(--text-muted)] hover:text-red-500"
+                                    className="p-1.5 rounded-full transition-colors"
+                                    style={{
+                                      color: isDarkMode ? (editColorInfo?.textDark || '#fef3c7') : 'var(--text-muted)',
+                                      backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'transparent',
+                                    }}
                                     title="Delete highlight"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -1922,10 +1950,13 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                     placeholder="Add a note..."
                                     rows={2}
                                     autoFocus
-                                    className="w-full text-xs py-2 px-3 mb-2 resize-none bg-white/80 border-0"
+                                    className="w-full text-xs py-2 px-3 mb-2 resize-none border-0"
                                     style={{
                                       borderRadius: '8px',
-                                      color: editColorInfo?.dark || '#78350f',
+                                      backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.8)',
+                                      color: isDarkMode
+                                        ? (editColorInfo?.textDark || '#fef3c7')
+                                        : (editColorInfo?.dark || '#78350f'),
                                       outline: 'none',
                                     }}
                                     onKeyDown={(e) => {
@@ -1948,8 +1979,13 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                         setEditingHighlightPosition(null);
                                         setNoteInput('');
                                       }}
-                                      className="flex-1 text-xs py-1.5 px-3 rounded-full bg-white/50 hover:bg-white/80 transition-colors"
-                                      style={{ color: editColorInfo?.dark || '#78350f' }}
+                                      className="flex-1 text-xs py-1.5 px-3 rounded-full transition-colors"
+                                      style={{
+                                        backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)',
+                                        color: isDarkMode
+                                          ? (editColorInfo?.textDark || '#fef3c7')
+                                          : (editColorInfo?.dark || '#78350f'),
+                                      }}
                                     >
                                       {highlightHasNotes ? 'Close' : 'Cancel'}
                                     </button>
@@ -2150,7 +2186,9 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                         key={note.id}
                                         className="rounded-lg mb-3 transition-all cursor-pointer group overflow-hidden relative hover:scale-[1.02] hover:shadow-lg"
                                         style={{
-                                          backgroundColor: highlightColorInfo?.bg || '#fef9c3',
+                                          backgroundColor: isDarkMode
+                                            ? (highlightColorInfo?.bgDark || '#3d3522')
+                                            : (highlightColorInfo?.bg || '#fef9c3'),
                                           boxShadow: `0 1px 3px ${highlightColorInfo?.shadow || 'rgba(251, 191, 36, 0.15)'}, 0 1px 2px ${highlightColorInfo?.shadow || 'rgba(251, 191, 36, 0.15)'}`,
                                           transformOrigin: 'center center',
                                         }}
@@ -2178,24 +2216,39 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                             e.stopPropagation();
                                             handleDeleteNote(note.id);
                                           }}
-                                          className="absolute top-2 right-2 p-1 rounded-full hover:text-[var(--accent-red)] hover:bg-white/50 opacity-0 group-hover:opacity-100 transition-all"
-                                          style={{ color: highlightColorInfo?.accent || '#ca8a04' }}
+                                          className="absolute top-2 right-2 p-1 rounded-full hover:text-[var(--accent-red)] opacity-0 group-hover:opacity-100 transition-all"
+                                          style={{
+                                            color: isDarkMode ? (highlightColorInfo?.textDark || '#fef3c7') : (highlightColorInfo?.accent || '#ca8a04'),
+                                            backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)',
+                                          }}
                                         >
                                           <X className="w-3 h-3" />
                                         </button>
 
                                         {/* Main content */}
                                         <div className="p-3 pb-2 pr-8">
-                                          {/* Quoted highlight text - dark readable color */}
+                                          {/* Quoted highlight text */}
                                           <p
                                             className="text-[10px] italic line-clamp-2 mb-2"
-                                            style={{ color: highlightColorInfo?.dark || '#78350f' }}
+                                            style={{
+                                              color: isDarkMode
+                                                ? (highlightColorInfo?.textDark || '#fef3c7')
+                                                : (highlightColorInfo?.dark || '#78350f'),
+                                              opacity: isDarkMode ? 0.7 : 1,
+                                            }}
                                           >
                                             "{highlight.text}"
                                           </p>
 
-                                          {/* Note content - near black for emphasis */}
-                                          <p className="text-xs font-medium text-[var(--text-primary)]">
+                                          {/* Note content */}
+                                          <p
+                                            className="text-xs font-medium"
+                                            style={{
+                                              color: isDarkMode
+                                                ? (highlightColorInfo?.textDark || '#fef3c7')
+                                                : 'var(--text-primary)',
+                                            }}
+                                          >
                                             {note.content}
                                           </p>
                                         </div>
@@ -2207,7 +2260,12 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                         >
                                           <span
                                             className="text-[9px] font-medium"
-                                            style={{ color: highlightColorInfo?.dark || '#78350f' }}
+                                            style={{
+                                              color: isDarkMode
+                                                ? (highlightColorInfo?.textDark || '#fef3c7')
+                                                : (highlightColorInfo?.dark || '#78350f'),
+                                              opacity: isDarkMode ? 0.7 : 1,
+                                            }}
                                           >
                                             {new Date(note.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                           </span>
@@ -2252,18 +2310,18 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                             <div
                               key={item.id}
                               className={`p-3 rounded-xl border transition-all ${resolved
-                                  ? 'bg-[var(--bg-secondary)] border-[var(--border-muted)] opacity-60'
-                                  : isCurrentPaper
-                                    ? 'bg-[var(--bg-secondary)] border-[var(--border-default)]'
-                                    : 'bg-[var(--bg-card)] border-[var(--border-default)]'
+                                ? 'bg-[var(--bg-secondary)] border-[var(--border-muted)] opacity-60'
+                                : isCurrentPaper
+                                  ? 'bg-[var(--bg-secondary)] border-[var(--border-default)]'
+                                  : 'bg-[var(--bg-card)] border-[var(--border-default)]'
                                 }`}
                             >
                               <div className="flex items-start gap-2.5">
                                 <button
                                   onClick={() => toggleReadingResolved(item)}
                                   className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${resolved
-                                      ? 'border-[var(--text-secondary)] bg-[var(--text-secondary)]'
-                                      : 'border-[var(--border-default)] hover:border-[var(--text-secondary)]'
+                                    ? 'border-[var(--text-secondary)] bg-[var(--text-secondary)]'
+                                    : 'border-[var(--border-default)] hover:border-[var(--text-secondary)]'
                                     }`}
                                   style={{ width: '18px', height: '18px' }}
                                 >
