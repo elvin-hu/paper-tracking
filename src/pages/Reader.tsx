@@ -1639,9 +1639,17 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           >
             {/* Sticky Search Bar + Sort */}
             <div className="px-2 py-1.5 border-b border-[var(--border-default)] flex-shrink-0 sticky top-0 bg-[var(--bg-secondary)] z-10">
-              <div className="flex items-center gap-1">
-                {/* Search Input */}
-                <div className="flex-1 flex items-center bg-[var(--bg-tertiary)] rounded-lg px-2.5 h-7">
+              <div className="flex items-center gap-2">
+                {/* Search Input Container - clicking anywhere focuses input */}
+                <div
+                  className="flex-1 flex items-center gap-1.5 bg-[var(--bg-tertiary)] rounded-lg px-2 cursor-text"
+                  style={{ height: '28px' }}
+                  onClick={(e) => {
+                    // Focus the input when clicking anywhere in the container
+                    const input = e.currentTarget.querySelector('input');
+                    if (input) input.focus();
+                  }}
+                >
                   <Search className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0" />
                   <input
                     type="text"
@@ -1651,12 +1659,13 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       setExpandSearch(false);
                     }}
                     placeholder="Search"
-                    className="flex-1 ml-1.5 text-xs bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none border-none"
-                    style={{ boxShadow: 'none' }}
+                    className="flex-1 min-w-0 text-xs bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
+                    style={{ border: 'none', boxShadow: 'none', padding: 0, height: 'auto' }}
                   />
                   {paperSearch && (
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setPaperSearch('');
                         setExpandSearch(false);
                       }}
@@ -1668,10 +1677,10 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                 </div>
 
                 {/* Sort Button */}
-                <div className="relative">
+                <div className="relative flex-shrink-0">
                   <button
                     onClick={() => setShowSortDropdown(!showSortDropdown)}
-                    className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                     title="Sort papers"
                   >
                     <ArrowUpDown className="w-3.5 h-3.5" />
