@@ -294,6 +294,7 @@ export function Reader() {
   });
   const [sortOption, setSortOption] = useState<SortOption>('date-desc');
   const [paperSearch, setPaperSearch] = useState(''); // Search query for paper sidebar
+  const [searchFocused, setSearchFocused] = useState(false); // Track search input focus
   const [expandSearch, setExpandSearch] = useState(false); // Whether to search all papers or just visible ones
   const [showSortDropdown, setShowSortDropdown] = useState(false); // Sort dropdown visibility
   const [pdfContainerReady, setPdfContainerReady] = useState(false); // For fade-in effect
@@ -1642,7 +1643,10 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               <div className="flex items-center gap-2">
                 {/* Search Input Container - clicking anywhere focuses input */}
                 <div
-                  className="flex-1 flex items-center gap-1.5 bg-[var(--bg-tertiary)] rounded-lg px-2 cursor-text"
+                  className={`flex-1 flex items-center gap-1.5 rounded-lg px-2 cursor-text transition-colors ${searchFocused
+                      ? 'bg-[var(--bg-card)] ring-1 ring-[var(--border-default)]'
+                      : 'bg-[var(--bg-tertiary)]'
+                    }`}
                   style={{ height: '28px' }}
                   onClick={(e) => {
                     // Focus the input when clicking anywhere in the container
@@ -1650,7 +1654,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     if (input) input.focus();
                   }}
                 >
-                  <Search className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0" />
+                  <Search className={`w-3.5 h-3.5 flex-shrink-0 transition-colors ${searchFocused ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)]'
+                    }`} />
                   <input
                     type="text"
                     value={paperSearch}
@@ -1658,6 +1663,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       setPaperSearch(e.target.value);
                       setExpandSearch(false);
                     }}
+                    onFocus={() => setSearchFocused(true)}
+                    onBlur={() => setSearchFocused(false)}
                     placeholder="Search"
                     className="flex-1 min-w-0 text-xs bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
                     style={{ border: 'none', boxShadow: 'none', padding: 0, height: 'auto' }}
