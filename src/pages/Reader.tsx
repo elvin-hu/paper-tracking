@@ -1638,20 +1638,20 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               }`}
           >
             {/* Sticky Search Bar + Sort */}
-            <div className="p-2 border-b border-[var(--border-default)] flex-shrink-0 sticky top-0 bg-[var(--bg-secondary)] z-10">
-              <div className="flex items-center gap-1.5">
+            <div className="px-2 py-1.5 border-b border-[var(--border-default)] flex-shrink-0 sticky top-0 bg-[var(--bg-secondary)] z-10">
+              <div className="flex items-center gap-1">
                 {/* Search Input */}
-                <div className="flex-1 relative">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" />
+                <div className="flex-1 flex items-center bg-[var(--bg-tertiary)] rounded-lg px-2 py-1">
+                  <Search className="w-3 h-3 text-[var(--text-muted)] flex-shrink-0" />
                   <input
                     type="text"
                     value={paperSearch}
                     onChange={(e) => {
                       setPaperSearch(e.target.value);
-                      setExpandSearch(false); // Reset expand when search changes
+                      setExpandSearch(false);
                     }}
-                    placeholder="Search papers..."
-                    className="w-full pl-7 pr-2 py-1.5 text-xs bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:bg-[var(--bg-card)] focus:border-[var(--accent-primary)] transition-colors"
+                    placeholder="Search"
+                    className="flex-1 ml-1.5 text-xs bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none"
                   />
                   {paperSearch && (
                     <button
@@ -1659,7 +1659,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                         setPaperSearch('');
                         setExpandSearch(false);
                       }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                      className="p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] flex-shrink-0"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -1670,7 +1670,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                 <div className="relative">
                   <button
                     onClick={() => setShowSortDropdown(!showSortDropdown)}
-                    className="p-1.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                    className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                     title="Sort papers"
                   >
                     <ArrowUpDown className="w-3.5 h-3.5" />
@@ -1696,8 +1696,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                               setShowSortDropdown(false);
                             }}
                             className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${sortOption === opt.value
-                                ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
-                                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                              ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
+                              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
                               }`}
                           >
                             {opt.label}
