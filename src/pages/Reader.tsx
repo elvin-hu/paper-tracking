@@ -2152,6 +2152,11 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             const refInfo = detectedRef ? getReferenceInfo(detectedRef) : null;
             const hasRefTitle = refInfo && refInfo.title;
 
+            // Check if this reference is already in the reading list
+            const isAlreadyInReadingList = readingList.some(item =>
+              item.text.trim().toLowerCase() === selectedText.trim().toLowerCase()
+            );
+
             return (
               <div
                 className="absolute z-50 animate-scale-in"
@@ -2178,10 +2183,20 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                           createHighlight('purple', true, citationNoteInput.trim() || undefined);
                           setCitationNoteInput('');
                         }}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--text-primary)] text-[var(--bg-primary)] text-sm font-medium hover:opacity-90 transition-opacity"
+                        disabled={isAlreadyInReadingList}
+                        className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-opacity ${isAlreadyInReadingList
+                            ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed'
+                            : 'bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90'
+                          }`}
                       >
-                        <Plus className="w-4 h-4" />
-                        Add to Reading List
+                        {isAlreadyInReadingList ? (
+                          <>Already in reading list</>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4" />
+                            Add to Reading List
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -2203,10 +2218,20 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                           createHighlight('purple', true, citationNoteInput.trim() || undefined);
                           setCitationNoteInput('');
                         }}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--text-primary)] text-[var(--bg-primary)] text-sm font-medium hover:opacity-90 transition-opacity"
+                        disabled={isAlreadyInReadingList}
+                        className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-opacity ${isAlreadyInReadingList
+                            ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed'
+                            : 'bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90'
+                          }`}
                       >
-                        <Plus className="w-4 h-4" />
-                        Add to Reading List
+                        {isAlreadyInReadingList ? (
+                          <>Already in reading list</>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4" />
+                            Add to Reading List
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
