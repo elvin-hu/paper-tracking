@@ -1641,8 +1641,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             <div className="px-2 py-1.5 border-b border-[var(--border-default)] flex-shrink-0 sticky top-0 bg-[var(--bg-secondary)] z-10">
               <div className="flex items-center gap-1">
                 {/* Search Input */}
-                <div className="flex-1 flex items-center bg-[var(--bg-tertiary)] rounded-lg px-2 py-1">
-                  <Search className="w-3 h-3 text-[var(--text-muted)] flex-shrink-0" />
+                <div className="flex-1 flex items-center bg-[var(--bg-tertiary)] rounded-lg px-2.5 h-7">
+                  <Search className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0" />
                   <input
                     type="text"
                     value={paperSearch}
@@ -1651,7 +1651,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                       setExpandSearch(false);
                     }}
                     placeholder="Search"
-                    className="flex-1 ml-1.5 text-xs bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none"
+                    className="flex-1 ml-1.5 text-xs bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none border-none"
+                    style={{ boxShadow: 'none' }}
                   />
                   {paperSearch && (
                     <button
