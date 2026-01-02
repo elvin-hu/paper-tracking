@@ -17,13 +17,13 @@ interface NoteWithContext {
   highlight: Highlight | null;
 }
 
-// Color mapping for note cards - using CSS variables for dark mode support
-const HIGHLIGHT_COLORS: Record<string, { bg: string; bgDark: string; border: string; accent: string; dark: string; shadow: string }> = {
-  yellow: { bg: 'var(--highlight-yellow)', bgDark: 'rgba(250, 240, 137, 0.15)', border: '#fbbf24', accent: '#ca8a04', dark: 'var(--text-primary)', shadow: 'rgba(180, 130, 20, 0.25)' },
-  green: { bg: 'var(--highlight-green)', bgDark: 'rgba(134, 239, 172, 0.15)', border: '#4ade80', accent: '#16a34a', dark: 'var(--text-primary)', shadow: 'rgba(34, 160, 70, 0.25)' },
-  blue: { bg: 'var(--highlight-blue)', bgDark: 'rgba(147, 197, 253, 0.15)', border: '#3b82f6', accent: '#2563eb', dark: 'var(--text-primary)', shadow: 'rgba(45, 100, 200, 0.25)' },
-  red: { bg: 'var(--highlight-red)', bgDark: 'rgba(252, 165, 165, 0.15)', border: '#f87171', accent: '#dc2626', dark: 'var(--text-primary)', shadow: 'rgba(200, 80, 80, 0.25)' },
-  purple: { bg: 'var(--highlight-purple)', bgDark: 'rgba(216, 180, 254, 0.15)', border: '#a855f7', accent: '#9333ea', dark: 'var(--text-primary)', shadow: 'rgba(140, 70, 200, 0.25)' },
+// Color mapping for note cards - matching Reader sidebar
+const HIGHLIGHT_COLORS: Record<string, { bg: string; bgDark: string; border: string; accent: string; dark: string; textDark: string; shadow: string }> = {
+  yellow: { bg: '#fef9c3', bgDark: '#3d3522', border: '#fbbf24', accent: '#ca8a04', dark: '#78350f', textDark: '#fef3c7', shadow: 'rgba(180, 130, 20, 0.25)' },
+  green: { bg: '#dcfce7', bgDark: '#1a3329', border: '#4ade80', accent: '#16a34a', dark: '#14532d', textDark: '#dcfce7', shadow: 'rgba(34, 160, 70, 0.25)' },
+  blue: { bg: '#dbeafe', bgDark: '#1e2d3d', border: '#3b82f6', accent: '#2563eb', dark: '#1e3a5f', textDark: '#dbeafe', shadow: 'rgba(45, 100, 200, 0.25)' },
+  red: { bg: '#fee2e2', bgDark: '#3d1f1f', border: '#f87171', accent: '#dc2626', dark: '#7f1d1d', textDark: '#fee2e2', shadow: 'rgba(200, 80, 80, 0.25)' },
+  purple: { bg: '#f3e8ff', bgDark: '#2d1f3d', border: '#a855f7', accent: '#9333ea', dark: '#581c87', textDark: '#f3e8ff', shadow: 'rgba(140, 70, 200, 0.25)' },
 };
 
 export function NotesPage() {
@@ -32,6 +32,18 @@ export function NotesPage() {
   const [notesWithContext, setNotesWithContext] = useState<NoteWithContext[]>([]);
   const [loading, setLoading] = useState(true);
   const [groupedNotes, setGroupedNotes] = useState<Map<string, NoteWithContext[]>>(new Map());
+
+  // Dark mode detection
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
 
   // Save scroll position before navigating away
   const handleNoteClick = (note: NoteWithContext) => {
@@ -196,7 +208,7 @@ export function NotesPage() {
                           <div
                             className="rounded-lg transition-shadow overflow-hidden"
                             style={{
-                              backgroundColor: colors.bg,
+                              backgroundColor: isDarkMode ? colors.bgDark : colors.bg,
                               boxShadow: `0 1px 3px ${colors.shadow}, 0 1px 2px ${colors.shadow}`,
                             }}
                           >
@@ -206,14 +218,20 @@ export function NotesPage() {
                               {noteCtx.highlight && (
                                 <p
                                   className="text-[11px] leading-relaxed mb-3 line-clamp-3 italic"
-                                  style={{ color: colors.dark }}
+                                  style={{
+                                    color: isDarkMode ? colors.textDark : colors.dark,
+                                    opacity: isDarkMode ? 0.7 : 1
+                                  }}
                                 >
                                   "{noteCtx.highlight.text}"
                                 </p>
                               )}
 
                               {/* Note content - near black for emphasis */}
-                              <p className="text-sm leading-relaxed line-clamp-4 font-medium text-[var(--text-primary)]">
+                              <p
+                                className="text-sm leading-relaxed line-clamp-4 font-medium"
+                                style={{ color: isDarkMode ? colors.textDark : 'var(--text-primary)' }}
+                              >
                                 {noteCtx.note.content}
                               </p>
                             </div>
@@ -221,15 +239,21 @@ export function NotesPage() {
                             {/* Footer with darker tint */}
                             <div
                               className="px-4 py-2.5 flex items-center justify-between"
-                              style={{ backgroundColor: `${colors.border}20` }}
+                              style={{ backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : `${colors.border}20` }}
                             >
                               <span
                                 className="text-[10px] font-medium"
-                                style={{ color: colors.dark }}
+                                style={{
+                                  color: isDarkMode ? colors.textDark : colors.dark,
+                                  opacity: isDarkMode ? 0.8 : 1
+                                }}
                               >
                                 Page {noteCtx.highlight?.pageNumber || '?'}
                               </span>
-                              <ChevronRight className="w-4 h-4" style={{ color: colors.accent }} />
+                              <ChevronRight
+                                className="w-4 h-4"
+                                style={{ color: isDarkMode ? colors.textDark : colors.accent, opacity: isDarkMode ? 0.7 : 1 }}
+                              />
                             </div>
                           </div>
                         </button>
