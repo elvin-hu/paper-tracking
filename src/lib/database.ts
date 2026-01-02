@@ -227,7 +227,6 @@ export async function archivePaper(id: string, isArchived: boolean): Promise<voi
     .from('papers')
     .update({
       is_archived: isArchived,
-      updated_at: new Date().toISOString(),
       metadata: updatedMetadata
     })
     .eq('id', id);
