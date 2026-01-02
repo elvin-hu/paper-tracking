@@ -185,7 +185,7 @@ CRITICAL RULES:
 
 Please provide:
 1. A synthesis paragraph (4-6 sentences) that recaps paper methodology/findings. Write in first person. Be plain and succinct.
-2. A list of key insights extracted ONLY from "My Notes" sections. If no papers have "My Notes", return empty keyInsights array. Do NOT include paper titles—provide the paperIndex (0-based) separately.
+2. Key insights extracted ONLY from "My Notes" sections. Keep each insight SHORT (1 sentence max). Vary the phrasing - don't start all bullets the same way. If no papers have "My Notes", return empty keyInsights array.
 
 Respond in this exact JSON format:
 {
@@ -346,7 +346,7 @@ CRITICAL RULES:
 
 Please provide:
 1. A synthesis paragraph (4-6 sentences) that recaps paper methodology/findings. Write in first person. Be plain and succinct.
-2. A list of key insights extracted ONLY from "My Notes" sections. If no papers have "My Notes", return empty keyInsights array. Do NOT include paper titles—provide the paperIndex (0-based) separately.
+2. Key insights extracted ONLY from "My Notes" sections. Keep each insight SHORT (1 sentence max). Vary the phrasing - don't start all bullets the same way. If no papers have "My Notes", return empty keyInsights array.
 
 Respond in this exact JSON format:
 {
