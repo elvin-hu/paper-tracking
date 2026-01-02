@@ -208,11 +208,25 @@ export async function deletePaper(id: string): Promise<void> {
 
 // Archive/unarchive a paper
 export async function archivePaper(id: string, isArchived: boolean): Promise<void> {
+  // First get current metadata
+  const { data: existing } = await supabase
+    .from('papers')
+    .select('metadata')
+    .eq('id', id)
+    .single();
+
+  const currentMetadata = existing?.metadata || {};
+  const updatedMetadata = {
+    ...currentMetadata,
+    archivedAt: isArchived ? new Date().toISOString() : undefined,
+  };
+
   const { error } = await supabase
     .from('papers')
     .update({
       is_archived: isArchived,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      metadata: updatedMetadata
     })
     .eq('id', id);
 

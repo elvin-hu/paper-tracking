@@ -55,13 +55,14 @@ function groupPapersForJournal(
     addToGroup(dateStr, note.paperId);
   });
 
-  // 2. Group archived papers (by updated date)
+  // 2. Group archived papers (by archivedAt or updated date)
   papers.forEach(paper => {
     if (paper.isArchived) {
-      // Use updatedAt if available (from archive action), otherwise createdAt
-      const date = new Date(paper.updatedAt || paper.createdAt);
-      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      addToGroup(dateStr, paper.id);
+      // Use metadata.archivedAt if available (most accurate for archive action), otherwise fallback
+      const dateStr = paper.metadata?.archivedAt || (paper.updatedAt ? new Date(paper.updatedAt).toISOString() : (paper.createdAt ? new Date(paper.createdAt).toISOString() : new Date().toISOString()));
+      const date = new Date(dateStr);
+      const formattedDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      addToGroup(formattedDateStr, paper.id);
     }
   });
 

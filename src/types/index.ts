@@ -42,6 +42,7 @@ export interface Paper {
     conclusion?: string;
     limitation?: string;
     notes?: string; // Learnings for research
+    archivedAt?: string; // Explicit timestamp for when the paper was archived
   };
 }
 
