@@ -492,6 +492,8 @@ export function Library() {
         fileSize: pendingItem.file.size,
         tags: [],
         uploadedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
       await addPaper(paper);
@@ -829,6 +831,8 @@ export function Library() {
         fileSize: pendingFile.size,
         tags: uploadTags,
         uploadedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
       await addPaper(paper);

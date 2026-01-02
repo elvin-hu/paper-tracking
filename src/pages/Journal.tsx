@@ -25,29 +25,43 @@ import {
 } from '../lib/database';
 
 // Group papers by the dates their notes were created
-function groupPapersByNotes(
+// Group papers by date (either from notes or archive date)
+function groupPapersForJournal(
   papers: Paper[],
   notes: Note[]
 ): Map<string, Paper[]> {
   const groups = new Map<string, Paper[]>();
   const paperMap = new Map(papers.map(p => [p.id, p]));
 
-  notes.forEach(note => {
-    // Use the note's createdAt date for grouping (convert to local date)
-    const noteDate = new Date(note.createdAt);
-    const dateStr = `${noteDate.getFullYear()}-${String(noteDate.getMonth() + 1).padStart(2, '0')}-${String(noteDate.getDate()).padStart(2, '0')}`;
-
-    const paper = paperMap.get(note.paperId);
+  // Helper to add paper to a date group
+  const addToGroup = (dateStr: string, paperId: string) => {
+    const paper = paperMap.get(paperId);
     if (!paper) return;
 
     if (!groups.has(dateStr)) {
       groups.set(dateStr, []);
     }
 
-    // Avoid duplicates: only add if not already in that day's list
     const dayPapers = groups.get(dateStr)!;
     if (!dayPapers.some(p => p.id === paper.id)) {
       dayPapers.push(paper);
+    }
+  };
+
+  // 1. Group by notes
+  notes.forEach(note => {
+    const noteDate = new Date(note.createdAt);
+    const dateStr = `${noteDate.getFullYear()}-${String(noteDate.getMonth() + 1).padStart(2, '0')}-${String(noteDate.getDate()).padStart(2, '0')}`;
+    addToGroup(dateStr, note.paperId);
+  });
+
+  // 2. Group archived papers (by updated date)
+  papers.forEach(paper => {
+    if (paper.isArchived) {
+      // Use updatedAt if available (from archive action), otherwise createdAt
+      const date = new Date(paper.updatedAt || paper.createdAt);
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      addToGroup(dateStr, paper.id);
     }
   });
 
@@ -490,8 +504,8 @@ Respond in this exact JSON format:
     setEditingInsights(editingInsights.filter((_, i) => i !== index));
   };
 
-  // Group papers by date based on note activity
-  const papersByDate = groupPapersByNotes(papers, notes);
+  // Group papers by date based on note activity and archives
+  const papersByDate = groupPapersForJournal(papers, notes);
   const sortedDates = Array.from(papersByDate.keys()).sort((a: string, b: string) => b.localeCompare(a));
 
   return (

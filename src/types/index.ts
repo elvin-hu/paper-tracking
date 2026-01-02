@@ -32,6 +32,8 @@ export interface Paper {
   isRead?: boolean; // Whether the paper has been opened/read
   isStarred?: boolean; // Whether the paper is starred/favorited
   isArchived?: boolean; // Whether the paper is archived (hidden from main views)
+  createdAt: Date;
+  updatedAt: Date;
   metadata?: {
     firstAuthor?: string;
     venue?: string;

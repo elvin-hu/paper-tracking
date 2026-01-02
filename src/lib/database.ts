@@ -24,6 +24,8 @@ function rowToPaper(row: Record<string, unknown>): Paper {
     authors: row.authors ? String(row.authors) : undefined,
     tags: tags,
     uploadedAt: row.created_at ? new Date(String(row.created_at)) : new Date(),
+    createdAt: row.created_at ? new Date(String(row.created_at)) : new Date(),
+    updatedAt: row.updated_at ? new Date(String(row.updated_at)) : (row.created_at ? new Date(String(row.created_at)) : new Date()),
     lastOpenedAt: row.last_opened_at ? new Date(String(row.last_opened_at)) : undefined,
     isRead: Boolean(row.is_read),
     isStarred: Boolean(row.is_starred),
@@ -208,7 +210,10 @@ export async function deletePaper(id: string): Promise<void> {
 export async function archivePaper(id: string, isArchived: boolean): Promise<void> {
   const { error } = await supabase
     .from('papers')
-    .update({ is_archived: isArchived })
+    .update({
+      is_archived: isArchived,
+      updated_at: new Date().toISOString()
+    })
     .eq('id', id);
 
   if (error) {
