@@ -1302,7 +1302,7 @@ Please extract and return a JSON object with the following fields:
 - methodology: Research methodology—be direct, no filler phrases (2-3 sentences)
 - conclusion: Key findings—go straight to the point (2-3 sentences)
 - limitation: Stated or obvious limitations (2-3 sentences)
-- notes: CRITICAL: This field must ONLY synthesize my sticky notes listed above. If I have NOT made any sticky notes, return "N/A" for this field. Do NOT invent research applications or learnings - ONLY use what I explicitly wrote in my stickies. Write in first person.
+- notes: Synthesize my sticky notes (listed above) into coherent learnings and takeaways for my research. Paraphrase and connect the ideas - don't just repeat them literally. If I have NOT made any sticky notes, return "N/A". Write in first person.
 
 Return ONLY a valid JSON object, no other text. If a field cannot be determined, use an empty string. Format:
 {
@@ -1328,7 +1328,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           messages: [
             {
               role: 'system',
-              content: 'You are a seasoned CHI paper author helping extract metadata from academic papers. For methodology, conclusion, and limitation fields: summarize from the paper. For the "notes" field: ONLY synthesize the user\'s sticky notes if provided. If the user has NOT made any sticky notes, the notes field MUST be "N/A" - do not invent content. Be direct and concise. Always respond with valid JSON only.',
+              content: 'You are a seasoned CHI paper author helping extract metadata from academic papers. For methodology, conclusion, and limitation fields: summarize from the paper. For the "notes" field: synthesize and paraphrase the user\'s sticky notes into coherent learnings - don\'t just repeat them literally. If no sticky notes exist, return "N/A". Be direct and concise. Always respond with valid JSON only.',
             },
             {
               role: 'user',
