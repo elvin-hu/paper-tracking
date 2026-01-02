@@ -172,15 +172,21 @@ export default function Journal() {
         ? `\n\nMy Research Context:\n${settings.researchContext}`
         : '';
 
-      const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Summarize what I learned.
+      const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Summarize ONLY what I explicitly wrote in my notes.
 ${researchContext}
 
 Papers I Read (indexed 0 to ${datePapers.length - 1}):
 ${papersText}
 
+IMPORTANT RULES:
+- Base your synthesis PURELY on what I explicitly wrote down in the notes fields above (My Notes, Methodology, Conclusion, Limitations).
+- Do NOT invent, assume, or add any information that is not explicitly stated in my notes.
+- If a paper has no notes or only a title, do NOT make up content about it.
+- If there are no meaningful notes to synthesize, respond with synthesis: "N/A" and empty keyInsights.
+
 Please provide:
-1. A synthesis paragraph (4-6 sentences) that: (a) briefly recaps what each paper was about (methodology, findings), and (b) connects key themes across papers. Write in first person. Be plain and succinct—avoid filler words like "insightful", "compelling", "profound", "fascinating".
-2. A list of 3-6 key insights with actionable takeaways or research directions. Vary the phrasing—use different sentence structures. Do NOT include the paper title in the text—provide the paperIndex (0-based) separately.
+1. A synthesis paragraph (4-6 sentences) that: (a) summarizes ONLY what I explicitly noted about each paper, and (b) connects themes I mentioned. Write in first person. Be plain and succinct—avoid filler words.
+2. A list of 3-6 key insights based ONLY on points I explicitly noted. If I didn't note much, provide fewer insights. Do NOT include the paper title in the text—provide the paperIndex (0-based) separately.
 
 Respond in this exact JSON format:
 {
@@ -328,15 +334,21 @@ Respond in this exact JSON format:
         ? `\n\nMy Research Context:\n${settings.researchContext}`
         : '';
 
-      const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Summarize what I learned.
+      const prompt = `I read ${datePapers.length} research paper${datePapers.length > 1 ? 's' : ''} today. Summarize ONLY what I explicitly wrote in my notes.
 ${researchContext}
 
 Papers I Read (indexed 0 to ${datePapers.length - 1}):
 ${papersText}
 
+IMPORTANT RULES:
+- Base your synthesis PURELY on what I explicitly wrote down in the notes fields above (My Notes, Methodology, Conclusion, Limitations).
+- Do NOT invent, assume, or add any information that is not explicitly stated in my notes.
+- If a paper has no notes or only a title, do NOT make up content about it.
+- If there are no meaningful notes to synthesize, respond with synthesis: "N/A" and empty keyInsights.
+
 Please provide:
-1. A synthesis paragraph (4-6 sentences) that: (a) briefly recaps what each paper was about (methodology, findings), and (b) connects key themes across papers. Write in first person. Be plain and succinct—avoid filler words like "insightful", "compelling", "profound", "fascinating".
-2. A list of 3-6 key insights with actionable takeaways or research directions. Vary the phrasing—use different sentence structures. Do NOT include the paper title in the text—provide the paperIndex (0-based) separately.
+1. A synthesis paragraph (4-6 sentences) that: (a) summarizes ONLY what I explicitly noted about each paper, and (b) connects themes I mentioned. Write in first person. Be plain and succinct—avoid filler words.
+2. A list of 3-6 key insights based ONLY on points I explicitly noted. If I didn't note much, provide fewer insights. Do NOT include the paper title in the text—provide the paperIndex (0-based) separately.
 
 Respond in this exact JSON format:
 {
