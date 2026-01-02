@@ -215,11 +215,13 @@ export async function archivePaper(id: string, isArchived: boolean): Promise<voi
     .eq('id', id)
     .single();
 
-  const currentMetadata = existing?.metadata || {};
-  const updatedMetadata = {
-    ...currentMetadata,
-    archivedAt: isArchived ? new Date().toISOString() : undefined,
-  };
+  const updatedMetadata: Record<string, any> = { ...(existing?.metadata || {}) };
+
+  if (isArchived) {
+    updatedMetadata.archivedAt = new Date().toISOString();
+  } else {
+    delete updatedMetadata.archivedAt;
+  }
 
   const { error } = await supabase
     .from('papers')
