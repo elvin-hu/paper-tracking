@@ -58,8 +58,8 @@ export function FurtherReadingPage() {
   const toggleResolved = async (highlight: Highlight) => {
     const updated = {
       ...highlight,
-      note: highlight.note?.includes('✓') 
-        ? highlight.note.replace(' ✓', '') 
+      note: highlight.note?.includes('✓')
+        ? highlight.note.replace(' ✓', '')
         : (highlight.note || 'Reference') + ' ✓',
       updatedAt: new Date(),
     };
@@ -103,28 +103,24 @@ export function FurtherReadingPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
-      <header className="glass sticky top-0 z-50">
-        <div className="max-w-3xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/')}
-                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center">
-                  <BookMarked className="w-4 h-4 text-[var(--text-secondary)]" />
-                </div>
-                <div>
-                  <h1 className="text-base font-semibold text-[var(--text-primary)]">
-                    Reading List
-                  </h1>
-                  <p className="text-[10px] text-[var(--text-muted)]">
-                    {pendingCount} pending · {resolvedCount} done
-                  </p>
-                </div>
+      <header className="sticky top-0 z-30 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border-default)]">
+        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/')}
+              className="p-2 rounded-full hover:bg-[var(--bg-tertiary)] transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
+            </button>
+            <div className="flex items-center gap-2">
+              <BookMarked className="w-5 h-5 text-[var(--text-primary)]" />
+              <div>
+                <h1 className="text-base font-semibold text-[var(--text-primary)]">
+                  Reading List
+                </h1>
+                <p className="text-[10px] text-[var(--text-muted)]">
+                  {pendingCount} pending · {resolvedCount} done
+                </p>
               </div>
             </div>
           </div>
@@ -187,30 +183,27 @@ export function FurtherReadingPage() {
               return (
                 <div
                   key={highlight.id}
-                  className={`p-4 rounded-xl border transition-all animate-fade-in ${
-                    resolved
+                  className={`p-4 rounded-xl border transition-all animate-fade-in ${resolved
                       ? 'bg-[var(--bg-secondary)] border-[var(--border-muted)] opacity-60'
                       : 'bg-[var(--bg-card)] border-[var(--border-default)]'
-                  }`}
+                    }`}
                   style={{ animationDelay: `${index * 30}ms` }}
                 >
                   <div className="flex items-start gap-3">
                     <button
                       onClick={() => toggleResolved(highlight)}
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
-                        resolved
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${resolved
                           ? 'border-[var(--text-secondary)] bg-[var(--text-secondary)]'
                           : 'border-[var(--border-default)] hover:border-[var(--text-secondary)]'
-                      }`}
+                        }`}
                     >
                       {resolved && <Check className="w-3 h-3 text-white" />}
                     </button>
 
                     <div className="flex-1 min-w-0">
                       <p
-                        className={`text-sm text-[var(--text-primary)] leading-relaxed ${
-                          resolved ? 'line-through' : ''
-                        }`}
+                        className={`text-sm text-[var(--text-primary)] leading-relaxed ${resolved ? 'line-through' : ''
+                          }`}
                       >
                         {highlight.text}
                       </p>

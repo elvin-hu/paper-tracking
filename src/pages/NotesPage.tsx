@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  StickyNote, 
+import {
+  ArrowLeft,
+  StickyNote,
   FileText,
   ChevronRight,
 } from 'lucide-react';
@@ -17,13 +17,13 @@ interface NoteWithContext {
   highlight: Highlight | null;
 }
 
-// Color mapping for note cards based on highlight color
-const HIGHLIGHT_COLORS: Record<string, { bg: string; border: string; accent: string; dark: string; shadow: string }> = {
-  yellow: { bg: '#fef9c3', border: '#fbbf24', accent: '#ca8a04', dark: '#78350f', shadow: 'rgba(180, 130, 20, 0.25)' },
-  green: { bg: '#dcfce7', border: '#4ade80', accent: '#16a34a', dark: '#14532d', shadow: 'rgba(34, 160, 70, 0.25)' },
-  blue: { bg: '#dbeafe', border: '#3b82f6', accent: '#2563eb', dark: '#1e3a5f', shadow: 'rgba(45, 100, 200, 0.25)' },
-  red: { bg: '#fee2e2', border: '#f87171', accent: '#dc2626', dark: '#7f1d1d', shadow: 'rgba(200, 80, 80, 0.25)' },
-  purple: { bg: '#f3e8ff', border: '#a855f7', accent: '#9333ea', dark: '#581c87', shadow: 'rgba(140, 70, 200, 0.25)' },
+// Color mapping for note cards - using CSS variables for dark mode support
+const HIGHLIGHT_COLORS: Record<string, { bg: string; bgDark: string; border: string; accent: string; dark: string; shadow: string }> = {
+  yellow: { bg: 'var(--highlight-yellow)', bgDark: 'rgba(250, 240, 137, 0.15)', border: '#fbbf24', accent: '#ca8a04', dark: 'var(--text-primary)', shadow: 'rgba(180, 130, 20, 0.25)' },
+  green: { bg: 'var(--highlight-green)', bgDark: 'rgba(134, 239, 172, 0.15)', border: '#4ade80', accent: '#16a34a', dark: 'var(--text-primary)', shadow: 'rgba(34, 160, 70, 0.25)' },
+  blue: { bg: 'var(--highlight-blue)', bgDark: 'rgba(147, 197, 253, 0.15)', border: '#3b82f6', accent: '#2563eb', dark: 'var(--text-primary)', shadow: 'rgba(45, 100, 200, 0.25)' },
+  red: { bg: 'var(--highlight-red)', bgDark: 'rgba(252, 165, 165, 0.15)', border: '#f87171', accent: '#dc2626', dark: 'var(--text-primary)', shadow: 'rgba(200, 80, 80, 0.25)' },
+  purple: { bg: 'var(--highlight-purple)', bgDark: 'rgba(216, 180, 254, 0.15)', border: '#a855f7', accent: '#9333ea', dark: 'var(--text-primary)', shadow: 'rgba(140, 70, 200, 0.25)' },
 };
 
 export function NotesPage() {
@@ -66,7 +66,7 @@ export function NotesPage() {
       // Get all highlights for papers that have notes
       const paperIds = [...new Set(notes.map(n => n.paperId))];
       const highlightsByPaper = new Map<string, Highlight[]>();
-      
+
       await Promise.all(
         paperIds.map(async (paperId) => {
           const highlights = await getHighlightsByPaper(paperId);
@@ -79,10 +79,10 @@ export function NotesPage() {
         .map(note => {
           const paper = paperMap.get(note.paperId);
           if (!paper) return null;
-          
+
           const paperHighlights = highlightsByPaper.get(note.paperId) || [];
           const highlight = paperHighlights.find(h => h.id === note.highlightId) || null;
-          
+
           return { note, paper, highlight };
         })
         .filter((n): n is NoteWithContext => n !== null)
@@ -118,22 +118,20 @@ export function NotesPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
-      <header className="glass sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/')}
-                className="toolbar-btn"
-              >
-                <ArrowLeft className="w-[18px] h-[18px]" />
-              </button>
-              <div className="flex items-center gap-2">
-                <StickyNote className="w-5 h-5 text-[var(--text-primary)]" />
-                <span className="text-base font-semibold text-[var(--text-primary)]">
-                  All Notes
-                </span>
-              </div>
+      <header className="sticky top-0 z-30 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border-default)]">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/')}
+              className="p-2 rounded-full hover:bg-[var(--bg-tertiary)] transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
+            </button>
+            <div className="flex items-center gap-2">
+              <StickyNote className="w-5 h-5 text-[var(--text-primary)]" />
+              <h1 className="text-base font-semibold text-[var(--text-primary)]">
+                All Notes
+              </h1>
             </div>
           </div>
         </div>
@@ -160,7 +158,7 @@ export function NotesPage() {
           <div className="space-y-10">
             {Array.from(groupedNotes.entries()).map(([paperId, paperNotes]) => {
               const paper = paperNotes[0].paper;
-              
+
               return (
                 <div key={paperId}>
                   {/* Paper Header */}
@@ -187,7 +185,7 @@ export function NotesPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     {paperNotes.map((noteCtx) => {
                       const colors = getColorScheme(noteCtx.highlight);
-                      
+
                       return (
                         <button
                           key={noteCtx.note.id}
@@ -195,7 +193,7 @@ export function NotesPage() {
                           className="group text-left transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] w-full"
                         >
                           {/* Sticky Note Card */}
-                          <div 
+                          <div
                             className="rounded-lg transition-shadow overflow-hidden"
                             style={{
                               backgroundColor: colors.bg,
@@ -206,26 +204,26 @@ export function NotesPage() {
                             <div className="p-4 pb-3">
                               {/* Highlight text snippet - dark readable color */}
                               {noteCtx.highlight && (
-                                <p 
+                                <p
                                   className="text-[11px] leading-relaxed mb-3 line-clamp-3 italic"
                                   style={{ color: colors.dark }}
                                 >
                                   "{noteCtx.highlight.text}"
                                 </p>
                               )}
-                              
+
                               {/* Note content - near black for emphasis */}
                               <p className="text-sm leading-relaxed line-clamp-4 font-medium text-[var(--text-primary)]">
                                 {noteCtx.note.content}
                               </p>
                             </div>
-                            
+
                             {/* Footer with darker tint */}
-                            <div 
+                            <div
                               className="px-4 py-2.5 flex items-center justify-between"
                               style={{ backgroundColor: `${colors.border}20` }}
                             >
-                              <span 
+                              <span
                                 className="text-[10px] font-medium"
                                 style={{ color: colors.dark }}
                               >
