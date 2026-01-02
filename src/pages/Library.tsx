@@ -1034,45 +1034,43 @@ export function Library() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
-      <header className="glass sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="text-base font-semibold text-[var(--text-primary)]">
-                Paper Lab
-              </span>
-            </div>
-
-            <nav className="flex items-center gap-1">
-              <button
-                onClick={() => navigate('/notes')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm"
-              >
-                <StickyNote className="w-4 h-4" />
-                <span className="font-medium">Notes</span>
-              </button>
-              <button
-                onClick={() => navigate('/journal')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm"
-              >
-                <BookOpen className="w-4 h-4" />
-                <span className="font-medium">Journal</span>
-              </button>
-              <button
-                onClick={() => navigate('/further-reading')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm"
-              >
-                <BookMarked className="w-4 h-4" />
-                <span className="font-medium">Reading List</span>
-              </button>
-              <button
-                onClick={() => navigate('/settings')}
-                className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-            </nav>
+      <header className="sticky top-0 z-50 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border-default)]">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="text-base font-semibold text-[var(--text-primary)]">
+              Paper Lab
+            </span>
           </div>
+
+          <nav className="flex items-center gap-1">
+            <button
+              onClick={() => navigate('/notes')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm"
+            >
+              <StickyNote className="w-4 h-4" />
+              <span className="font-medium">Notes</span>
+            </button>
+            <button
+              onClick={() => navigate('/journal')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span className="font-medium">Journal</span>
+            </button>
+            <button
+              onClick={() => navigate('/further-reading')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm"
+            >
+              <BookMarked className="w-4 h-4" />
+              <span className="font-medium">Reading List</span>
+            </button>
+            <button
+              onClick={() => navigate('/settings')}
+              className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          </nav>
         </div>
       </header>
 
@@ -1437,350 +1435,360 @@ export function Library() {
       </main>
 
       {/* Upload Modal (Single File) */}
-      {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setShowUploadModal(false)}
-          />
-          <div className="relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-md animate-scale-in shadow-xl">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                Add Paper
-              </h2>
-              <button
-                onClick={() => setShowUploadModal(false)}
-                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  value={uploadTitle}
-                  onChange={(e) => setUploadTitle(e.target.value)}
-                  placeholder="Paper title"
-                  className="w-full text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-                  Authors
-                </label>
-                <input
-                  type="text"
-                  value={uploadAuthors}
-                  onChange={(e) => setUploadAuthors(e.target.value)}
-                  placeholder="Smith, J., Johnson, A."
-                  className="w-full text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-                  Tags
-                </label>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {uploadTags.map((tag) => (
-                    <span key={tag} className="tag active flex items-center gap-1">
-                      {tag}
-                      <button
-                        onClick={() => removeUploadTag(tag)}
-                        className="hover:text-[var(--accent-red)]"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newTagInput}
-                    onChange={(e) => setNewTagInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addUploadTag())}
-                    placeholder="Add tag..."
-                    className="flex-1 text-sm"
-                  />
-                  <button onClick={addUploadTag} className="btn-secondary px-2.5">
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2 mt-6">
-              <button
-                onClick={() => setShowUploadModal(false)}
-                className="btn-secondary flex-1 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpload}
-                disabled={isUploading}
-                className="btn-primary flex-1 text-sm disabled:opacity-50"
-              >
-                {isUploading ? 'Adding...' : 'Add Paper'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Multi-File Upload Progress (Google Drive style) */}
-      {showUploadProgress && uploadQueue.length > 0 && (
-        <div className="fixed bottom-6 right-6 z-50 w-80 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl shadow-2xl overflow-hidden animate-slide-up">
-          {/* Header */}
-          <div
-            className="flex items-center justify-between px-4 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)] cursor-pointer"
-            onClick={() => setIsUploadProgressMinimized(!isUploadProgressMinimized)}
-          >
-            <div className="flex items-center gap-2">
-              <Upload className="w-4 h-4 text-[var(--accent-primary)]" />
-              <span className="text-sm font-medium text-[var(--text-primary)]">
-                {(() => {
-                  const completed = uploadQueue.filter(i => i.status === 'complete').length;
-                  const total = uploadQueue.length;
-                  const uploading = uploadQueue.find(i => i.status === 'uploading');
-                  if (uploading) {
-                    return `Uploading ${completed + 1} of ${total}`;
-                  }
-                  if (completed === total) {
-                    return `${total} upload${total > 1 ? 's' : ''} complete`;
-                  }
-                  return `${completed} of ${total} complete`;
-                })()}
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsUploadProgressMinimized(!isUploadProgressMinimized);
-                }}
-                className="p-1 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)]"
-              >
-                {isUploadProgressMinimized ? (
-                  <ChevronUp className="w-4 h-4" />
-                ) : (
-                  <ChevronDown className="w-4 h-4" />
-                )}
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  clearUploadQueue();
-                }}
-                className="p-1 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* File List */}
-          {!isUploadProgressMinimized && (
-            <div className="max-h-64 overflow-y-auto">
-              {uploadQueue.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-3 px-4 py-2.5 border-b border-[var(--border-muted)] last:border-0"
+      {
+        showUploadModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setShowUploadModal(false)}
+            />
+            <div className="relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-md animate-scale-in shadow-xl">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                  Add Paper
+                </h2>
+                <button
+                  onClick={() => setShowUploadModal(false)}
+                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
                 >
-                  {/* Status Icon */}
-                  <div className="flex-shrink-0">
-                    {item.status === 'complete' ? (
-                      <CheckCircle className="w-5 h-5 text-[var(--accent-green)]" />
-                    ) : item.status === 'error' ? (
-                      <AlertCircle className="w-5 h-5 text-[var(--accent-red)]" />
-                    ) : (
-                      <FileText className="w-5 h-5 text-[var(--text-muted)]" />
-                    )}
-                  </div>
-
-                  {/* File Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-[var(--text-primary)] truncate">
-                      {item.file.name}
-                    </p>
-                    {item.status === 'uploading' && (
-                      <div className="mt-1.5 h-1 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[var(--accent-primary)] rounded-full transition-all duration-300"
-                          style={{ width: `${item.progress}%` }}
-                        />
-                      </div>
-                    )}
-                    {item.status === 'error' && (
-                      <p className="text-xs text-[var(--accent-red)] mt-0.5">
-                        {item.error || 'Upload failed'}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Size */}
-                  <span className="text-xs text-[var(--text-muted)] flex-shrink-0">
-                    {(item.file.size / 1024 / 1024).toFixed(1)} MB
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Selection Toolbar */}
-      {selectedPapers.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-full shadow-2xl px-4 py-2.5 flex items-center gap-3 animate-slide-up">
-          <span className="text-sm font-medium text-[var(--text-primary)]">
-            {selectedPapers.size} selected
-          </span>
-          <div className="w-px h-5 bg-[var(--border-default)]" />
-          <button
-            onClick={selectAllPapers}
-            className="text-sm text-[var(--accent-primary)] hover:underline"
-          >
-            Select all
-          </button>
-          <button
-            onClick={openBatchEditModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
-            style={{
-              backgroundColor: '#3b82f6',
-              color: '#ffffff'
-            }}
-          >
-            <Tag className="w-3.5 h-3.5" style={{ color: '#ffffff' }} />
-            <span style={{ color: '#ffffff' }}>Edit Tags</span>
-          </button>
-          <button
-            onClick={deleteSelectedPapers}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--accent-red)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            Delete
-          </button>
-          <button
-            onClick={clearSelection}
-            className="p-1.5 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-all"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Edit Single Paper Modal */}
-      {editingPaper && (
-        <EditPaperModal
-          paper={editingPaper}
-          onClose={() => setEditingPaper(null)}
-          onSave={handleSaveEditedPaper}
-        />
-      )}
-
-      {/* Batch Edit Tags Modal */}
-      {showBatchEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setShowBatchEditModal(false)}
-          />
-          <div className="relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-md animate-scale-in shadow-xl">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                Edit Tags for {selectedPapers.size} Paper{selectedPapers.size > 1 ? 's' : ''}
-              </h2>
-              <button
-                onClick={() => setShowBatchEditModal(false)}
-                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-5">
-              {/* Add Tags */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">
-                  Add Tags
-                </label>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {batchAddTags.map((tag) => (
-                    <span key={tag} className="tag active flex items-center gap-1">
-                      + {tag}
-                      <button
-                        onClick={() => setBatchAddTags(prev => prev.filter(t => t !== tag))}
-                        className="hover:text-[var(--accent-red)]"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={batchNewTagInput}
-                    onChange={(e) => setBatchNewTagInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addBatchTag())}
-                    placeholder="Add new tag..."
-                    className="flex-1 text-sm"
-                  />
-                  <button onClick={addBatchTag} className="btn-secondary px-2.5">
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              {/* Remove Tags */}
-              {selectedPapersTags.length > 0 && (
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">
-                    Remove Tags (click to select)
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                    Title
                   </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedPapersTags.map((tag) => (
-                      <button
-                        key={tag}
-                        onClick={() => toggleBatchRemoveTag(tag)}
-                        className={`tag transition-all ${batchRemoveTags.includes(tag)
-                          ? 'bg-[var(--accent-red)]/20 text-[var(--accent-red)] line-through'
-                          : ''
-                          }`}
-                      >
+                  <input
+                    type="text"
+                    value={uploadTitle}
+                    onChange={(e) => setUploadTitle(e.target.value)}
+                    placeholder="Paper title"
+                    className="w-full text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                    Authors
+                  </label>
+                  <input
+                    type="text"
+                    value={uploadAuthors}
+                    onChange={(e) => setUploadAuthors(e.target.value)}
+                    placeholder="Smith, J., Johnson, A."
+                    className="w-full text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                    Tags
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {uploadTags.map((tag) => (
+                      <span key={tag} className="tag active flex items-center gap-1">
                         {tag}
-                      </button>
+                        <button
+                          onClick={() => removeUploadTag(tag)}
+                          className="hover:text-[var(--accent-red)]"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
                     ))}
                   </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addUploadTag())}
+                      placeholder="Add tag..."
+                      className="flex-1 text-sm"
+                    />
+                    <button onClick={addUploadTag} className="btn-secondary px-2.5">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
 
-            <div className="flex gap-2 mt-6">
-              <button
-                onClick={() => setShowBatchEditModal(false)}
-                className="btn-secondary flex-1 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={applyBatchEdit}
-                disabled={batchAddTags.length === 0 && batchRemoveTags.length === 0}
-                className="btn-primary flex-1 text-sm disabled:opacity-50"
-              >
-                Apply Changes
-              </button>
+              <div className="flex gap-2 mt-6">
+                <button
+                  onClick={() => setShowUploadModal(false)}
+                  className="btn-secondary flex-1 text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpload}
+                  disabled={isUploading}
+                  className="btn-primary flex-1 text-sm disabled:opacity-50"
+                >
+                  {isUploading ? 'Adding...' : 'Add Paper'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+
+      {/* Multi-File Upload Progress (Google Drive style) */}
+      {
+        showUploadProgress && uploadQueue.length > 0 && (
+          <div className="fixed bottom-6 right-6 z-50 w-80 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl shadow-2xl overflow-hidden animate-slide-up">
+            {/* Header */}
+            <div
+              className="flex items-center justify-between px-4 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)] cursor-pointer"
+              onClick={() => setIsUploadProgressMinimized(!isUploadProgressMinimized)}
+            >
+              <div className="flex items-center gap-2">
+                <Upload className="w-4 h-4 text-[var(--accent-primary)]" />
+                <span className="text-sm font-medium text-[var(--text-primary)]">
+                  {(() => {
+                    const completed = uploadQueue.filter(i => i.status === 'complete').length;
+                    const total = uploadQueue.length;
+                    const uploading = uploadQueue.find(i => i.status === 'uploading');
+                    if (uploading) {
+                      return `Uploading ${completed + 1} of ${total}`;
+                    }
+                    if (completed === total) {
+                      return `${total} upload${total > 1 ? 's' : ''} complete`;
+                    }
+                    return `${completed} of ${total} complete`;
+                  })()}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsUploadProgressMinimized(!isUploadProgressMinimized);
+                  }}
+                  className="p-1 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)]"
+                >
+                  {isUploadProgressMinimized ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    clearUploadQueue();
+                  }}
+                  className="p-1 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* File List */}
+            {!isUploadProgressMinimized && (
+              <div className="max-h-64 overflow-y-auto">
+                {uploadQueue.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-3 px-4 py-2.5 border-b border-[var(--border-muted)] last:border-0"
+                  >
+                    {/* Status Icon */}
+                    <div className="flex-shrink-0">
+                      {item.status === 'complete' ? (
+                        <CheckCircle className="w-5 h-5 text-[var(--accent-green)]" />
+                      ) : item.status === 'error' ? (
+                        <AlertCircle className="w-5 h-5 text-[var(--accent-red)]" />
+                      ) : (
+                        <FileText className="w-5 h-5 text-[var(--text-muted)]" />
+                      )}
+                    </div>
+
+                    {/* File Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-[var(--text-primary)] truncate">
+                        {item.file.name}
+                      </p>
+                      {item.status === 'uploading' && (
+                        <div className="mt-1.5 h-1 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-[var(--accent-primary)] rounded-full transition-all duration-300"
+                            style={{ width: `${item.progress}%` }}
+                          />
+                        </div>
+                      )}
+                      {item.status === 'error' && (
+                        <p className="text-xs text-[var(--accent-red)] mt-0.5">
+                          {item.error || 'Upload failed'}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Size */}
+                    <span className="text-xs text-[var(--text-muted)] flex-shrink-0">
+                      {(item.file.size / 1024 / 1024).toFixed(1)} MB
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      }
+
+      {/* Selection Toolbar */}
+      {
+        selectedPapers.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-full shadow-2xl px-4 py-2.5 flex items-center gap-3 animate-slide-up">
+            <span className="text-sm font-medium text-[var(--text-primary)]">
+              {selectedPapers.size} selected
+            </span>
+            <div className="w-px h-5 bg-[var(--border-default)]" />
+            <button
+              onClick={selectAllPapers}
+              className="text-sm text-[var(--accent-primary)] hover:underline"
+            >
+              Select all
+            </button>
+            <button
+              onClick={openBatchEditModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
+              style={{
+                backgroundColor: '#3b82f6',
+                color: '#ffffff'
+              }}
+            >
+              <Tag className="w-3.5 h-3.5" style={{ color: '#ffffff' }} />
+              <span style={{ color: '#ffffff' }}>Edit Tags</span>
+            </button>
+            <button
+              onClick={deleteSelectedPapers}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--accent-red)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </button>
+            <button
+              onClick={clearSelection}
+              className="p-1.5 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )
+      }
+
+      {/* Edit Single Paper Modal */}
+      {
+        editingPaper && (
+          <EditPaperModal
+            paper={editingPaper}
+            onClose={() => setEditingPaper(null)}
+            onSave={handleSaveEditedPaper}
+          />
+        )
+      }
+
+      {/* Batch Edit Tags Modal */}
+      {
+        showBatchEditModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setShowBatchEditModal(false)}
+            />
+            <div className="relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-md animate-scale-in shadow-xl">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                  Edit Tags for {selectedPapers.size} Paper{selectedPapers.size > 1 ? 's' : ''}
+                </h2>
+                <button
+                  onClick={() => setShowBatchEditModal(false)}
+                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-5">
+                {/* Add Tags */}
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">
+                    Add Tags
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {batchAddTags.map((tag) => (
+                      <span key={tag} className="tag active flex items-center gap-1">
+                        + {tag}
+                        <button
+                          onClick={() => setBatchAddTags(prev => prev.filter(t => t !== tag))}
+                          className="hover:text-[var(--accent-red)]"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={batchNewTagInput}
+                      onChange={(e) => setBatchNewTagInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addBatchTag())}
+                      placeholder="Add new tag..."
+                      className="flex-1 text-sm"
+                    />
+                    <button onClick={addBatchTag} className="btn-secondary px-2.5">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Remove Tags */}
+                {selectedPapersTags.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">
+                      Remove Tags (click to select)
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedPapersTags.map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => toggleBatchRemoveTag(tag)}
+                          className={`tag transition-all ${batchRemoveTags.includes(tag)
+                            ? 'bg-[var(--accent-red)]/20 text-[var(--accent-red)] line-through'
+                            : ''
+                            }`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 mt-6">
+                <button
+                  onClick={() => setShowBatchEditModal(false)}
+                  className="btn-secondary flex-1 text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={applyBatchEdit}
+                  disabled={batchAddTags.length === 0 && batchRemoveTags.length === 0}
+                  className="btn-primary flex-1 text-sm disabled:opacity-50"
+                >
+                  Apply Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+    </div >
   );
 }

@@ -69,38 +69,36 @@ export function Settings() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
-      <header className="glass sticky top-0 z-50">
-        <div className="max-w-xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/')}
-                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-              <h1 className="text-base font-semibold text-[var(--text-primary)]">
-                Settings
-              </h1>
-            </div>
-
+      <header className="sticky top-0 z-30 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border-default)]">
+        <div className="max-w-xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <button
-              onClick={handleSave}
-              className="btn-primary flex items-center gap-1.5 text-sm"
+              onClick={() => navigate('/')}
+              className="p-2 rounded-full hover:bg-[var(--bg-tertiary)] transition-colors"
             >
-              {isSaved ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  Saved
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Save
-                </>
-              )}
+              <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
             </button>
+            <h1 className="text-base font-semibold text-[var(--text-primary)]">
+              Settings
+            </h1>
           </div>
+
+          <button
+            onClick={handleSave}
+            className="btn-primary flex items-center gap-1.5 text-sm"
+          >
+            {isSaved ? (
+              <>
+                <Check className="w-4 h-4" />
+                Saved
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Save
+              </>
+            )}
+          </button>
         </div>
       </header>
 
@@ -228,6 +226,6 @@ export function Settings() {
           </section>
         </div>
       </main>
-    </div>
+    </div >
   );
 }
