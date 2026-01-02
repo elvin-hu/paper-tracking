@@ -1,22 +1,23 @@
 import { supabase } from './supabase';
+import { getCachedPdf, cachePdf, deleteCachedPdf } from './pdfCache';
 import type { Paper, PaperFile, Highlight, Note, Riff, FurtherReading, AppSettings, HighlightColor, JournalEntry, KeyInsight } from '../types';
 
 // Helper to convert database row to Paper type
 function rowToPaper(row: Record<string, unknown>): Paper {
   const metadata = row.metadata as Record<string, unknown> | null;
-  
+
   // Ensure tags is always an array
   let tags: string[] = [];
   if (Array.isArray(row.tags)) {
     tags = row.tags.filter((t): t is string => typeof t === 'string');
   }
-  
+
   // Validate required fields
   if (!row.id || !row.title) {
     console.error('Invalid paper data:', row);
     throw new Error('Paper missing required fields (id or title)');
   }
-  
+
   return {
     id: String(row.id),
     title: String(row.title),
@@ -67,14 +68,14 @@ export async function getAllPapers(): Promise<Paper[]> {
     .from('papers')
     .select('*')
     .order('created_at', { ascending: false });
-  
+
   if (error) {
     console.error('[Database] Error fetching papers:', error);
     throw error;
   }
-  
+
   if (!data) return [];
-  
+
   // Filter out invalid papers and log errors
   const validPapers: Paper[] = [];
   for (const row of data) {
@@ -85,7 +86,7 @@ export async function getAllPapers(): Promise<Paper[]> {
       // Skip corrupted papers instead of crashing
     }
   }
-  
+
   return validPapers;
 }
 
@@ -95,7 +96,7 @@ export async function getPaper(id: string): Promise<Paper | undefined> {
     .select('*')
     .eq('id', id)
     .single();
-  
+
   if (error) {
     if (error.code === 'PGRST116') return undefined; // Not found
     throw error;
@@ -119,14 +120,14 @@ export async function addPaper(paper: Paper): Promise<void> {
       fileSize: paper.fileSize,
     },
   });
-  
+
   if (error) throw error;
 }
 
 export async function updatePaper(paper: Paper): Promise<void> {
   // Ensure tags is always an array
   const tags = Array.isArray(paper.tags) ? paper.tags : [];
-  
+
   const { error } = await supabase
     .from('papers')
     .update({
@@ -139,7 +140,7 @@ export async function updatePaper(paper: Paper): Promise<void> {
       metadata: paper.metadata || {},
     })
     .eq('id', paper.id);
-  
+
   if (error) {
     console.error('[Database] Error updating paper:', paper.id, error);
     throw error;
@@ -149,7 +150,7 @@ export async function updatePaper(paper: Paper): Promise<void> {
 // Batch update multiple papers at once (much faster than individual updates)
 export async function updatePapersBatch(papers: Paper[]): Promise<void> {
   if (papers.length === 0) return;
-  
+
   // Prepare updates - only include fields that can be updated
   const updates = papers.map(paper => {
     const tags = Array.isArray(paper.tags) ? paper.tags : [];
@@ -164,7 +165,7 @@ export async function updatePapersBatch(papers: Paper[]): Promise<void> {
       metadata: paper.metadata || {},
     };
   });
-  
+
   // Use upsert to update multiple papers in a single operation
   const { error } = await supabase
     .from('papers')
@@ -172,7 +173,7 @@ export async function updatePapersBatch(papers: Paper[]): Promise<void> {
       onConflict: 'id',
       ignoreDuplicates: false,
     });
-  
+
   if (error) {
     console.error('[Database] Error batch updating papers:', error);
     throw error;
@@ -184,40 +185,61 @@ export async function deletePaper(id: string): Promise<void> {
   const { error: storageError } = await supabase.storage
     .from('pdfs')
     .remove([`${id}.pdf`]);
-  
+
   if (storageError) console.warn('Error deleting PDF from storage:', storageError);
-  
+
+  // Delete from local cache
+  await deleteCachedPdf(id);
+
   // Delete paper (cascades to highlights and notes)
   const { error } = await supabase
     .from('papers')
     .delete()
     .eq('id', id);
-  
+
   if (error) throw error;
 }
 
-// Paper file operations - using Supabase Storage
+// Paper file operations - using Supabase Storage with IndexedDB caching
 export async function getPaperFile(paperId: string): Promise<PaperFile | undefined> {
-  console.log(`[Database] Downloading PDF for paper ${paperId}...`);
   const startTime = Date.now();
-  
+
+  // Check cache first
+  const cachedData = await getCachedPdf(paperId);
+  if (cachedData && cachedData.byteLength > 0) {
+    console.log(`[Database] PDF loaded from cache in ${Date.now() - startTime}ms, size: ${cachedData.byteLength} bytes`);
+    return {
+      id: paperId,
+      paperId: paperId,
+      data: cachedData,
+    };
+  }
+
+  // Cache miss - download from Supabase
+  console.log(`[Database] Downloading PDF for paper ${paperId}...`);
+
   const { data, error } = await supabase.storage
     .from('pdfs')
     .download(`${paperId}.pdf`);
-  
+
   if (error) {
     console.warn('Error downloading PDF:', error);
     return undefined;
   }
-  
+
   const arrayBuffer = await data.arrayBuffer();
   console.log(`[Database] PDF downloaded in ${Date.now() - startTime}ms, size: ${arrayBuffer.byteLength} bytes`);
-  
+
   if (arrayBuffer.byteLength === 0) {
     console.warn(`[Database] Downloaded PDF is empty for paper ${paperId}`);
     return undefined;
   }
-  
+
+  // Cache the downloaded PDF for future use
+  cachePdf(paperId, arrayBuffer).catch(() => {
+    // Caching failure is non-critical, already logged in cachePdf
+  });
+
   return {
     id: paperId,
     paperId: paperId,
@@ -230,7 +252,7 @@ export function getPaperFileUrl(paperId: string): string {
   const { data } = supabase.storage
     .from('pdfs')
     .getPublicUrl(`${paperId}.pdf`);
-  
+
   return data.publicUrl;
 }
 
@@ -239,28 +261,28 @@ export async function addPaperFile(file: PaperFile): Promise<void> {
   if (!file.data || file.data.byteLength === 0) {
     throw new Error(`Cannot upload empty PDF file for paper ${file.paperId}`);
   }
-  
+
   console.log(`Uploading PDF for paper ${file.paperId}, size: ${file.data.byteLength} bytes`);
-  
+
   const blob = new Blob([file.data], { type: 'application/pdf' });
-  
+
   // Verify blob was created correctly
   if (blob.size === 0) {
     throw new Error(`Blob creation failed - size is 0 for paper ${file.paperId}`);
   }
-  
+
   const { error, data } = await supabase.storage
     .from('pdfs')
     .upload(`${file.paperId}.pdf`, blob, {
       contentType: 'application/pdf',
       upsert: true,
     });
-  
+
   if (error) {
     console.error('Supabase storage upload error:', error);
     throw error;
   }
-  
+
   console.log(`PDF uploaded successfully for paper ${file.paperId}`, data);
 }
 
@@ -271,7 +293,7 @@ export async function getHighlightsByPaper(paperId: string): Promise<Highlight[]
     .select('*')
     .eq('paper_id', paperId)
     .order('created_at', { ascending: true });
-  
+
   if (error) throw error;
   return (data || []).map(rowToHighlight);
 }
@@ -287,7 +309,7 @@ export async function addHighlight(highlight: Highlight): Promise<void> {
     is_further_reading: highlight.isFurtherReading ?? false,
     created_at: highlight.createdAt.toISOString(),
   });
-  
+
   if (error) throw error;
 }
 
@@ -302,7 +324,7 @@ export async function updateHighlight(highlight: Highlight): Promise<void> {
       is_further_reading: highlight.isFurtherReading ?? false,
     })
     .eq('id', highlight.id);
-  
+
   if (error) throw error;
 }
 
@@ -311,7 +333,7 @@ export async function deleteHighlight(id: string): Promise<void> {
     .from('highlights')
     .delete()
     .eq('id', id);
-  
+
   if (error) throw error;
 }
 
@@ -321,7 +343,7 @@ export async function getAllFurtherReadingHighlights(): Promise<Highlight[]> {
     .select('*')
     .eq('is_further_reading', true)
     .order('created_at', { ascending: false });
-  
+
   if (error) throw error;
   return (data || []).map(rowToHighlight);
 }
@@ -332,7 +354,7 @@ export async function getAllNotes(): Promise<Note[]> {
     .from('notes')
     .select('*')
     .order('created_at', { ascending: false });
-  
+
   if (error) throw error;
   return (data || []).map(rowToNote);
 }
@@ -343,7 +365,7 @@ export async function getNotesByHighlight(highlightId: string): Promise<Note[]> 
     .select('*')
     .eq('highlight_id', highlightId)
     .order('created_at', { ascending: true });
-  
+
   if (error) throw error;
   return (data || []).map(rowToNote);
 }
@@ -354,7 +376,7 @@ export async function getNotesByPaper(paperId: string): Promise<Note[]> {
     .select('*')
     .eq('paper_id', paperId)
     .order('created_at', { ascending: true });
-  
+
   if (error) throw error;
   return (data || []).map(rowToNote);
 }
@@ -367,7 +389,7 @@ export async function addNote(note: Note): Promise<void> {
     content: note.content,
     created_at: note.createdAt.toISOString(),
   });
-  
+
   if (error) throw error;
 }
 
@@ -378,7 +400,7 @@ export async function updateNote(note: Note): Promise<void> {
       content: note.content,
     })
     .eq('id', note.id);
-  
+
   if (error) throw error;
 }
 
@@ -387,7 +409,7 @@ export async function deleteNote(id: string): Promise<void> {
     .from('notes')
     .delete()
     .eq('id', id);
-  
+
   if (error) throw error;
 }
 
@@ -447,7 +469,7 @@ export async function deleteFurtherReading(id: string): Promise<void> {
 function parseKeyInsight(item: unknown, index: number): KeyInsight {
   // Handle stringified JSON objects
   let parsed = item;
-  
+
   if (typeof item === 'string') {
     // Check if it's a JSON string that looks like an object
     const trimmed = item.trim();
@@ -463,10 +485,10 @@ function parseKeyInsight(item: unknown, index: number): KeyInsight {
       return { id: `legacy-${index}`, text: item, isManual: false };
     }
   }
-  
+
   if (typeof parsed === 'object' && parsed !== null) {
     const obj = parsed as Record<string, unknown>;
-    
+
     // Extract text - handle various formats
     let text = '';
     if (typeof obj.text === 'string') {
@@ -476,7 +498,7 @@ function parseKeyInsight(item: unknown, index: number): KeyInsight {
       const nestedResult = parseKeyInsight(obj.text, index);
       text = nestedResult.text;
     }
-    
+
     return {
       id: (typeof obj.id === 'string' ? obj.id : null) || `insight-${index}`,
       text,
@@ -484,7 +506,7 @@ function parseKeyInsight(item: unknown, index: number): KeyInsight {
       paperId: typeof obj.paperId === 'string' ? obj.paperId : undefined,
     };
   }
-  
+
   return { id: `unknown-${index}`, text: String(item), isManual: false };
 }
 
@@ -492,11 +514,11 @@ function rowToJournalEntry(row: Record<string, unknown>): JournalEntry {
   // Handle migration from old string[] format to new KeyInsight[] format
   const rawInsights = row.key_insights as unknown[];
   let keyInsights: KeyInsight[] = [];
-  
+
   if (Array.isArray(rawInsights)) {
     keyInsights = rawInsights.map((item, index) => parseKeyInsight(item, index));
   }
-  
+
   return {
     id: row.id as string,
     date: row.date as string,
@@ -514,12 +536,12 @@ export async function getAllJournalEntries(): Promise<JournalEntry[]> {
     .from('journal_entries')
     .select('*')
     .order('date', { ascending: false });
-  
+
   if (error) {
     console.error('[Database] Error fetching journal entries:', error);
     return [];
   }
-  
+
   return (data || []).map(rowToJournalEntry);
 }
 
@@ -529,7 +551,7 @@ export async function getJournalEntry(date: string): Promise<JournalEntry | unde
     .select('*')
     .eq('date', date)
     .single();
-  
+
   if (error) {
     if (error.code === 'PGRST116') return undefined; // Not found
     console.error('[Database] Error fetching journal entry:', error);
@@ -549,7 +571,7 @@ export async function addJournalEntry(entry: JournalEntry): Promise<void> {
     created_at: entry.createdAt.toISOString(),
     updated_at: entry.updatedAt.toISOString(),
   });
-  
+
   if (error) throw error;
 }
 
@@ -564,7 +586,7 @@ export async function updateJournalEntry(entry: JournalEntry): Promise<void> {
       updated_at: new Date().toISOString(),
     })
     .eq('id', entry.id);
-  
+
   if (error) throw error;
 }
 
@@ -573,7 +595,7 @@ export async function deleteJournalEntry(id: string): Promise<void> {
     .from('journal_entries')
     .delete()
     .eq('id', id);
-  
+
   if (error) throw error;
 }
 
@@ -583,16 +605,16 @@ const OPENAI_KEY_STORAGE = 'paper-tracking-openai-key';
 
 export async function getSettings(): Promise<AppSettings> {
   // Get OpenAI key from localStorage (secure, device-only)
-  const localOpenAIKey = typeof window !== 'undefined' 
+  const localOpenAIKey = typeof window !== 'undefined'
     ? localStorage.getItem(OPENAI_KEY_STORAGE) || undefined
     : undefined;
-  
+
   const { data, error } = await supabase
     .from('settings')
     .select('*')
     .eq('id', 1)
     .single();
-  
+
   if (error) {
     console.warn('Error fetching settings:', error);
     return {
@@ -601,7 +623,7 @@ export async function getSettings(): Promise<AppSettings> {
       sidebarWidth: 320,
     };
   }
-  
+
   return {
     openaiApiKey: localOpenAIKey, // From localStorage, not Supabase
     defaultHighlightColor: (data.default_highlight_color as HighlightColor) || 'yellow',
@@ -620,7 +642,7 @@ export async function updateSettings(settings: AppSettings): Promise<void> {
       localStorage.removeItem(OPENAI_KEY_STORAGE);
     }
   }
-  
+
   // Store other settings in Supabase (synced across devices)
   const { error } = await supabase
     .from('settings')
@@ -631,7 +653,7 @@ export async function updateSettings(settings: AppSettings): Promise<void> {
       sort_option: settings.sortOption,
     })
     .eq('id', 1);
-  
+
   if (error) throw error;
 }
 
