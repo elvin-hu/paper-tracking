@@ -27,6 +27,7 @@ function rowToPaper(row: Record<string, unknown>): Paper {
     lastOpenedAt: row.last_opened_at ? new Date(String(row.last_opened_at)) : undefined,
     isRead: Boolean(row.is_read),
     isStarred: Boolean(row.is_starred),
+    isArchived: Boolean(row.is_archived),
     metadata: row.metadata as Paper['metadata'] || {},
     fileName: (metadata?.fileName as string) || `${row.id}.pdf`,
     fileSize: (metadata?.fileSize as number) || 0,
@@ -114,6 +115,7 @@ export async function addPaper(paper: Paper): Promise<void> {
     last_opened_at: paper.lastOpenedAt?.toISOString(),
     is_read: paper.isRead ?? false,
     is_starred: paper.isStarred ?? false,
+    is_archived: paper.isArchived ?? false,
     metadata: {
       ...paper.metadata,
       fileName: paper.fileName,
@@ -137,6 +139,7 @@ export async function updatePaper(paper: Paper): Promise<void> {
       last_opened_at: paper.lastOpenedAt?.toISOString(),
       is_read: paper.isRead ?? false,
       is_starred: paper.isStarred ?? false,
+      is_archived: paper.isArchived ?? false,
       metadata: paper.metadata || {},
     })
     .eq('id', paper.id);
@@ -162,6 +165,7 @@ export async function updatePapersBatch(papers: Paper[]): Promise<void> {
       last_opened_at: paper.lastOpenedAt?.toISOString(),
       is_read: paper.isRead ?? false,
       is_starred: paper.isStarred ?? false,
+      is_archived: paper.isArchived ?? false,
       metadata: paper.metadata || {},
     };
   });
@@ -198,6 +202,19 @@ export async function deletePaper(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) throw error;
+}
+
+// Archive/unarchive a paper
+export async function archivePaper(id: string, isArchived: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('papers')
+    .update({ is_archived: isArchived })
+    .eq('id', id);
+
+  if (error) {
+    console.error('[Database] Error archiving paper:', id, error);
+    throw error;
+  }
 }
 
 // Paper file operations - using Supabase Storage with IndexedDB caching

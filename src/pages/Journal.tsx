@@ -12,6 +12,7 @@ import {
   Check,
   X,
   RefreshCw,
+  Archive,
 } from 'lucide-react';
 import type { Paper, JournalEntry, KeyInsight, Note } from '../types';
 import {
@@ -565,6 +566,11 @@ Respond in this exact JSON format:
                         >
                           <FileText className="w-3 h-3" />
                           <span className="truncate max-w-[200px]">{paper.title}</span>
+                          {paper.isArchived && (
+                            <span title="Archived">
+                              <Archive className="w-3 h-3 text-[var(--text-muted)]" />
+                            </span>
+                          )}
                           <ChevronRight className="w-3 h-3" />
                         </button>
                       ))}

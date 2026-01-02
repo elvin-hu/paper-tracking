@@ -1739,9 +1739,12 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
                 let filteredPapers = allPapersArray;
 
+                // Hide archived papers from sidebar
+                filteredPapers = filteredPapers.filter(p => !p.isArchived);
+
                 if (searchLower) {
                   // Filter by search query
-                  filteredPapers = allPapersArray.filter(p =>
+                  filteredPapers = filteredPapers.filter(p =>
                     p.title.toLowerCase().includes(searchLower) ||
                     (p.authors && p.authors.toLowerCase().includes(searchLower)) ||
                     (p.tags && p.tags.some(tag => tag.toLowerCase().includes(searchLower)))

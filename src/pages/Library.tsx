@@ -24,9 +24,10 @@ import {
   MessageSquare,
   ArrowUp,
   ArrowDown,
+  Archive,
 } from 'lucide-react';
 import type { Paper, SortOption, Note } from '../types';
-import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, updatePapersBatch, getSettings, updateSettings, getAllNotes } from '../lib/database';
+import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, updatePapersBatch, getSettings, updateSettings, getAllNotes, archivePaper } from '../lib/database';
 import { EditPaperModal } from '../components/EditPaperModal';
 
 // Setup pdfjs worker
@@ -45,7 +46,7 @@ const SCROLL_POSITION_KEY = 'library-page-scroll';
 const FILTER_STATE_KEY = 'library-filter-state';
 
 // Helper to load filter state from sessionStorage
-function loadFilterState(): { selectedTags: string[]; searchQuery: string; showStarredOnly: boolean; showUnreadOnly: boolean } {
+function loadFilterState(): { selectedTags: string[]; searchQuery: string; showStarredOnly: boolean; showUnreadOnly: boolean; showArchivedOnly: boolean } {
   try {
     const saved = sessionStorage.getItem(FILTER_STATE_KEY);
     if (saved) {
@@ -55,12 +56,13 @@ function loadFilterState(): { selectedTags: string[]; searchQuery: string; showS
         searchQuery: typeof parsed.searchQuery === 'string' ? parsed.searchQuery : '',
         showStarredOnly: Boolean(parsed.showStarredOnly),
         showUnreadOnly: Boolean(parsed.showUnreadOnly),
+        showArchivedOnly: Boolean(parsed.showArchivedOnly),
       };
     }
   } catch (e) {
     console.warn('[Library] Failed to load filter state:', e);
   }
-  return { selectedTags: [], searchQuery: '', showStarredOnly: false, showUnreadOnly: false };
+  return { selectedTags: [], searchQuery: '', showStarredOnly: false, showUnreadOnly: false, showArchivedOnly: false };
 }
 
 export function Library() {
@@ -80,6 +82,7 @@ export function Library() {
   // Filter states (initialized from sessionStorage)
   const [showStarredOnly, setShowStarredOnly] = useState(initialFilterState.showStarredOnly);
   const [showUnreadOnly, setShowUnreadOnly] = useState(initialFilterState.showUnreadOnly);
+  const [showArchivedOnly, setShowArchivedOnly] = useState(initialFilterState.showArchivedOnly);
 
   // Restore scroll position on mount and when navigating back
   useEffect(() => {
@@ -109,8 +112,9 @@ export function Library() {
       searchQuery,
       showStarredOnly,
       showUnreadOnly,
+      showArchivedOnly,
     }));
-  }, [selectedTags, searchQuery, showStarredOnly, showUnreadOnly]);
+  }, [selectedTags, searchQuery, showStarredOnly, showUnreadOnly, showArchivedOnly]);
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadTitle, setUploadTitle] = useState('');
@@ -915,6 +919,23 @@ export function Library() {
     }
   };
 
+  const togglePaperArchived = async (e: React.MouseEvent, paper: Paper) => {
+    e.stopPropagation();
+    const newArchivedStatus = !paper.isArchived;
+
+    // Optimistically update local state immediately
+    setPapers(prev => prev.map(p => p.id === paper.id ? { ...p, isArchived: newArchivedStatus } : p));
+
+    // Save to database in background
+    try {
+      await archivePaper(paper.id, newArchivedStatus);
+    } catch (error) {
+      console.error('Failed to update paper archive status:', error);
+      // Revert on error
+      setPapers(prev => prev.map(p => p.id === paper.id ? paper : p));
+    }
+  };
+
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
@@ -976,8 +997,10 @@ export function Library() {
 
       const matchesStarred = !showStarredOnly || paper.isStarred;
       const matchesUnread = !showUnreadOnly || !paper.isRead;
+      // If showArchivedOnly is true, show only archived papers; otherwise hide archived papers
+      const matchesArchived = showArchivedOnly ? paper.isArchived : !paper.isArchived;
 
-      return matchesSearch && matchesTags && matchesStarred && matchesUnread;
+      return matchesSearch && matchesTags && matchesStarred && matchesUnread && matchesArchived;
     })
     .sort((a, b) => {
       switch (sortOption) {
@@ -1096,6 +1119,16 @@ export function Library() {
                   >
                     <div className={`w-2 h-2 rounded-full ${showUnreadOnly ? 'bg-[var(--bg-primary)]' : 'bg-blue-500'}`} />
                     Unread
+                  </button>
+                  <button
+                    onClick={() => setShowArchivedOnly(!showArchivedOnly)}
+                    className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${showArchivedOnly
+                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
+                      }`}
+                  >
+                    <Archive className={`w-3.5 h-3.5`} />
+                    Archived
                   </button>
                 </div>
               </div>
@@ -1331,6 +1364,16 @@ export function Library() {
                                     title={paper.isStarred ? "Unstar" : "Star"}
                                   >
                                     <Star className={`w-3.5 h-3.5 ${paper.isStarred ? 'fill-current' : ''}`} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => togglePaperArchived(e, paper)}
+                                    className={`p-1 rounded transition-all ${paper.isArchived
+                                      ? 'text-[var(--accent-primary)]'
+                                      : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-[var(--accent-primary)]'
+                                      }`}
+                                    title={paper.isArchived ? "Unarchive" : "Archive"}
+                                  >
+                                    <Archive className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
                                 <span className={`text-sm line-clamp-2 ${isUnread ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-primary)]'}`}>
