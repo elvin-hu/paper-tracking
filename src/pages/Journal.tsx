@@ -179,20 +179,20 @@ Papers I Read (indexed 0 to ${datePapers.length - 1}):
 ${papersText}
 
 CRITICAL RULES:
-- For Methodology, Conclusion, and Limitations: summarize these as needed.
-- For "My Notes" field: This is where I write my own thoughts on applying learnings to my research. If a paper has NO "My Notes" section or it's empty, do NOT write ANYTHING about research applications, implications for my work, or how I might use the findings. Only mention my personal research applications if I explicitly wrote something in "My Notes".
-- Focus only on what the paper found, not what I might do with it (unless I wrote notes).
+- The "synthesis" paragraph should summarize paper methodology/findings.
+- The "keyInsights" should come ONLY from "My Notes" sections - these are my personal actionable takeaways and reflections I wrote while reading. If a paper has no "My Notes", do NOT generate any key insights for it.
+- Do NOT include general paper findings in keyInsights - only my personal observations from "My Notes".
 
 Please provide:
-1. A synthesis paragraph (4-6 sentences) that recaps paper methodology/findings. ONLY mention my research applications if "My Notes" contained text. Write in first person. Be plain and succinct.
-2. A list of 3-6 key insights about the papers' findings. Do NOT include paper titles—provide the paperIndex (0-based) separately.
+1. A synthesis paragraph (4-6 sentences) that recaps paper methodology/findings. Write in first person. Be plain and succinct.
+2. A list of key insights extracted ONLY from "My Notes" sections. If no papers have "My Notes", return empty keyInsights array. Do NOT include paper titles—provide the paperIndex (0-based) separately.
 
 Respond in this exact JSON format:
 {
   "synthesis": "...",
   "keyInsights": [
-    { "text": "insight text here", "paperIndex": 0 },
-    { "text": "another insight", "paperIndex": 1 }
+    { "text": "insight from my notes", "paperIndex": 0 },
+    { "text": "another insight from my notes", "paperIndex": 1 }
   ]
 }`;
 
@@ -340,20 +340,20 @@ Papers I Read (indexed 0 to ${datePapers.length - 1}):
 ${papersText}
 
 CRITICAL RULES:
-- For Methodology, Conclusion, and Limitations: summarize these as needed.
-- For "My Notes" field: This is where I write my own thoughts on applying learnings to my research. If a paper has NO "My Notes" section or it's empty, do NOT write ANYTHING about research applications, implications for my work, or how I might use the findings. Only mention my personal research applications if I explicitly wrote something in "My Notes".
-- Focus only on what the paper found, not what I might do with it (unless I wrote notes).
+- The "synthesis" paragraph should summarize paper methodology/findings.
+- The "keyInsights" should come ONLY from "My Notes" sections - these are my personal actionable takeaways and reflections I wrote while reading. If a paper has no "My Notes", do NOT generate any key insights for it.
+- Do NOT include general paper findings in keyInsights - only my personal observations from "My Notes".
 
 Please provide:
-1. A synthesis paragraph (4-6 sentences) that recaps paper methodology/findings. ONLY mention my research applications if "My Notes" contained text. Write in first person. Be plain and succinct.
-2. A list of 3-6 key insights about the papers' findings. Do NOT include paper titles—provide the paperIndex (0-based) separately.
+1. A synthesis paragraph (4-6 sentences) that recaps paper methodology/findings. Write in first person. Be plain and succinct.
+2. A list of key insights extracted ONLY from "My Notes" sections. If no papers have "My Notes", return empty keyInsights array. Do NOT include paper titles—provide the paperIndex (0-based) separately.
 
 Respond in this exact JSON format:
 {
   "synthesis": "...",
   "keyInsights": [
-    { "text": "insight text here", "paperIndex": 0 },
-    { "text": "another insight", "paperIndex": 1 }
+    { "text": "insight from my notes", "paperIndex": 0 },
+    { "text": "another insight from my notes", "paperIndex": 1 }
   ]
 }`;
 
