@@ -1277,8 +1277,8 @@ export function Reader() {
       });
 
       const userNotesSection = allUserNotes.length > 0
-        ? `\n\nMy Existing Notes on This Paper:\n${allUserNotes.join('\n\n')}\n\nIMPORTANT: In the "notes" field, directly address any TODOs, questions, or potential connections I've mentioned above. Avoid generic statements like "this paper resonates with my research"—be specific about what and why.`
-        : '';
+        ? `\n\nMy Sticky Notes on This Paper:\n${allUserNotes.join('\n\n')}`
+        : '\n\nI have NOT made any sticky notes or highlights on this paper yet.';
 
       // Build the prompt
       const researchContext = settings.researchContext
@@ -1302,7 +1302,7 @@ Please extract and return a JSON object with the following fields:
 - methodology: Research methodology—be direct, no filler phrases (2-3 sentences)
 - conclusion: Key findings—go straight to the point (2-3 sentences)
 - limitation: Stated or obvious limitations (2-3 sentences)
-- notes: Write in first person from my perspective (use "I", "my research", "I should consider", etc.). Include practical learnings, actionable insights, and specific risks or challenges I should keep in mind for my research. Pay special attention to any TODOs, questions, or potential connections I've already noted—address those specifically. Avoid generic statements like "this paper resonates with my research"—be concrete about what I can learn, what risks to watch for, and how this connects to my work. Be direct and thorough.
+- notes: CRITICAL: This field must ONLY synthesize my sticky notes listed above. If I have NOT made any sticky notes, return "N/A" for this field. Do NOT invent research applications or learnings - ONLY use what I explicitly wrote in my stickies. Write in first person.
 
 Return ONLY a valid JSON object, no other text. If a field cannot be determined, use an empty string. Format:
 {
@@ -1328,7 +1328,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           messages: [
             {
               role: 'system',
-              content: 'You are a seasoned CHI (ACM Conference on Human Factors in Computing Systems) paper author and reviewer helping me extract structured metadata from academic papers. For the "notes" field, write in first person from my perspective (use "I", "my research", "I should consider"). Be direct and concise—avoid filler phrases like "The research reveals that" or "This paper demonstrates." Avoid generic statements like "this paper resonates with my research"—be specific and actionable. Always respond with valid JSON only, no markdown formatting or additional text.',
+              content: 'You are a seasoned CHI paper author helping extract metadata from academic papers. For methodology, conclusion, and limitation fields: summarize from the paper. For the "notes" field: ONLY synthesize the user\'s sticky notes if provided. If the user has NOT made any sticky notes, the notes field MUST be "N/A" - do not invent content. Be direct and concise. Always respond with valid JSON only.',
             },
             {
               role: 'user',
