@@ -1275,8 +1275,8 @@ export function Library() {
                             )}
                           </div>
                         </th>
-                        <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '20%' }}>Authors</th>
-                        <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '15%' }}>Tags</th>
+                        <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '20%' }}>Tags</th>
+                        <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-16">Notes</th>
                         <th
                           className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-24 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
                           onClick={() => toggleSort('date')}
@@ -1290,7 +1290,7 @@ export function Library() {
                             )}
                           </div>
                         </th>
-                        <th className="w-20"></th>
+                        <th className="w-28"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1355,70 +1355,69 @@ export function Library() {
                                   >
                                     {isSelected ? <Check className="w-3.5 h-3.5" style={{ color: '#ffffff' }} /> : <FileText className="w-3.5 h-3.5" />}
                                   </button>
-                                  <button
-                                    onClick={(e) => togglePaperStarred(e, paper)}
-                                    className={`p-1 rounded transition-all ${paper.isStarred
-                                      ? 'text-yellow-500'
-                                      : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
-                                      }`}
-                                    title={paper.isStarred ? "Unstar" : "Star"}
-                                  >
-                                    <Star className={`w-3.5 h-3.5 ${paper.isStarred ? 'fill-current' : ''}`} />
-                                  </button>
-                                  <button
-                                    onClick={(e) => togglePaperArchived(e, paper)}
-                                    className={`p-1 rounded transition-all ${paper.isArchived
-                                      ? 'text-[var(--accent-primary)]'
-                                      : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-[var(--accent-primary)]'
-                                      }`}
-                                    title={paper.isArchived ? "Unarchive" : "Archive"}
-                                  >
-                                    <Archive className="w-3.5 h-3.5" />
-                                  </button>
                                 </div>
                                 <span className={`text-sm line-clamp-2 ${isUnread ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-primary)]'}`}>
                                   {paper.title}
                                 </span>
                               </div>
                             </td>
-                            <td className="px-4 py-3 overflow-hidden">
-                              <span className="text-xs text-[var(--text-muted)] truncate block max-w-full">{paper.authors || '—'}</span>
-                            </td>
+                            {/* Tags column */}
                             <td className="px-4 py-3 overflow-hidden">
                               <div className="flex items-center gap-1 flex-wrap max-w-full">
-                                {paper.tags.slice(0, 2).map((tag) => (
+                                {paper.tags.slice(0, 3).map((tag) => (
                                   <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
                                     {tag}
                                   </span>
                                 ))}
-                                {paper.tags.length > 2 && (
-                                  <span className="text-[10px] text-[var(--text-muted)]">+{paper.tags.length - 2}</span>
+                                {paper.tags.length > 3 && (
+                                  <span className="text-[10px] text-[var(--text-muted)]">+{paper.tags.length - 3}</span>
                                 )}
                               </div>
                             </td>
+                            {/* Notes column */}
                             <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-[var(--text-muted)]">{formatDate(getLastUpdatedDate(paper))}</span>
-                                {getNoteCountForPaper(paper.id) > 0 && (
-                                  <span className="flex items-center gap-0.5 text-[10px] text-[var(--text-muted)]" title={`${getNoteCountForPaper(paper.id)} notes`}>
-                                    <MessageSquare className="w-3 h-3" />
-                                    {getNoteCountForPaper(paper.id)}
-                                  </span>
-                                )}
-                              </div>
+                              <span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
+                                <MessageSquare className="w-3 h-3" />
+                                {getNoteCountForPaper(paper.id)}
+                              </span>
                             </td>
+                            {/* Updated column */}
                             <td className="px-4 py-3">
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                              <span className="text-xs text-[var(--text-muted)]">{formatDate(getLastUpdatedDate(paper))}</span>
+                            </td>
+                            {/* Actions column - star, archive, edit, delete */}
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-0.5">
+                                <button
+                                  onClick={(e) => togglePaperStarred(e, paper)}
+                                  className={`p-1.5 rounded transition-all ${paper.isStarred
+                                    ? 'text-yellow-500'
+                                    : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
+                                    }`}
+                                  title={paper.isStarred ? "Unstar" : "Star"}
+                                >
+                                  <Star className={`w-3.5 h-3.5 ${paper.isStarred ? 'fill-current' : ''}`} />
+                                </button>
                                 <button
                                   onClick={(e) => openEditModal(e, paper)}
-                                  className="p-1.5 rounded text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] transition-all"
+                                  className="p-1.5 rounded text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--bg-tertiary)] transition-all"
                                   title="Edit"
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>
                                 <button
+                                  onClick={(e) => togglePaperArchived(e, paper)}
+                                  className={`p-1.5 rounded transition-all ${paper.isArchived
+                                    ? 'text-[var(--accent-primary)]'
+                                    : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-[var(--accent-primary)]'
+                                    }`}
+                                  title={paper.isArchived ? "Unarchive" : "Archive"}
+                                >
+                                  <Archive className="w-3.5 h-3.5" />
+                                </button>
+                                <button
                                   onClick={(e) => handleDelete(e, paper.id)}
-                                  className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-all"
+                                  className="p-1.5 rounded text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-all"
                                   title="Delete"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
