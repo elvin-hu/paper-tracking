@@ -1302,7 +1302,7 @@ Please extract and return a JSON object with the following fields:
 - methodology: Research methodology—be direct, no filler phrases (2-3 sentences)
 - conclusion: Key findings—go straight to the point (2-3 sentences)
 - limitation: Stated or obvious limitations (2-3 sentences)
-- notes: Synthesize my sticky notes (listed above) into coherent learnings and takeaways for my research. Paraphrase and connect the ideas - don't just repeat them literally. If I have NOT made any sticky notes, return "N/A". Write in first person.
+- notes: ONLY synthesize my sticky notes (listed above) into coherent learnings. Do NOT include anything from the paper itself (methodology, conclusion, limitations) - ONLY my personal observations from stickies. If I have NOT made any sticky notes, return "N/A". Write in first person.
 
 Return ONLY a valid JSON object, no other text. If a field cannot be determined, use an empty string. Format:
 {
@@ -1315,6 +1315,9 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
   "limitation": "...",
   "notes": "..."
 }`;
+
+      // Log for debugging
+      console.log('[AI Autofill] Prompt being sent:', prompt);
 
       // Call OpenAI API
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
