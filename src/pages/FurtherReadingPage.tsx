@@ -8,9 +8,10 @@ import {
   FileText,
   Check,
   Loader2,
+  Trash2,
 } from 'lucide-react';
 import type { Highlight, Paper } from '../types';
-import { getAllFurtherReadingHighlights, getAllPapers, updateHighlight } from '../lib/database';
+import { getAllFurtherReadingHighlights, getAllPapers, updateHighlight, deleteHighlight } from '../lib/database';
 
 const SCROLL_POSITION_KEY = 'further-reading-page-scroll';
 
@@ -21,6 +22,8 @@ export function FurtherReadingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'resolved'>('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeduping, setIsDeduping] = useState(false);
+  const [dedupeResult, setDedupeResult] = useState<string | null>(null);
 
   // Restore scroll position on mount
   useEffect(() => {
@@ -76,6 +79,65 @@ export function FurtherReadingPage() {
     window.open(`https://scholar.google.com/scholar?q=${query}`, '_blank');
   };
 
+  // Normalize text for fuzzy comparison (handles dashes from line breaks, punctuation, whitespace)
+  const normalizeForComparison = (text: string): string => {
+    return text
+      .toLowerCase()
+      .replace(/-\s*/g, '') // Remove dashes (from line breaks)
+      .replace(/[.,;:()\[\]{}'"]/g, '') // Remove punctuation
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+  };
+
+  // Dedupe reading list items
+  const handleDedupe = async () => {
+    if (isDeduping) return;
+    setIsDeduping(true);
+    setDedupeResult(null);
+
+    try {
+      // Group by normalized text
+      const groups = new Map<string, Highlight[]>();
+      highlights.forEach((h) => {
+        const key = normalizeForComparison(h.text);
+        if (!groups.has(key)) {
+          groups.set(key, []);
+        }
+        groups.get(key)!.push(h);
+      });
+
+      // Find duplicates (groups with more than one item)
+      const toDelete: Highlight[] = [];
+      groups.forEach((items) => {
+        if (items.length > 1) {
+          // Sort by createdAt, keep the oldest
+          items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          // Delete all except the first (oldest)
+          toDelete.push(...items.slice(1));
+        }
+      });
+
+      if (toDelete.length === 0) {
+        setDedupeResult('No duplicates found!');
+      } else {
+        // Delete duplicates
+        for (const h of toDelete) {
+          await deleteHighlight(h.id);
+        }
+        setDedupeResult(`Removed ${toDelete.length} duplicate${toDelete.length > 1 ? 's' : ''}`);
+        // Refresh data
+        await loadData();
+      }
+    } catch (error) {
+      console.error('Dedupe error:', error);
+      setDedupeResult('Error deduping');
+    } finally {
+      setIsDeduping(false);
+      // Clear result after 3 seconds
+      setTimeout(() => setDedupeResult(null), 3000);
+    }
+  };
+
   const searchSemanticScholar = (text: string) => {
     const query = encodeURIComponent(text.slice(0, 100));
     window.open(`https://www.semanticscholar.org/search?q=${query}`, '_blank');
@@ -123,6 +185,24 @@ export function FurtherReadingPage() {
                 </p>
               </div>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {dedupeResult && (
+              <span className="text-xs text-[var(--text-muted)]">{dedupeResult}</span>
+            )}
+            <button
+              onClick={handleDedupe}
+              disabled={isDeduping || highlights.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 transition-colors"
+              title="Remove duplicate entries"
+            >
+              {isDeduping ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5" />
+              )}
+              Dedupe
+            </button>
           </div>
         </div>
       </header>
@@ -184,8 +264,8 @@ export function FurtherReadingPage() {
                 <div
                   key={highlight.id}
                   className={`p-4 rounded-xl border transition-all animate-fade-in ${resolved
-                      ? 'bg-[var(--bg-secondary)] border-[var(--border-muted)] opacity-60'
-                      : 'bg-[var(--bg-card)] border-[var(--border-default)]'
+                    ? 'bg-[var(--bg-secondary)] border-[var(--border-muted)] opacity-60'
+                    : 'bg-[var(--bg-card)] border-[var(--border-default)]'
                     }`}
                   style={{ animationDelay: `${index * 30}ms` }}
                 >
@@ -193,8 +273,8 @@ export function FurtherReadingPage() {
                     <button
                       onClick={() => toggleResolved(highlight)}
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${resolved
-                          ? 'border-[var(--text-secondary)] bg-[var(--text-secondary)]'
-                          : 'border-[var(--border-default)] hover:border-[var(--text-secondary)]'
+                        ? 'border-[var(--text-secondary)] bg-[var(--text-secondary)]'
+                        : 'border-[var(--border-default)] hover:border-[var(--text-secondary)]'
                         }`}
                     >
                       {resolved && <Check className="w-3 h-3 text-white" />}
