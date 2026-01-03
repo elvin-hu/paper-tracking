@@ -121,6 +121,10 @@ export function Library() {
   const [uploadAuthors, setUploadAuthors] = useState('');
   const [uploadTags, setUploadTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
+  const [showUploadTagSuggestions, setShowUploadTagSuggestions] = useState(false);
+  const [uploadTagSuggestionPos, setUploadTagSuggestionPos] = useState({ top: 0, left: 0, width: 0 });
+  const uploadTagInputRef = useRef<HTMLInputElement>(null);
+  const uploadTagSuggestionsRef = useRef<HTMLDivElement>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -1503,19 +1507,79 @@ export function Library() {
                       </span>
                     ))}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 relative">
                     <input
+                      ref={uploadTagInputRef}
                       type="text"
                       value={newTagInput}
-                      onChange={(e) => setNewTagInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addUploadTag())}
+                      onChange={(e) => {
+                        setNewTagInput(e.target.value);
+                        setShowUploadTagSuggestions(true);
+                        if (uploadTagInputRef.current) {
+                          const rect = uploadTagInputRef.current.getBoundingClientRect();
+                          setUploadTagSuggestionPos({ top: rect.bottom + 4, left: rect.left, width: rect.width + 44 });
+                        }
+                      }}
+                      onFocus={() => {
+                        setShowUploadTagSuggestions(true);
+                        if (uploadTagInputRef.current) {
+                          const rect = uploadTagInputRef.current.getBoundingClientRect();
+                          setUploadTagSuggestionPos({ top: rect.bottom + 4, left: rect.left, width: rect.width + 44 });
+                        }
+                      }}
+                      onBlur={() => {
+                        // Delay to allow click on suggestion
+                        setTimeout(() => setShowUploadTagSuggestions(false), 150);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addUploadTag();
+                          setShowUploadTagSuggestions(false);
+                        } else if (e.key === 'Escape') {
+                          setShowUploadTagSuggestions(false);
+                        }
+                      }}
                       placeholder="Add tag..."
                       className="flex-1 text-sm"
                     />
-                    <button onClick={addUploadTag} className="btn-secondary px-2.5">
+                    <button onClick={() => { addUploadTag(); setShowUploadTagSuggestions(false); }} className="btn-secondary px-2.5">
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
+                  {/* Tag Suggestions */}
+                  {showUploadTagSuggestions && (() => {
+                    const filtered = allTags.filter(tag =>
+                      !uploadTags.includes(tag) &&
+                      (newTagInput.trim() === '' || tag.toLowerCase().includes(newTagInput.toLowerCase()))
+                    ).slice(0, 8);
+                    return filtered.length > 0 ? (
+                      <div
+                        ref={uploadTagSuggestionsRef}
+                        className="fixed bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl shadow-2xl overflow-hidden z-[100]"
+                        style={{ top: uploadTagSuggestionPos.top, left: uploadTagSuggestionPos.left, width: uploadTagSuggestionPos.width }}
+                      >
+                        <div className="py-1 max-h-48 overflow-y-auto">
+                          {filtered.map((tag) => (
+                            <button
+                              key={tag}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                if (!uploadTags.includes(tag)) {
+                                  setUploadTags([...uploadTags, tag]);
+                                }
+                                setNewTagInput('');
+                                setShowUploadTagSuggestions(false);
+                              }}
+                              className="w-full text-left px-3.5 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               </div>
 
