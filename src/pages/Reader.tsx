@@ -40,6 +40,7 @@ import {
   getAllPapers,
   updatePaper,
   getSettings,
+  getAllFurtherReadingHighlights,
 } from '../lib/database';
 import { EditPaperModal } from '../components/EditPaperModal';
 
@@ -279,6 +280,7 @@ export function Reader() {
   const [referencesLoaded, setReferencesLoaded] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'notes' | 'reading'>('notes');
   const [readingList, setReadingList] = useState<Highlight[]>([]);
+  const [allReadingListItems, setAllReadingListItems] = useState<Highlight[]>([]); // All reading list items across papers
   const [allPapers, setAllPapers] = useState<Map<string, Paper>>(new Map());
   const [documentReady, setDocumentReady] = useState(false);
   const [documentKey, setDocumentKey] = useState(0); // Used to force Document recreation
@@ -476,6 +478,21 @@ export function Reader() {
   useEffect(() => {
     loadAllPapers();
   }, [loadAllPapers]);
+
+  // Load all reading list items for deduplication
+  useEffect(() => {
+    getAllFurtherReadingHighlights().then(setAllReadingListItems);
+  }, []);
+
+  // Normalize text for fuzzy comparison (handles dashes from line breaks, punctuation, whitespace)
+  const normalizeForComparison = (text: string): string => {
+    return text
+      .toLowerCase()
+      .replace(/-\s*/g, '') // Remove dashes (from line breaks)
+      .replace(/[.,;:()\[\]{}'"]/g, '') // Remove punctuation
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+  };
 
 
   // Switch to a different paper while preserving scroll position
@@ -1078,6 +1095,8 @@ export function Reader() {
     if (markAsFurtherReading && highlight.paperId === paperId) {
       // Add to reading list if it's from current paper
       setReadingList((prev) => [...prev, highlight]);
+      // Also update global list for deduplication
+      setAllReadingListItems((prev) => [...prev, highlight]);
     }
     setShowColorPicker(false);
     setCitationNoteInput('');
@@ -2175,14 +2194,14 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             const refInfo = detectedRef ? getReferenceInfo(detectedRef) : null;
             const hasRefTitle = refInfo && refInfo.title;
 
-            // Check if this reference is already in the reading list
-            // The reading list item's text field contains the reference title, so we compare against refInfo.title
+            // Check if this reference is already in the reading list (across ALL papers)
+            // Use normalization for fuzzy matching to handle citation format variations and dashes
             const isAlreadyInReadingList = hasRefTitle
-              ? readingList.some(item =>
-                item.text.trim().toLowerCase() === refInfo.title.trim().toLowerCase()
+              ? allReadingListItems.some(item =>
+                normalizeForComparison(item.text) === normalizeForComparison(refInfo.title)
               )
-              : readingList.some(item =>
-                item.text.trim().toLowerCase() === selectedText.trim().toLowerCase()
+              : allReadingListItems.some(item =>
+                normalizeForComparison(item.text) === normalizeForComparison(selectedText)
               );
 
             return (
