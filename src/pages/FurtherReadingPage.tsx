@@ -83,7 +83,8 @@ export function FurtherReadingPage() {
   const normalizeForComparison = (text: string): string => {
     return text
       .toLowerCase()
-      .replace(/-\s*/g, '') // Remove dashes (from line breaks)
+      .replace(/-\s+/g, '') // Remove hyphen + whitespace ("hyper- visor" -> "hypervisor")
+      .replace(/-/g, '') // Remove all hyphens ("hyper-visor" -> "hypervisor")
       .replace(/[.,;:()\[\]{}'"]/g, '') // Remove punctuation
       .replace(/\s+/g, ' ') // Normalize whitespace
       .trim();
