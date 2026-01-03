@@ -2316,14 +2316,22 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
             const matchingLibraryPaper = Array.from(allPapers.values()).find(paper => {
               const normalizedPaperTitle = normalizeForComparison(paper.title);
-              const isMatch = normalizedPaperTitle === normalizedRef ||
-                normalizedPaperTitle.includes(normalizedRef) ||
-                normalizedRef.includes(normalizedPaperTitle);
+              const exactMatch = normalizedPaperTitle === normalizedRef;
+              const libraryContainsRef = normalizedPaperTitle.includes(normalizedRef);
+              const refContainsLibrary = normalizedRef.includes(normalizedPaperTitle);
+              const isMatch = exactMatch || libraryContainsRef || refContainsLibrary;
 
               if (normalizedPaperTitle.includes('removal') || normalizedRef.includes('removal')) {
-                console.log('[LibraryMatch] Comparing with library paper:', paper.title.slice(0, 80));
-                console.log('[LibraryMatch] Normalized library:', normalizedPaperTitle.slice(0, 80));
-                console.log('[LibraryMatch] Match result:', isMatch);
+                console.log('[LibraryMatch] --- DETAILED DEBUG for "removal" ---');
+                console.log('[LibraryMatch] Library paper:', paper.title);
+                console.log('[LibraryMatch] Normalized library (full):', normalizedPaperTitle);
+                console.log('[LibraryMatch] Normalized ref (full):', normalizedRef);
+                console.log('[LibraryMatch] Library length:', normalizedPaperTitle.length);
+                console.log('[LibraryMatch] Ref length:', normalizedRef.length);
+                console.log('[LibraryMatch] Exact match:', exactMatch);
+                console.log('[LibraryMatch] libraryContainsRef:', libraryContainsRef);
+                console.log('[LibraryMatch] refContainsLibrary:', refContainsLibrary);
+                console.log('[LibraryMatch] Final isMatch:', isMatch);
               }
               return isMatch;
             });
