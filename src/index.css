@@ -577,6 +577,22 @@ textarea:focus {
   background: var(--bg-card);
 }
 
+/* Inputs with explicit bg-transparent should remain transparent */
+input.bg-transparent,
+textarea.bg-transparent {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+input.bg-transparent:hover,
+textarea.bg-transparent:hover,
+input.bg-transparent:focus,
+textarea.bg-transparent:focus {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 /* Metadata panel inputs - need better contrast in dark mode */
 @media (prefers-color-scheme: dark) {
 
