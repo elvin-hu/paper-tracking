@@ -2300,6 +2300,19 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                 normalizeForComparison(item.text) === normalizeForComparison(selectedText)
               );
 
+            // Also check if this reference matches any paper already in the library
+            // Compare normalized titles - the reference title might be embedded in the paper title or vice versa
+            const textToCheck = hasRefTitle ? refInfo.title : selectedText;
+            const normalizedRef = normalizeForComparison(textToCheck);
+            const matchingLibraryPaper = Array.from(allPapers.values()).find(paper => {
+              const normalizedPaperTitle = normalizeForComparison(paper.title);
+              // Check if either contains the other (partial match for long titles)
+              return normalizedPaperTitle === normalizedRef ||
+                normalizedPaperTitle.includes(normalizedRef) ||
+                normalizedRef.includes(normalizedPaperTitle);
+            });
+            const isAlreadyInLibrary = !!matchingLibraryPaper;
+
             return (
               <div
                 className="absolute z-50 animate-scale-in"
@@ -2326,14 +2339,16 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                           createHighlight('purple', true, citationNoteInput.trim() || undefined);
                           setCitationNoteInput('');
                         }}
-                        disabled={isAlreadyInReadingList}
-                        className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-opacity ${isAlreadyInReadingList
+                        disabled={isAlreadyInReadingList || isAlreadyInLibrary}
+                        className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-opacity ${isAlreadyInReadingList || isAlreadyInLibrary
                           ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed'
                           : 'bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90'
                           }`}
                       >
                         {isAlreadyInReadingList ? (
                           <>Already in reading list</>
+                        ) : isAlreadyInLibrary ? (
+                          <>Already in library</>
                         ) : (
                           <>
                             <Plus className="w-4 h-4" />
@@ -2361,14 +2376,16 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                           createHighlight('purple', true, citationNoteInput.trim() || undefined);
                           setCitationNoteInput('');
                         }}
-                        disabled={isAlreadyInReadingList}
-                        className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-opacity ${isAlreadyInReadingList
+                        disabled={isAlreadyInReadingList || isAlreadyInLibrary}
+                        className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-opacity ${isAlreadyInReadingList || isAlreadyInLibrary
                           ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed'
                           : 'bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90'
                           }`}
                       >
                         {isAlreadyInReadingList ? (
                           <>Already in reading list</>
+                        ) : isAlreadyInLibrary ? (
+                          <>Already in library</>
                         ) : (
                           <>
                             <Plus className="w-4 h-4" />
