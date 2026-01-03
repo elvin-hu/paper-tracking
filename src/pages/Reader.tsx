@@ -2309,12 +2309,23 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             // Compare normalized titles - the reference title might be embedded in the paper title or vice versa
             const textToCheck = hasRefTitle ? refInfo.title : selectedText;
             const normalizedRef = normalizeForComparison(textToCheck);
+
+            // Debug logging for library matching
+            console.log('[LibraryMatch] Checking reference:', textToCheck.slice(0, 100));
+            console.log('[LibraryMatch] Normalized reference:', normalizedRef.slice(0, 100));
+
             const matchingLibraryPaper = Array.from(allPapers.values()).find(paper => {
               const normalizedPaperTitle = normalizeForComparison(paper.title);
-              // Check if either contains the other (partial match for long titles)
-              return normalizedPaperTitle === normalizedRef ||
+              const isMatch = normalizedPaperTitle === normalizedRef ||
                 normalizedPaperTitle.includes(normalizedRef) ||
                 normalizedRef.includes(normalizedPaperTitle);
+
+              if (normalizedPaperTitle.includes('removal') || normalizedRef.includes('removal')) {
+                console.log('[LibraryMatch] Comparing with library paper:', paper.title.slice(0, 80));
+                console.log('[LibraryMatch] Normalized library:', normalizedPaperTitle.slice(0, 80));
+                console.log('[LibraryMatch] Match result:', isMatch);
+              }
+              return isMatch;
             });
             const isAlreadyInLibrary = !!matchingLibraryPaper;
 
