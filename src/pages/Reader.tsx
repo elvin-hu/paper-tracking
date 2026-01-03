@@ -2319,7 +2319,16 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               const exactMatch = normalizedPaperTitle === normalizedRef;
               const libraryContainsRef = normalizedPaperTitle.includes(normalizedRef);
               const refContainsLibrary = normalizedRef.includes(normalizedPaperTitle);
-              const isMatch = exactMatch || libraryContainsRef || refContainsLibrary;
+
+              // Handle truncated references: check if the library title appears at a specific position
+              // The reference format is usually "Author Names. Year. Title..."
+              // So we look for the library title starting anywhere in the reference
+              // Also handle case where reference is truncated - check if start of library title matches end of reference
+              const minMatchLength = Math.min(30, normalizedPaperTitle.length); // At least 30 chars or full title
+              const libraryPrefix = normalizedPaperTitle.slice(0, minMatchLength);
+              const truncationMatch = normalizedRef.includes(libraryPrefix);
+
+              const isMatch = exactMatch || libraryContainsRef || refContainsLibrary || truncationMatch;
 
               if (normalizedPaperTitle.includes('removal') || normalizedRef.includes('removal')) {
                 console.log('[LibraryMatch] --- DETAILED DEBUG for "removal" ---');
@@ -2331,6 +2340,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                 console.log('[LibraryMatch] Exact match:', exactMatch);
                 console.log('[LibraryMatch] libraryContainsRef:', libraryContainsRef);
                 console.log('[LibraryMatch] refContainsLibrary:', refContainsLibrary);
+                console.log('[LibraryMatch] truncationMatch (prefix):', truncationMatch, 'prefix:', libraryPrefix);
                 console.log('[LibraryMatch] Final isMatch:', isMatch);
               }
               return isMatch;
