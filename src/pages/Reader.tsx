@@ -72,6 +72,17 @@ const HIGHLIGHT_COLORS: {
 function parseReferences(fullText: string): Map<string, string> {
   const references = new Map<string, string>();
 
+  // Helper to clean up hyphenated line breaks in extracted text
+  // Handles patterns like "In - vestigating" or "On - line" -> "Investigating", "Online"
+  const cleanHyphenatedLineBreaks = (text: string): string => {
+    return text
+      .replace(/(\w)- (\w)/g, '$1$2') // "hyper- visor" -> "hypervisor"
+      .replace(/(\w) - (\w)/g, '$1$2') // "hyper - visor" -> "hypervisor"  
+      .replace(/(\w)-\s+(\w)/g, '$1$2') // "hyper-  visor" -> "hypervisor"
+      .replace(/\s+/g, ' ') // Normalize remaining whitespace
+      .trim();
+  };
+
   // Normalize whitespace for easier parsing
   const normalizedText = fullText.replace(/\s+/g, ' ');
 
@@ -211,7 +222,8 @@ function parseReferences(fullText: string): Map<string, string> {
       const next = sequentialMatches[i + 1];
       const startIdx = current.index + current.num.length + 2; // skip "[N]"
       const endIdx = next ? next.index : refSection.length;
-      const refText = refSection.slice(startIdx, endIdx).trim();
+      const rawRefText = refSection.slice(startIdx, endIdx).trim();
+      const refText = cleanHyphenatedLineBreaks(rawRefText); // Clean up hyphenated line breaks
 
       if (refText.length > 10 && looksLikeCitation(refText)) {
         references.set(current.num, refText);
@@ -247,6 +259,8 @@ function parseReferences(fullText: string): Map<string, string> {
 
         // Remove the leading number
         refText = refText.replace(/^\d{1,3}\.\s*/, '');
+        // Clean up hyphenated line breaks
+        refText = cleanHyphenatedLineBreaks(refText);
 
         if (refText.length > 10 && looksLikeCitation(refText)) {
           references.set(current.num, refText);
