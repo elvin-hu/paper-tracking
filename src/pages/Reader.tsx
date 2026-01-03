@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { v4 as uuidv4 } from 'uuid';
@@ -494,6 +494,51 @@ export function Reader() {
       .trim();
   };
 
+  // Memoize filtered and sorted papers for sidebar (expensive computation)
+  const { displayPapers, hiddenCount } = useMemo(() => {
+    const allPapersArray = Array.from(allPapers.values());
+    let filtered = allPapersArray.filter(p => !p.isArchived);
+    const searchLower = paperSearch.toLowerCase().trim();
+
+    if (searchLower) {
+      filtered = filtered.filter(p =>
+        p.title.toLowerCase().includes(searchLower) ||
+        (p.authors && p.authors.toLowerCase().includes(searchLower)) ||
+        (p.tags && p.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+      );
+    }
+
+    const sorted = filtered.sort((a, b) => {
+      switch (sortOption) {
+        case 'title-asc':
+          return a.title.localeCompare(b.title);
+        case 'title-desc':
+          return b.title.localeCompare(a.title);
+        case 'date-asc':
+          return new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime();
+        case 'date-desc':
+        default:
+          return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+      }
+    });
+
+    const maxResults = 10;
+    const shouldLimit = searchLower && !expandSearch && sorted.length > maxResults;
+    return {
+      displayPapers: shouldLimit ? sorted.slice(0, maxResults) : sorted,
+      hiddenCount: shouldLimit ? sorted.length - maxResults : 0,
+    };
+  }, [allPapers, paperSearch, sortOption, expandSearch]);
+
+  // Memoize highlights grouped by page number
+  const pageHighlightsMap = useMemo(() => {
+    const map = new Map<number, Highlight[]>();
+    highlights.forEach(h => {
+      if (!map.has(h.pageNumber)) map.set(h.pageNumber, []);
+      map.get(h.pageNumber)!.push(h);
+    });
+    return map;
+  }, [highlights]);
 
   // Switch to a different paper while preserving scroll position
   const switchToPaper = useCallback((targetPaperId: string) => {
@@ -1750,141 +1795,89 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              {(() => {
-                // Filter papers based on search query
-                const allPapersArray = Array.from(allPapers.values());
-                const searchLower = paperSearch.toLowerCase().trim();
-
-                // Get visible papers (those with highlights/notes in current session, or recently accessed)
-                // For simplicity, we'll consider all papers as "visible" initially
-                // In a more advanced implementation, you could track which papers the user has interacted with
-
-                let filteredPapers = allPapersArray;
-
-                // Hide archived papers from sidebar
-                filteredPapers = filteredPapers.filter(p => !p.isArchived);
-
-                if (searchLower) {
-                  // Filter by search query
-                  filteredPapers = filteredPapers.filter(p =>
-                    p.title.toLowerCase().includes(searchLower) ||
-                    (p.authors && p.authors.toLowerCase().includes(searchLower)) ||
-                    (p.tags && p.tags.some(tag => tag.toLowerCase().includes(searchLower)))
-                  );
-
-                  // If not expanding and no results in visible scope, show empty
-                  // For now, we search all papers but allow "expand" to be shown if results are limited
-                }
-
-                // Sort papers
-                const sortedPapers = filteredPapers.sort((a, b) => {
-                  switch (sortOption) {
-                    case 'title-asc':
-                      return a.title.localeCompare(b.title);
-                    case 'title-desc':
-                      return b.title.localeCompare(a.title);
-                    case 'date-asc':
-                      return new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime();
-                    case 'date-desc':
-                    default:
-                      return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
-                  }
-                });
-
-                // Limit results if not expanded
-                const maxResultsWhenNotExpanded = 10;
-                const limitResults = searchLower && !expandSearch && sortedPapers.length > maxResultsWhenNotExpanded;
-                const displayPapers = limitResults ? sortedPapers.slice(0, maxResultsWhenNotExpanded) : sortedPapers;
-                const hiddenCount = limitResults ? sortedPapers.length - maxResultsWhenNotExpanded : 0;
-
-                if (searchLower && sortedPapers.length === 0) {
-                  return (
-                    <div className="p-4 text-center">
-                      <p className="text-xs text-[var(--text-muted)]">No papers found</p>
-                    </div>
-                  );
-                }
-
-                return (
-                  <>
-                    {displayPapers.map((p) => (
-                      <button
-                        key={p.id}
-                        onClick={() => switchToPaper(p.id)}
-                        className={`group w-full text-left px-3 py-2.5 border-b border-[var(--border-muted)] transition-colors ${p.id === paperId
-                          ? 'bg-[var(--bg-tertiary)]'
-                          : 'hover:bg-[var(--bg-tertiary)]/50'
-                          }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <FileText className={`w-4 h-4 flex-shrink-0 mt-0.5 ${p.id === paperId ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
-                            }`} />
-                          <div className="min-w-0 flex-1">
-                            <p className={`text-xs leading-snug line-clamp-2 ${p.id === paperId
-                              ? 'text-[var(--text-primary)] font-semibold'
-                              : 'text-[var(--text-primary)] font-normal opacity-80'
-                              }`}>
-                              {p.title}
+              {paperSearch.trim() && displayPapers.length === 0 ? (
+                <div className="p-4 text-center">
+                  <p className="text-xs text-[var(--text-muted)]">No papers found</p>
+                </div>
+              ) : (
+                <>
+                  {displayPapers.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => switchToPaper(p.id)}
+                      className={`group w-full text-left px-3 py-2.5 border-b border-[var(--border-muted)] transition-colors ${p.id === paperId
+                        ? 'bg-[var(--bg-tertiary)]'
+                        : 'hover:bg-[var(--bg-tertiary)]/50'
+                        }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <FileText className={`w-4 h-4 flex-shrink-0 mt-0.5 ${p.id === paperId ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
+                          }`} />
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-xs leading-snug line-clamp-2 ${p.id === paperId
+                            ? 'text-[var(--text-primary)] font-semibold'
+                            : 'text-[var(--text-primary)] font-normal opacity-80'
+                            }`}>
+                            {p.title}
+                          </p>
+                          {p.authors && (
+                            <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate">
+                              {p.authors.split(',')[0]}
                             </p>
-                            {p.authors && (
-                              <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate">
-                                {p.authors.split(',')[0]}
-                              </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            onClick={(e) => togglePaperStarred(e, p)}
+                            className={`p-0.5 rounded transition-all ${p.isStarred
+                              ? 'text-yellow-500'
+                              : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
+                              }`}
+                            title={p.isStarred ? "Unstar" : "Star"}
+                          >
+                            <Star className={`w-3 h-3 ${p.isStarred ? 'fill-current' : ''}`} />
+                          </button>
+                          <div className="relative flex items-center justify-center w-3 h-3">
+                            {!p.isRead ? (
+                              <button
+                                onClick={(e) => togglePaperReadStatus(e, p)}
+                                className="relative w-3 h-3 flex items-center justify-center group/button"
+                                title="Mark as read"
+                              >
+                                {/* Outer circle with faint blue fill - only on hover (2x dot width = 3px) */}
+                                <div className="absolute inset-0 w-3 h-3 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                                {/* Inner blue dot - always visible, centered */}
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-500" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={(e) => togglePaperReadStatus(e, p)}
+                                className="relative w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
+                                title="Mark as unread"
+                              >
+                                {/* Outer circle with faint grey fill - only on hover (2x dot width = 3px) */}
+                                <div className="absolute inset-0 w-3 h-3 rounded-full bg-[var(--text-muted)]/15 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                                {/* Inner grey dot - centered */}
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
+                              </button>
                             )}
                           </div>
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <button
-                              onClick={(e) => togglePaperStarred(e, p)}
-                              className={`p-0.5 rounded transition-all ${p.isStarred
-                                ? 'text-yellow-500'
-                                : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-yellow-500'
-                                }`}
-                              title={p.isStarred ? "Unstar" : "Star"}
-                            >
-                              <Star className={`w-3 h-3 ${p.isStarred ? 'fill-current' : ''}`} />
-                            </button>
-                            <div className="relative flex items-center justify-center w-3 h-3">
-                              {!p.isRead ? (
-                                <button
-                                  onClick={(e) => togglePaperReadStatus(e, p)}
-                                  className="relative w-3 h-3 flex items-center justify-center group/button"
-                                  title="Mark as read"
-                                >
-                                  {/* Outer circle with faint blue fill - only on hover (2x dot width = 3px) */}
-                                  <div className="absolute inset-0 w-3 h-3 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
-                                  {/* Inner blue dot - always visible, centered */}
-                                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-500" />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={(e) => togglePaperReadStatus(e, p)}
-                                  className="relative w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
-                                  title="Mark as unread"
-                                >
-                                  {/* Outer circle with faint grey fill - only on hover (2x dot width = 3px) */}
-                                  <div className="absolute inset-0 w-3 h-3 rounded-full bg-[var(--text-muted)]/15 opacity-0 group-hover/button:opacity-100 transition-opacity" />
-                                  {/* Inner grey dot - centered */}
-                                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
                         </div>
-                      </button>
-                    ))}
+                      </div>
+                    </button>
+                  ))}
 
-                    {/* Expand search button */}
-                    {hiddenCount > 0 && (
-                      <button
-                        onClick={() => setExpandSearch(true)}
-                        className="w-full py-2.5 text-xs text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)]/50 transition-colors border-b border-[var(--border-muted)]"
-                      >
-                        Show {hiddenCount} more result{hiddenCount !== 1 ? 's' : ''}
-                      </button>
-                    )}
-                  </>
-                );
-              })()}
+                  {/* Expand search button */}
+                  {hiddenCount > 0 && (
+                    <button
+                      onClick={() => setExpandSearch(true)}
+                      className="w-full py-2.5 text-xs text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)]/50 transition-colors border-b border-[var(--border-muted)]"
+                    >
+                      Show {hiddenCount} more result{hiddenCount !== 1 ? 's' : ''}
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1936,7 +1929,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               >
                 {documentReady && numPages > 0 && Array.from({ length: numPages }, (_, index) => {
                   const pageNum = index + 1;
-                  const pageHighlights = highlights.filter((h) => h.pageNumber === pageNum);
+                  const pageHighlights = pageHighlightsMap.get(pageNum) || [];
 
                   return (
                     <div
