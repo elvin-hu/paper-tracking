@@ -84,6 +84,19 @@ function parseReferences(fullText: string): Map<string, string> {
     /\bCited\s+Literature\b/i,
   ];
 
+  // Patterns that indicate END of references section (appendices, etc.)
+  const endSectionPatterns = [
+    /\bAppendix\s*[A-Z]?\b/i,
+    /\bFull\s+Corpus\b/i,
+    /\bSupplementary\s+Materials?\b/i,
+    /\bAcknowledgements?\b/i,
+    /\bAcknowledgments?\b/i,
+    /\bAbout\s+the\s+Authors?\b/i,
+    /\bAuthor\s+Biographies?\b/i,
+    /\bTable\s+\d+:/i,
+    /\bFigure\s+\d+:/i,
+  ];
+
   let refSectionStart = -1;
   for (const pattern of refSectionPatterns) {
     const match = normalizedText.match(pattern);
@@ -93,7 +106,7 @@ function parseReferences(fullText: string): Map<string, string> {
       const matchInLastPortion = lastPortion.match(pattern);
       if (matchInLastPortion && matchInLastPortion.index !== undefined) {
         refSectionStart = Math.floor(normalizedText.length * 0.5) + matchInLastPortion.index + matchInLastPortion[0].length;
-        console.log(`Found references section at position ${refSectionStart} using pattern: ${pattern}`);
+        console.log(`[RefParser] Found references section at position ${refSectionStart} using pattern: ${pattern}`);
         break;
       }
     }
@@ -106,18 +119,60 @@ function parseReferences(fullText: string): Map<string, string> {
     const bracketMatch = lastThird.match(/\[1\]/);
     if (bracketMatch && bracketMatch.index !== undefined) {
       refSectionStart = normalizedText.length - lastThird.length + bracketMatch.index;
-      console.log(`Found references by [1] pattern at position ${refSectionStart}`);
+      console.log(`[RefParser] Found references by [1] pattern at position ${refSectionStart}`);
     }
   }
 
   if (refSectionStart === -1) {
-    console.log('Could not find references section in PDF');
+    console.log('[RefParser] Could not find references section in PDF');
     return references;
   }
 
-  const refSection = normalizedText.slice(refSectionStart);
-  console.log(`Reference section length: ${refSection.length} chars`);
-  console.log(`First 500 chars of ref section: ${refSection.slice(0, 500)}`);
+  let refSection = normalizedText.slice(refSectionStart);
+
+  // Find and trim at end-of-references patterns (appendices, etc.)
+  let refSectionEnd = refSection.length;
+  for (const endPattern of endSectionPatterns) {
+    const endMatch = refSection.match(endPattern);
+    if (endMatch && endMatch.index !== undefined && endMatch.index > 100) {
+      // Only consider it if it's after some content (not at the very start)
+      if (endMatch.index < refSectionEnd) {
+        refSectionEnd = endMatch.index;
+        console.log(`[RefParser] Detected end of references at position ${endMatch.index} via pattern: ${endPattern}`);
+      }
+    }
+  }
+
+  if (refSectionEnd < refSection.length) {
+    console.log(`[RefParser] Trimming reference section from ${refSection.length} to ${refSectionEnd} chars`);
+    refSection = refSection.slice(0, refSectionEnd);
+  }
+
+  console.log(`[RefParser] Reference section length: ${refSection.length} chars`);
+  console.log(`[RefParser] First 500 chars of ref section: ${refSection.slice(0, 500)}`);
+
+  // Helper: Check if text looks like a valid reference citation (not a table row)
+  const looksLikeCitation = (text: string): boolean => {
+    // Citations typically have:
+    // - Authors (capital letters at start)
+    // - Year in parentheses or after a period
+    // - Longer text (> 50 chars typically)
+    // Table rows are usually shorter and have inconsistent structure
+
+    if (text.length < 30) return false;
+
+    // Should start with capital letter (author name)
+    if (!/^[A-Z]/.test(text.trim())) return false;
+
+    // Should contain a year (19xx or 20xx)
+    if (!/\b(19|20)\d{2}\b/.test(text)) return false;
+
+    // Should have substantial text content (not just "Author [N] Year Venue")
+    const wordCount = text.split(/\s+/).length;
+    if (wordCount < 8) return false;
+
+    return true;
+  };
 
   // Try bracket style first: [1] ... [2] ...
   const bracketPattern = /\[(\d+)\]/g;
@@ -128,19 +183,48 @@ function parseReferences(fullText: string): Map<string, string> {
     bracketMatches.push({ num: match[1], index: match.index });
   }
 
-  if (bracketMatches.length >= 3) {
-    console.log(`Found ${bracketMatches.length} bracket references`);
-    for (let i = 0; i < bracketMatches.length; i++) {
-      const current = bracketMatches[i];
-      const next = bracketMatches[i + 1];
+  // Filter to only sequential references (avoid picking up stray [N] in text)
+  // References should be roughly sequential: 1, 2, 3, ... or close to it
+  const sequentialMatches: { num: string; index: number }[] = [];
+  let expectedNum = 1;
+  for (const m of bracketMatches) {
+    const num = parseInt(m.num, 10);
+    // Allow some gaps (missing refs) but not huge jumps
+    if (num >= expectedNum && num <= expectedNum + 5) {
+      sequentialMatches.push(m);
+      expectedNum = num + 1;
+    } else if (num === 1 && sequentialMatches.length === 0) {
+      // Always accept [1] as start
+      sequentialMatches.push(m);
+      expectedNum = 2;
+    }
+  }
+
+  console.log(`[RefParser] Found ${bracketMatches.length} total bracket patterns, ${sequentialMatches.length} sequential references`);
+
+  if (sequentialMatches.length >= 3) {
+    let validCount = 0;
+    let invalidCount = 0;
+
+    for (let i = 0; i < sequentialMatches.length; i++) {
+      const current = sequentialMatches[i];
+      const next = sequentialMatches[i + 1];
       const startIdx = current.index + current.num.length + 2; // skip "[N]"
       const endIdx = next ? next.index : refSection.length;
       const refText = refSection.slice(startIdx, endIdx).trim();
 
-      if (refText.length > 10) {
+      if (refText.length > 10 && looksLikeCitation(refText)) {
         references.set(current.num, refText);
+        validCount++;
+      } else {
+        invalidCount++;
+        if (invalidCount <= 3) {
+          console.log(`[RefParser] Skipped ref [${current.num}] - doesn't look like citation: "${refText.slice(0, 80)}..."`);
+        }
       }
     }
+
+    console.log(`[RefParser] Validated ${validCount} citations, skipped ${invalidCount}`);
   }
 
   // If bracket style didn't work, try numbered style: 1. ... 2. ...
@@ -153,7 +237,7 @@ function parseReferences(fullText: string): Map<string, string> {
     }
 
     if (numberedMatches.length >= 3) {
-      console.log(`Found ${numberedMatches.length} numbered references`);
+      console.log(`[RefParser] Found ${numberedMatches.length} numbered references`);
       for (let i = 0; i < numberedMatches.length; i++) {
         const current = numberedMatches[i];
         const next = numberedMatches[i + 1];
@@ -164,16 +248,20 @@ function parseReferences(fullText: string): Map<string, string> {
         // Remove the leading number
         refText = refText.replace(/^\d{1,3}\.\s*/, '');
 
-        if (refText.length > 10) {
+        if (refText.length > 10 && looksLikeCitation(refText)) {
           references.set(current.num, refText);
         }
       }
     }
   }
 
-  console.log(`Total parsed references: ${references.size}`);
+  console.log(`[RefParser] Total parsed references: ${references.size}`);
   if (references.size > 0) {
-    console.log('Sample references:', Array.from(references.entries()).slice(0, 3));
+    const sample = Array.from(references.entries()).slice(0, 3);
+    console.log('[RefParser] Sample references:');
+    sample.forEach(([num, text]) => {
+      console.log(`  [${num}]: "${text.slice(0, 100)}..."`);
+    });
   }
 
   return references;
