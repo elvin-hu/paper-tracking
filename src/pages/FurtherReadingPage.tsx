@@ -86,7 +86,8 @@ export function FurtherReadingPage() {
       .replace(/(\w)- (\w)/g, '$1$2') // Line break: "hyper- visor" -> "hypervisor"
       .replace(/(\w) - (\w)/g, '$1$2') // Line break: "hyper - visor" -> "hypervisor"
       .replace(/(\w) -(\w)/g, '$1$2') // Line break: "hyper -visor" -> "hypervisor"
-      // NOTE: Preserving hyphens without spaces (compound words like "Self-Tracking")
+      .replace(/-/g, '') // Remove remaining hyphens for matching (Self-Tracking vs SelfTracking)
+      // NOTE: We remove ALL hyphens for MATCHING since line-break cleanup creates inconsistency
       .replace(/[.,;:()\[\]{}'"]/g, '') // Remove punctuation
       .replace(/\s+/g, ' ') // Normalize whitespace
       .trim();
