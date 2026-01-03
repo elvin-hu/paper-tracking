@@ -73,12 +73,14 @@ function parseReferences(fullText: string): Map<string, string> {
   const references = new Map<string, string>();
 
   // Helper to clean up hyphenated line breaks in extracted text
-  // Handles patterns like "In - vestigating" or "On - line" -> "Investigating", "Online"
+  // Only removes hyphens with spaces around them (line breaks), preserves compound words like "Self-Tracking"
+  // Line break patterns: "Self- Tracking" or "Self - Tracking" -> "SelfTracking"
+  // Preserved: "Self-Tracking" (no spaces around hyphen)
   const cleanHyphenatedLineBreaks = (text: string): string => {
     return text
-      .replace(/(\w)- (\w)/g, '$1$2') // "hyper- visor" -> "hypervisor"
-      .replace(/(\w) - (\w)/g, '$1$2') // "hyper - visor" -> "hypervisor"  
-      .replace(/(\w)-\s+(\w)/g, '$1$2') // "hyper-  visor" -> "hypervisor"
+      .replace(/(\w)- (\w)/g, '$1$2') // "hyper- visor" -> "hypervisor" (hyphen + space)
+      .replace(/(\w) - (\w)/g, '$1$2') // "hyper - visor" -> "hypervisor" (space + hyphen + space)
+      .replace(/(\w) -(\w)/g, '$1$2') // "hyper -visor" -> "hypervisor" (space + hyphen)
       .replace(/\s+/g, ' ') // Normalize remaining whitespace
       .trim();
   };
@@ -590,8 +592,10 @@ export function Reader() {
   const normalizeForComparison = (text: string): string => {
     return text
       .toLowerCase()
-      .replace(/-\s+/g, '') // Remove hyphen + whitespace ("hyper- visor" -> "hypervisor")
-      .replace(/-/g, '') // Remove all hyphens ("hyper-visor" -> "hypervisor")
+      .replace(/(\w)- (\w)/g, '$1$2') // Line break: "hyper- visor" -> "hypervisor"
+      .replace(/(\w) - (\w)/g, '$1$2') // Line break: "hyper - visor" -> "hypervisor"
+      .replace(/(\w) -(\w)/g, '$1$2') // Line break: "hyper -visor" -> "hypervisor"
+      // NOTE: Preserving hyphens without spaces (compound words like "Self-Tracking")
       .replace(/[.,;:()\[\]{}'"]/g, '') // Remove punctuation
       .replace(/\s+/g, ' ') // Normalize whitespace
       .trim();

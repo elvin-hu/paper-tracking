@@ -83,8 +83,10 @@ export function FurtherReadingPage() {
   const normalizeForComparison = (text: string): string => {
     return text
       .toLowerCase()
-      .replace(/-\s+/g, '') // Remove hyphen + whitespace ("hyper- visor" -> "hypervisor")
-      .replace(/-/g, '') // Remove all hyphens ("hyper-visor" -> "hypervisor")
+      .replace(/(\w)- (\w)/g, '$1$2') // Line break: "hyper- visor" -> "hypervisor"
+      .replace(/(\w) - (\w)/g, '$1$2') // Line break: "hyper - visor" -> "hypervisor"
+      .replace(/(\w) -(\w)/g, '$1$2') // Line break: "hyper -visor" -> "hypervisor"
+      // NOTE: Preserving hyphens without spaces (compound words like "Self-Tracking")
       .replace(/[.,;:()\[\]{}'"]/g, '') // Remove punctuation
       .replace(/\s+/g, ' ') // Normalize whitespace
       .trim();
