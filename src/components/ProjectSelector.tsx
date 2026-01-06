@@ -65,7 +65,7 @@ export function ProjectSelector() {
                     <div className="absolute top-full left-0 mt-1 w-72 bg-[var(--bg-card)] rounded-xl shadow-xl border border-[var(--border-default)] py-1.5 z-20 overflow-hidden">
                         {!showCreate ? (
                             <>
-                                <div className="max-h-64 overflow-y-auto">
+                                <div className="max-h-64 overflow-y-auto space-y-0.5">
                                     {projects.map(project => {
                                         const isSelected = project.id === currentProject?.id;
                                         const isEditing = editingProject?.id === project.id;
