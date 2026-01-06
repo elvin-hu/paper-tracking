@@ -1,6 +1,6 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Project, getProjects, createProject } from '../lib/project';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { getProjects, createProject, type Project } from '../lib/project';
 import { setDatabaseProjectId } from '../lib/database';
 
 interface ProjectContextType {

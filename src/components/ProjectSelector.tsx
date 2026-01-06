@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { useProject } from '../contexts/ProjectContext';
-import { Plus, Check, ChevronDown, Folder, FolderPlus } from 'lucide-react';
+import { Check, ChevronDown, Folder, FolderPlus } from 'lucide-react';
 
 export function ProjectSelector() {
     const { projects, currentProject, switchProject, createProject, isLoading } = useProject();
