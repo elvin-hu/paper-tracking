@@ -158,7 +158,11 @@ export function Library() {
     if (isProjectLoading || !currentProject) return;
 
     try {
-      setIsLoading(true);
+      // Only show loading spinner if we have no papers yet (initial load)
+      // This prevents flicker when switching projects
+      if (papers.length === 0) {
+        setIsLoading(true);
+      }
       console.log(`[Library] Loading papers for project ${currentProject.name}...`);
       const [loadedPapers, tags, settings, notes] = await Promise.all([
         getAllPapers(currentProject.id),

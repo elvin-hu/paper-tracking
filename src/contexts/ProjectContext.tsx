@@ -95,10 +95,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         const project = projects.find(p => p.id === projectId);
         if (project) {
             setCurrentProject(project);
-            // Force a reload of the page to ensure all components re-fetch data with new project ID
-            // This is a simpler approach than refactoring every component to listen to context changes for data refetch
-            // In a more complex app we might use React Query or SWR with keys including projectId
-            window.location.reload();
+            // window.location.reload() removed to prevent flickering
         }
     }
 

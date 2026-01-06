@@ -399,8 +399,8 @@ export async function deleteHighlight(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function getAllFurtherReadingHighlights(): Promise<Highlight[]> {
-  const targetProjectId = getProjectId();
+export async function getAllFurtherReadingHighlights(projectId?: string): Promise<Highlight[]> {
+  const targetProjectId = projectId || getProjectId();
 
   const { data, error } = await supabase
     .from('highlights')
@@ -414,8 +414,8 @@ export async function getAllFurtherReadingHighlights(): Promise<Highlight[]> {
 }
 
 // Note operations
-export async function getAllNotes(): Promise<Note[]> {
-  const targetProjectId = getProjectId();
+export async function getAllNotes(projectId?: string): Promise<Note[]> {
+  const targetProjectId = projectId || getProjectId();
 
   const { data, error } = await supabase
     .from('notes')
@@ -591,8 +591,8 @@ function rowToJournalEntry(row: Record<string, unknown>): JournalEntry {
   };
 }
 
-export async function getAllJournalEntries(): Promise<JournalEntry[]> {
-  const targetProjectId = getProjectId();
+export async function getAllJournalEntries(projectId?: string): Promise<JournalEntry[]> {
+  const targetProjectId = projectId || getProjectId();
 
   const { data, error } = await supabase
     .from('journal_entries')
@@ -669,13 +669,13 @@ export async function deleteJournalEntry(id: string): Promise<void> {
 // OpenAI API key is stored in localStorage for security (never sent to cloud)
 const OPENAI_KEY_STORAGE = 'paper-tracking-openai-key';
 
-export async function getSettings(): Promise<AppSettings> {
+export async function getSettings(projectId?: string): Promise<AppSettings> {
   // Get OpenAI key from localStorage (secure, device-only)
   const localOpenAIKey = typeof window !== 'undefined'
     ? localStorage.getItem(OPENAI_KEY_STORAGE) || undefined
     : undefined;
 
-  const targetProjectId = getProjectId();
+  const targetProjectId = projectId || getProjectId();
 
   const { data, error } = await supabase
     .from('settings')
@@ -701,7 +701,7 @@ export async function getSettings(): Promise<AppSettings> {
   };
 }
 
-export async function updateSettings(settings: AppSettings): Promise<void> {
+export async function updateSettings(settings: AppSettings, projectId?: string): Promise<void> {
   // Store OpenAI key in localStorage only (never send to cloud)
   if (typeof window !== 'undefined') {
     if (settings.openaiApiKey) {
@@ -712,7 +712,7 @@ export async function updateSettings(settings: AppSettings): Promise<void> {
   }
 
   // Store other settings in Supabase (synced across devices, per project)
-  const targetProjectId = getProjectId();
+  const targetProjectId = projectId || getProjectId();
 
   const { error } = await supabase
     .from('settings')

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { Note, Paper, Highlight } from '../types';
 import { getAllNotes, getAllPapers, getHighlightsByPaper } from '../lib/database';
+import { useProject } from '../contexts/ProjectContext';
 
 const SCROLL_POSITION_KEY = 'notes-page-scroll';
 
@@ -32,6 +33,7 @@ export function NotesPage() {
   const [notesWithContext, setNotesWithContext] = useState<NoteWithContext[]>([]);
   const [loading, setLoading] = useState(true);
   const [groupedNotes, setGroupedNotes] = useState<Map<string, NoteWithContext[]>>(new Map());
+  const { currentProject, isLoading: isProjectLoading } = useProject();
 
   // Dark mode detection
   const [isDarkMode, setIsDarkMode] = useState(() =>
@@ -68,8 +70,8 @@ export function NotesPage() {
     setLoading(true);
     try {
       const [notes, papers] = await Promise.all([
-        getAllNotes(),
-        getAllPapers(),
+        getAllNotes(currentProject?.id),
+        getAllPapers(currentProject?.id),
       ]);
 
       const paperMap = new Map<string, Paper>();
@@ -115,12 +117,16 @@ export function NotesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+    setLoading(false);
+  }, [currentProject]);
 
   // Reload notes when navigating back to this page
+  // Reload notes when navigating back to this page
   useEffect(() => {
-    loadNotes();
-  }, [loadNotes, location.key]);
+    if (!isProjectLoading && currentProject) {
+      loadNotes();
+    }
+  }, [loadNotes, location.key, isProjectLoading, currentProject]);
 
   const getColorScheme = (highlight: Highlight | null) => {
     if (!highlight) return HIGHLIGHT_COLORS.yellow;

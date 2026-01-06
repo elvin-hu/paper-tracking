@@ -43,6 +43,7 @@ import {
   getAllFurtherReadingHighlights,
 } from '../lib/database';
 import { EditPaperModal } from '../components/EditPaperModal';
+import { useProject } from '../contexts/ProjectContext';
 
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -358,6 +359,7 @@ export function Reader() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { currentProject, isLoading: isProjectLoading } = useProject();
 
   // Get the source route from location state (for proper back navigation)
   const sourceRoute = (location.state as { from?: string } | null)?.from;
@@ -567,9 +569,11 @@ export function Reader() {
 
   // Load all papers for reading list (needed to show paper info) and settings
   const loadAllPapers = useCallback(async () => {
+    if (!currentProject) return;
+
     const [papers, settings] = await Promise.all([
-      getAllPapers(),
-      getSettings(),
+      getAllPapers(currentProject.id),
+      getSettings(currentProject.id),
     ]);
     const paperMap = new Map<string, Paper>();
     papers.forEach((p) => paperMap.set(p.id, p));
@@ -577,11 +581,13 @@ export function Reader() {
     if (settings.sortOption) {
       setSortOption(settings.sortOption);
     }
-  }, []);
+  }, [currentProject]);
 
   useEffect(() => {
-    loadAllPapers();
-  }, [loadAllPapers]);
+    if (!isProjectLoading && currentProject) {
+      loadAllPapers();
+    }
+  }, [loadAllPapers, isProjectLoading, currentProject]);
 
   // Load all reading list items for deduplication
   useEffect(() => {

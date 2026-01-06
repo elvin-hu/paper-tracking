@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { HighlightColor, AppSettings } from '../types';
 import { getSettings, updateSettings } from '../lib/database';
+import { useProject } from '../contexts/ProjectContext';
 
 const HIGHLIGHT_COLORS: { color: HighlightColor; bg: string; border: string }[] = [
   { color: 'yellow', bg: 'var(--highlight-yellow)', border: '#fbbf24' },
@@ -30,17 +31,20 @@ export function Settings() {
   const [researchContext, setResearchContext] = useState('');
   const [isSaved, setIsSaved] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const { currentProject, isLoading: isProjectLoading } = useProject();
 
   useEffect(() => {
+    if (isProjectLoading) return;
+
     const loadSettings = async () => {
-      const loaded = await getSettings();
+      const loaded = await getSettings(currentProject?.id);
       setSettings(loaded);
       setApiKey(loaded.openaiApiKey || '');
       setResearchContext(loaded.researchContext || '');
       setIsLoading(false);
     };
     loadSettings();
-  }, []);
+  }, [currentProject, isProjectLoading]);
 
   const handleSave = async () => {
     const newSettings: AppSettings = {
@@ -48,7 +52,7 @@ export function Settings() {
       openaiApiKey: apiKey || undefined,
       researchContext: researchContext || undefined,
     };
-    await updateSettings(newSettings);
+    await updateSettings(newSettings, currentProject?.id);
     setSettings(newSettings);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);

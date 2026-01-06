@@ -24,6 +24,8 @@ import {
   getAllNotes,
 } from '../lib/database';
 
+import { useProject } from '../contexts/ProjectContext';
+
 // Group papers by the dates their notes were created
 // Group papers by date (either from notes or archive date)
 function groupPapersForJournal(
@@ -102,15 +104,17 @@ export default function Journal() {
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [editingSynthesis, setEditingSynthesis] = useState('');
   const [editingInsights, setEditingInsights] = useState<KeyInsight[]>([]);
+
   const [hoveredPaperId, setHoveredPaperId] = useState<string | null>(null);
+  const { currentProject, isLoading: isProjectLoading } = useProject();
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
       const [loadedPapers, entries, loadedNotes] = await Promise.all([
-        getAllPapers(),
-        getAllJournalEntries(),
-        getAllNotes(),
+        getAllPapers(currentProject?.id),
+        getAllJournalEntries(currentProject?.id),
+        getAllNotes(currentProject?.id),
       ]);
 
       setPapers(loadedPapers);
@@ -124,11 +128,13 @@ export default function Journal() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentProject]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!isProjectLoading && currentProject) {
+      loadData();
+    }
+  }, [loadData, isProjectLoading, currentProject]);
 
   const generateEntry = async (dateStr: string, datePapers: Paper[]) => {
     setGeneratingDate(dateStr);

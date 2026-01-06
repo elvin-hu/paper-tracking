@@ -12,11 +12,13 @@ import {
 } from 'lucide-react';
 import type { Highlight, Paper } from '../types';
 import { getAllFurtherReadingHighlights, getAllPapers, updateHighlight, deleteHighlight } from '../lib/database';
+import { useProject } from '../contexts/ProjectContext';
 
 const SCROLL_POSITION_KEY = 'further-reading-page-scroll';
 
 export function FurtherReadingPage() {
   const navigate = useNavigate();
+  const { currentProject, isLoading: isProjectLoading } = useProject();
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [papers, setPapers] = useState<Map<string, Paper>>(new Map());
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,8 +43,8 @@ export function FurtherReadingPage() {
     setIsLoading(true);
     try {
       const [loadedHighlights, allPapers] = await Promise.all([
-        getAllFurtherReadingHighlights(),
-        getAllPapers(),
+        getAllFurtherReadingHighlights(currentProject?.id),
+        getAllPapers(currentProject?.id),
       ]);
 
       setHighlights(loadedHighlights);
@@ -52,11 +54,13 @@ export function FurtherReadingPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentProject]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!isProjectLoading && currentProject) {
+      loadData();
+    }
+  }, [loadData, isProjectLoading, currentProject]);
 
   const toggleResolved = async (highlight: Highlight) => {
     const updated = {
