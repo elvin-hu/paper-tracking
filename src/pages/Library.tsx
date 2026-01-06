@@ -30,6 +30,7 @@ import type { Paper, SortOption, Note } from '../types';
 import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, updatePapersBatch, getSettings, updateSettings, getAllNotes, archivePaper } from '../lib/database';
 import { EditPaperModal } from '../components/EditPaperModal';
 import { ProjectSelector } from '../components/ProjectSelector';
+import { useProject } from '../contexts/ProjectContext';
 
 // Setup pdfjs worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -78,6 +79,9 @@ export function Library() {
   const [searchQuery, setSearchQuery] = useState(initialFilterState.searchQuery);
   const [sortOption, setSortOption] = useState<SortOption>('date-desc');
   const [isLoading, setIsLoading] = useState(true);
+
+  // Project context
+  const { currentProject, isLoading: isProjectLoading } = useProject();
   const sortOptionSaveTimeoutRef = useRef<number | null>(null);
 
   // Filter states (initialized from sessionStorage)
@@ -151,11 +155,13 @@ export function Library() {
 
 
   const loadData = useCallback(async () => {
+    if (isProjectLoading || !currentProject) return;
+
     try {
       setIsLoading(true);
-      console.log('[Library] Loading papers...');
+      console.log(`[Library] Loading papers for project ${currentProject.name}...`);
       const [loadedPapers, tags, settings, notes] = await Promise.all([
-        getAllPapers(),
+        getAllPapers(currentProject.id),
         getAllTags(),
         getSettings(),
         getAllNotes()
@@ -181,7 +187,7 @@ export function Library() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentProject, isProjectLoading]);
 
   useEffect(() => {
     loadData();

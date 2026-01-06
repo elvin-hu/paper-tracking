@@ -1,13 +1,27 @@
 
 import { useState } from 'react';
 import { useProject } from '../contexts/ProjectContext';
-import { Check, ChevronDown, Folder, FolderPlus } from 'lucide-react';
+import { Check, ChevronDown, Folder, FolderPlus, Edit2 } from 'lucide-react';
 
 export function ProjectSelector() {
-    const { projects, currentProject, switchProject, createProject, isLoading } = useProject();
+    const { projects, currentProject, switchProject, createProject, updateProjectName, isLoading } = useProject();
     const [isOpen, setIsOpen] = useState(false);
     const [showCreate, setShowCreate] = useState(false);
     const [newProjectName, setNewProjectName] = useState('');
+    const [editingProject, setEditingProject] = useState<{ id: string, name: string } | null>(null);
+
+    const handleUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingProject || !editingProject.name.trim()) return;
+
+        try {
+            await updateProjectName(editingProject.id, editingProject.name.trim());
+            setEditingProject(null);
+        } catch (error) {
+            console.error('Failed to update project:', error);
+            alert('Failed to update project');
+        }
+    };
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -53,23 +67,65 @@ export function ProjectSelector() {
                             <>
                                 <div className="max-h-60 overflow-y-auto">
                                     {projects.map(project => (
-                                        <button
-                                            key={project.id}
-                                            onClick={() => {
-                                                if (project.id !== currentProject?.id) {
-                                                    switchProject(project.id);
-                                                }
-                                                setIsOpen(false);
-                                            }}
-                                            className="w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-gray-50"
-                                        >
-                                            <span className={`truncate ${project.id === currentProject?.id ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
-                                                {project.name}
-                                            </span>
-                                            {project.id === currentProject?.id && (
-                                                <Check className="w-4 h-4 text-blue-600 ml-2 flex-shrink-0" />
+                                        <div key={project.id} className="group flex items-center justify-between px-4 py-2 hover:bg-gray-50">
+                                            {editingProject?.id === project.id ? (
+                                                <form
+                                                    onSubmit={handleUpdate}
+                                                    className="flex-1 flex gap-2"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <input
+                                                        type="text"
+                                                        value={editingProject.name}
+                                                        onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
+                                                        className="flex-1 px-2 py-0.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                        autoFocus
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Escape') setEditingProject(null);
+                                                        }}
+                                                    />
+                                                    <button
+                                                        type="submit"
+                                                        className="text-xs text-blue-600 font-medium hover:text-blue-700 disabled:opacity-50"
+                                                        disabled={!editingProject.name.trim()}
+                                                    >
+                                                        Save
+                                                    </button>
+                                                </form>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (project.id !== currentProject?.id) {
+                                                                switchProject(project.id);
+                                                            }
+                                                            setIsOpen(false);
+                                                        }}
+                                                        className="flex-1 flex items-center text-left text-sm"
+                                                    >
+                                                        <span className={`truncate ${project.id === currentProject?.id ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
+                                                            {project.name}
+                                                        </span>
+                                                    </button>
+
+                                                    <div className="flex items-center gap-1 ml-2">
+                                                        {project.id === currentProject?.id && (
+                                                            <Check className="w-4 h-4 text-blue-600" />
+                                                        )}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setEditingProject({ id: project.id, name: project.name });
+                                                            }}
+                                                            className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            title="Rename project"
+                                                        >
+                                                            <Edit2 className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                </>
                                             )}
-                                        </button>
+                                        </div>
                                     ))}
                                 </div>
 

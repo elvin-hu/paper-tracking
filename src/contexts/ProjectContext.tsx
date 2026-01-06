@@ -1,6 +1,6 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { getProjects, createProject, type Project } from '../lib/project';
+import { getProjects, createProject, updateProject, type Project } from '../lib/project';
 import { setDatabaseProjectId } from '../lib/database';
 
 interface ProjectContextType {
@@ -9,6 +9,7 @@ interface ProjectContextType {
     isLoading: boolean;
     createProject: (name: string) => Promise<void>;
     switchProject: (projectId: string) => void;
+    updateProjectName: (projectId: string, newName: string) => Promise<void>;
     refreshProjects: () => Promise<void>;
 }
 
@@ -77,6 +78,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         }
     }
 
+    async function handleUpdateProject(projectId: string, name: string) {
+        try {
+            await updateProject(projectId, name);
+            await loadProjects();
+            if (currentProject?.id === projectId) {
+                setCurrentProject(prev => prev ? { ...prev, name } : null);
+            }
+        } catch (error) {
+            console.error('[ProjectContext] Failed to update project:', error);
+            throw error;
+        }
+    }
+
     function switchProject(projectId: string) {
         const project = projects.find(p => p.id === projectId);
         if (project) {
@@ -95,6 +109,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
             isLoading,
             createProject: handleCreateProject,
             switchProject,
+            updateProjectName: handleUpdateProject,
             refreshProjects: loadProjects
         }}>
             {children}
