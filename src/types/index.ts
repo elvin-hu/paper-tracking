@@ -20,6 +20,7 @@ export interface Highlight {
 
 export interface Paper {
   id: string;
+  projectId?: string;
   title: string;
   authors?: string;
   abstract?: string;

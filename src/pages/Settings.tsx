@@ -103,9 +103,14 @@ export function Settings() {
       </header>
 
       <main className="max-w-xl mx-auto px-6 py-6">
-        <div className="space-y-4">
-          {/* API Key Section */}
-          <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4">
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <h2 className="text-sm font-bold text-[var(--accent-primary)] uppercase tracking-wide">
+              Global Settings
+            </h2>
+            
+            {/* API Key Section */}
+            <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4">
             <div className="flex items-center gap-2.5 mb-3">
               <div className="w-8 h-8 rounded-lg bg-[var(--accent-purple)]/15 flex items-center justify-center">
                 <Key className="w-4 h-4 text-[var(--accent-purple)]" />
@@ -144,7 +149,16 @@ export function Settings() {
             </div>
           </section>
 
-          {/* Research Context Section */}
+            </div>
+          </section>
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-sm font-bold text-[var(--accent-primary)] uppercase tracking-wide">
+              Project Settings
+            </h2>
+
+            {/* Research Context Section */}
           <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4">
             <div className="flex items-center gap-2.5 mb-3">
               <div className="w-8 h-8 rounded-lg bg-[var(--accent-primary)]/15 flex items-center justify-center">
@@ -225,7 +239,9 @@ export function Settings() {
             </div>
           </section>
         </div>
-      </main>
+        </div >
+      </div >
+      </main >
     </div >
   );
 }

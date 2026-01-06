@@ -29,6 +29,7 @@ import {
 import type { Paper, SortOption, Note } from '../types';
 import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, updatePapersBatch, getSettings, updateSettings, getAllNotes, archivePaper } from '../lib/database';
 import { EditPaperModal } from '../components/EditPaperModal';
+import { ProjectSelector } from '../components/ProjectSelector';
 
 // Setup pdfjs worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -1048,6 +1049,8 @@ export function Library() {
             <span className="text-base font-semibold text-[var(--text-primary)]">
               Paper Lab
             </span>
+            <div className="h-4 w-px bg-[var(--border-default)] mx-1"></div>
+            <ProjectSelector />
           </div>
 
           <nav className="flex items-center gap-1">

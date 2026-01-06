@@ -1,6 +1,18 @@
 import { supabase } from './supabase';
 import { getCachedPdf, cachePdf, deleteCachedPdf } from './pdfCache';
-import type { Paper, PaperFile, Highlight, Note, Riff, FurtherReading, AppSettings, HighlightColor, JournalEntry, KeyInsight } from '../types';
+import type { Paper, PaperFile, Highlight, Note, FurtherReading, AppSettings, HighlightColor, JournalEntry, KeyInsight } from '../types';
+
+let currentProjectId: string | undefined;
+
+export function setDatabaseProjectId(id: string | undefined) {
+  currentProjectId = id;
+}
+
+// Helper to get current project ID (returns default UUID if not set, to be safe)
+function getProjectId(): string {
+  // If no project selected, use the default one (all zeros UUID)
+  return currentProjectId || '00000000-0000-0000-0000-000000000000';
+}
 
 // Helper to convert database row to Paper type
 function rowToPaper(row: Record<string, unknown>): Paper {
@@ -21,6 +33,7 @@ function rowToPaper(row: Record<string, unknown>): Paper {
   return {
     id: String(row.id),
     title: String(row.title),
+    projectId: row.project_id ? String(row.project_id) : undefined,
     authors: row.authors ? String(row.authors) : undefined,
     tags: tags,
     uploadedAt: row.created_at ? new Date(String(row.created_at)) : new Date(),
@@ -66,10 +79,13 @@ function rowToNote(row: Record<string, unknown>): Note {
 }
 
 // Paper operations
-export async function getAllPapers(): Promise<Paper[]> {
+export async function getAllPapers(projectId?: string): Promise<Paper[]> {
+  const targetProjectId = projectId || getProjectId();
+
   const { data, error } = await supabase
     .from('papers')
     .select('*')
+    .eq('project_id', targetProjectId)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -108,8 +124,11 @@ export async function getPaper(id: string): Promise<Paper | undefined> {
 }
 
 export async function addPaper(paper: Paper): Promise<void> {
+  const targetProjectId = getProjectId();
+
   const { error } = await supabase.from('papers').insert({
     id: paper.id,
+    project_id: targetProjectId,
     title: paper.title,
     authors: paper.authors,
     tags: paper.tags,
@@ -325,6 +344,9 @@ export async function addPaperFile(file: PaperFile): Promise<void> {
 
 // Highlight operations
 export async function getHighlightsByPaper(paperId: string): Promise<Highlight[]> {
+  // Highlights are linked to papers, so we don't strictly need project_id check here 
+  // if we assume papers are correctly isolated. But for safety/completeness we could add it.
+  // For now, simple paper_id check is enough as paper_id is unique across all projects.
   const { data, error } = await supabase
     .from('highlights')
     .select('*')
@@ -336,8 +358,11 @@ export async function getHighlightsByPaper(paperId: string): Promise<Highlight[]
 }
 
 export async function addHighlight(highlight: Highlight): Promise<void> {
+  const targetProjectId = getProjectId();
+
   const { error } = await supabase.from('highlights').insert({
     id: highlight.id,
+    project_id: targetProjectId,
     paper_id: highlight.paperId,
     text: highlight.text,
     color: highlight.color,
@@ -375,9 +400,12 @@ export async function deleteHighlight(id: string): Promise<void> {
 }
 
 export async function getAllFurtherReadingHighlights(): Promise<Highlight[]> {
+  const targetProjectId = getProjectId();
+
   const { data, error } = await supabase
     .from('highlights')
     .select('*')
+    .eq('project_id', targetProjectId)
     .eq('is_further_reading', true)
     .order('created_at', { ascending: false });
 
@@ -387,9 +415,12 @@ export async function getAllFurtherReadingHighlights(): Promise<Highlight[]> {
 
 // Note operations
 export async function getAllNotes(): Promise<Note[]> {
+  const targetProjectId = getProjectId();
+
   const { data, error } = await supabase
     .from('notes')
     .select('*')
+    .eq('project_id', targetProjectId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -419,8 +450,11 @@ export async function getNotesByPaper(paperId: string): Promise<Note[]> {
 }
 
 export async function addNote(note: Note): Promise<void> {
+  const targetProjectId = getProjectId();
+
   const { error } = await supabase.from('notes').insert({
     id: note.id,
+    project_id: targetProjectId,
     highlight_id: note.highlightId,
     paper_id: note.paperId,
     content: note.content,
@@ -450,18 +484,7 @@ export async function deleteNote(id: string): Promise<void> {
   if (error) throw error;
 }
 
-// Riff operations (kept for backwards compatibility, but not used)
-export async function getRiffsByPaper(_paperId: string): Promise<Riff[]> {
-  return [];
-}
 
-export async function addRiff(_riff: Riff): Promise<void> {
-  // Not implemented - riffs feature was removed
-}
-
-export async function deleteRiff(_id: string): Promise<void> {
-  // Not implemented - riffs feature was removed
-}
 
 // Further reading operations (now using highlights with isFurtherReading flag)
 export async function getFurtherReadingByPaper(paperId: string): Promise<FurtherReading[]> {
@@ -569,9 +592,12 @@ function rowToJournalEntry(row: Record<string, unknown>): JournalEntry {
 }
 
 export async function getAllJournalEntries(): Promise<JournalEntry[]> {
+  const targetProjectId = getProjectId();
+
   const { data, error } = await supabase
     .from('journal_entries')
     .select('*')
+    .eq('project_id', targetProjectId)
     .order('date', { ascending: false });
 
   if (error) {
@@ -598,8 +624,11 @@ export async function getJournalEntry(date: string): Promise<JournalEntry | unde
 }
 
 export async function addJournalEntry(entry: JournalEntry): Promise<void> {
+  const targetProjectId = getProjectId();
+
   const { error } = await supabase.from('journal_entries').insert({
     id: entry.id,
+    project_id: targetProjectId,
     date: entry.date,
     paper_ids: entry.paperIds,
     synthesis: entry.synthesis,
@@ -646,10 +675,12 @@ export async function getSettings(): Promise<AppSettings> {
     ? localStorage.getItem(OPENAI_KEY_STORAGE) || undefined
     : undefined;
 
+  const targetProjectId = getProjectId();
+
   const { data, error } = await supabase
     .from('settings')
     .select('*')
-    .eq('id', 1)
+    .eq('project_id', targetProjectId)
     .single();
 
   if (error) {
@@ -680,16 +711,19 @@ export async function updateSettings(settings: AppSettings): Promise<void> {
     }
   }
 
-  // Store other settings in Supabase (synced across devices)
+  // Store other settings in Supabase (synced across devices, per project)
+  const targetProjectId = getProjectId();
+
   const { error } = await supabase
     .from('settings')
-    .update({
-      // Note: openai_api_key is NOT sent to Supabase anymore
+    .upsert({
+      project_id: targetProjectId,
       default_highlight_color: settings.defaultHighlightColor,
       research_context: settings.researchContext,
       sort_option: settings.sortOption,
-    })
-    .eq('id', 1);
+    }, {
+      onConflict: 'project_id'
+    });
 
   if (error) throw error;
 }
