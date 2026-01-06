@@ -729,8 +729,8 @@ export async function updateSettings(settings: AppSettings, projectId?: string):
 }
 
 // Get all unique tags
-export async function getAllTags(): Promise<string[]> {
-  const papers = await getAllPapers();
+export async function getAllTags(projectId?: string): Promise<string[]> {
+  const papers = await getAllPapers(projectId);
   const tagSet = new Set<string>();
   papers.forEach(paper => {
     paper.tags.forEach(tag => tagSet.add(tag));

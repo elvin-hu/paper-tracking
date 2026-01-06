@@ -786,10 +786,20 @@ export function Reader() {
   // Save panel states to localStorage
   useEffect(() => {
     localStorage.setItem('reader-showPaperList', String(showPaperList));
+    // Trigger resize event after animation completes to recalculate PDF width
+    const timeoutId = setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 250); // Match the CSS transition duration
+    return () => clearTimeout(timeoutId);
   }, [showPaperList]);
 
   useEffect(() => {
     localStorage.setItem('reader-showRightPanel', String(showRightPanel));
+    // Trigger resize event after animation completes to recalculate PDF width
+    const timeoutId = setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 250); // Match the CSS transition duration
+    return () => clearTimeout(timeoutId);
   }, [showRightPanel]);
 
   // Save scroll position to localStorage on scroll (debounced)

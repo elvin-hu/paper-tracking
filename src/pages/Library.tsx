@@ -166,7 +166,7 @@ export function Library() {
       console.log(`[Library] Loading papers for project ${currentProject.name}...`);
       const [loadedPapers, tags, settings, notes] = await Promise.all([
         getAllPapers(currentProject.id),
-        getAllTags(),
+        getAllTags(currentProject.id),
         getSettings(),
         getAllNotes()
       ]);
