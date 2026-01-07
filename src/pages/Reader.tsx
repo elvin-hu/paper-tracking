@@ -115,22 +115,40 @@ function parseReferences(fullText: string): Map<string, string> {
   for (const pattern of refSectionPatterns) {
     const match = normalizedText.match(pattern);
     if (match && match.index !== undefined) {
-      // Find the LAST occurrence in the last 50% of the document (references section header is at the end)
+      // Search in the last 50% of the document
       const lastPortion = normalizedText.slice(Math.floor(normalizedText.length * 0.5));
+      const portionOffset = Math.floor(normalizedText.length * 0.5);
 
-      // Use a global regex to find ALL matches, then take the last one
+      // Find ALL occurrences of the pattern
       const globalPattern = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');
-      let lastMatch: RegExpExecArray | null = null;
+      const allMatches: { index: number; length: number }[] = [];
       let execMatch: RegExpExecArray | null;
       while ((execMatch = globalPattern.exec(lastPortion)) !== null) {
-        lastMatch = execMatch;
+        allMatches.push({ index: execMatch.index, length: execMatch[0].length });
       }
 
-      if (lastMatch && lastMatch.index !== undefined) {
-        refSectionStart = Math.floor(normalizedText.length * 0.5) + lastMatch.index + lastMatch[0].length;
-        console.log(`[RefParser] Found references section at position ${refSectionStart} using pattern: ${pattern} (last occurrence)`);
-        break;
+      // Check each match to see if it looks like a section header (followed by citations)
+      // Prefer the FIRST one that has citation patterns after it
+      for (const m of allMatches) {
+        const textAfterMatch = lastPortion.slice(m.index + m.length, m.index + m.length + 500);
+        // Look for citation patterns: [1], [2], or numbered like "1." at start of line
+        const hasCitationPattern = /\[1\]|\n\s*1\.\s+[A-Z]/.test(textAfterMatch);
+
+        if (hasCitationPattern) {
+          refSectionStart = portionOffset + m.index + m.length;
+          console.log(`[RefParser] Found references section at position ${refSectionStart} using pattern: ${pattern} (verified by citation pattern)`);
+          break;
+        }
       }
+
+      // If no match with citation pattern, fall back to first occurrence
+      if (refSectionStart === -1 && allMatches.length > 0) {
+        const firstMatch = allMatches[0];
+        refSectionStart = portionOffset + firstMatch.index + firstMatch.length;
+        console.log(`[RefParser] Found references section at position ${refSectionStart} using pattern: ${pattern} (first occurrence, no citation pattern verified)`);
+      }
+
+      if (refSectionStart !== -1) break;
     }
   }
 
