@@ -115,12 +115,20 @@ function parseReferences(fullText: string): Map<string, string> {
   for (const pattern of refSectionPatterns) {
     const match = normalizedText.match(pattern);
     if (match && match.index !== undefined) {
-      // Find it in the last 50% of the document (references are usually at the end)
+      // Find the LAST occurrence in the last 50% of the document (references section header is at the end)
       const lastPortion = normalizedText.slice(Math.floor(normalizedText.length * 0.5));
-      const matchInLastPortion = lastPortion.match(pattern);
-      if (matchInLastPortion && matchInLastPortion.index !== undefined) {
-        refSectionStart = Math.floor(normalizedText.length * 0.5) + matchInLastPortion.index + matchInLastPortion[0].length;
-        console.log(`[RefParser] Found references section at position ${refSectionStart} using pattern: ${pattern}`);
+
+      // Use a global regex to find ALL matches, then take the last one
+      const globalPattern = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');
+      let lastMatch: RegExpExecArray | null = null;
+      let execMatch: RegExpExecArray | null;
+      while ((execMatch = globalPattern.exec(lastPortion)) !== null) {
+        lastMatch = execMatch;
+      }
+
+      if (lastMatch && lastMatch.index !== undefined) {
+        refSectionStart = Math.floor(normalizedText.length * 0.5) + lastMatch.index + lastMatch[0].length;
+        console.log(`[RefParser] Found references section at position ${refSectionStart} using pattern: ${pattern} (last occurrence)`);
         break;
       }
     }
