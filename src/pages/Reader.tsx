@@ -192,24 +192,14 @@ function parseReferences(fullText: string): Map<string, string> {
   console.log(`[RefParser] First 500 chars of ref section: ${refSection.slice(0, 500)}`);
 
   // Helper: Check if text looks like a valid reference citation (not a table row)
+  // Relaxed validation to handle various formatting styles (including all lowercase)
   const looksLikeCitation = (text: string): boolean => {
-    // Citations typically have:
-    // - Authors (capital letters at start)
-    // - Year in parentheses or after a period
-    // - Longer text (> 50 chars typically)
-    // Table rows are usually shorter and have inconsistent structure
-
+    // Too short to be a real citation
     if (text.length < 30) return false;
 
-    // Should start with capital letter (author name)
-    if (!/^[A-Z]/.test(text.trim())) return false;
-
-    // Should contain a year (19xx or 20xx)
-    if (!/\b(19|20)\d{2}\b/.test(text)) return false;
-
-    // Should have substantial text content (not just "Author [N] Year Venue")
+    // Should have substantial text content (not just short fragments)
     const wordCount = text.split(/\s+/).length;
-    if (wordCount < 8) return false;
+    if (wordCount < 5) return false;
 
     return true;
   };
