@@ -2719,6 +2719,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                   <p
                                     className={`text-xs text-[var(--text-primary)] leading-relaxed ${resolved ? 'line-through' : ''
                                       }`}
+                                    style={{ wordBreak: 'break-all' }}
                                   >
                                     {item.text}
                                   </p>
