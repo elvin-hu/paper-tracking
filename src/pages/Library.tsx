@@ -168,7 +168,7 @@ export function Library() {
         getAllPapers(currentProject.id),
         getAllTags(currentProject.id),
         getSettings(),
-        getAllNotes()
+        getAllNotes(currentProject.id)
       ]);
       console.log(`[Library] Loaded ${loadedPapers.length} papers, ${notes.length} notes`);
       setPapers(loadedPapers);
@@ -196,6 +196,38 @@ export function Library() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Refresh notes when page becomes visible again (user navigates back from Reader)
+  useEffect(() => {
+    const refreshNotes = async () => {
+      if (currentProject && !isProjectLoading) {
+        try {
+          const notes = await getAllNotes(currentProject.id);
+          setAllNotes(notes);
+        } catch (error) {
+          console.error('[Library] Failed to refresh notes:', error);
+        }
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshNotes();
+      }
+    };
+
+    const handleFocus = () => {
+      refreshNotes();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [currentProject, isProjectLoading]);
 
   // Save sort option when it changes
   useEffect(() => {
@@ -995,9 +1027,11 @@ export function Library() {
   }, [allNotes]);
 
   // Toggle sort direction for a column
-  const toggleSort = (column: 'title' | 'date') => {
+  const toggleSort = (column: 'title' | 'date' | 'notes') => {
     if (column === 'title') {
       setSortOption(prev => prev === 'title-asc' ? 'title-desc' : 'title-asc');
+    } else if (column === 'notes') {
+      setSortOption(prev => prev === 'notes-desc' ? 'notes-asc' : 'notes-desc');
     } else {
       setSortOption(prev => prev === 'date-desc' ? 'date-asc' : 'date-desc');
     }
@@ -1027,6 +1061,10 @@ export function Library() {
           return a.title.localeCompare(b.title);
         case 'title-desc':
           return b.title.localeCompare(a.title);
+        case 'notes-asc':
+          return getNoteCountForPaper(a.id) - getNoteCountForPaper(b.id);
+        case 'notes-desc':
+          return getNoteCountForPaper(b.id) - getNoteCountForPaper(a.id);
         case 'date-asc':
           return getLastUpdatedDate(a).getTime() - getLastUpdatedDate(b).getTime();
         case 'date-desc':
@@ -1295,7 +1333,19 @@ export function Library() {
                           </div>
                         </th>
                         <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '20%' }}>Tags</th>
-                        <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-16">Notes</th>
+                        <th
+                          className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-20 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
+                          onClick={() => toggleSort('notes')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Notes
+                            {(sortOption === 'notes-asc' || sortOption === 'notes-desc') && (
+                              sortOption === 'notes-asc'
+                                ? <ArrowUp className="w-3 h-3" />
+                                : <ArrowDown className="w-3 h-3" />
+                            )}
+                          </div>
+                        </th>
                         <th
                           className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-24 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
                           onClick={() => toggleSort('date')}
