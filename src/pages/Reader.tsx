@@ -1261,6 +1261,20 @@ export function Reader() {
       }
     }
 
+    // Check for duplicates before creating a further reading highlight
+    if (markAsFurtherReading) {
+      const isDuplicate = allReadingListItems.some(item =>
+        normalizeForComparison(item.text) === normalizeForComparison(highlightText)
+      );
+      if (isDuplicate) {
+        console.log('[Reader] Skipping duplicate reading list item:', highlightText.slice(0, 50));
+        setShowColorPicker(false);
+        setCitationNoteInput('');
+        window.getSelection()?.removeAllRanges();
+        return;
+      }
+    }
+
     const highlight: Highlight = {
       id: uuidv4(),
       paperId,
