@@ -169,16 +169,48 @@ function parseReferences(fullText: string): Map<string, string> {
   }
 
   let refSection = normalizedText.slice(refSectionStart);
+  const originalRefSectionLength = refSection.length;
+
+  // First, find ALL bracket patterns in the full text (before any trimming)
+  // This is important for 2-column PDFs where "Table X:" might appear mid-references
+  // due to interleaved column extraction
+  const bracketPatternPreCheck = /\[(\d+)\]/g;
+  const allBracketMatches: { num: number; index: number }[] = [];
+  let preCheckMatch;
+  while ((preCheckMatch = bracketPatternPreCheck.exec(refSection)) !== null) {
+    allBracketMatches.push({ num: parseInt(preCheckMatch[1], 10), index: preCheckMatch.index });
+  }
+
+  // Find the last sequential reference to determine where references truly end
+  let preCheckLastIndex = 0;
+  let preCheckExpectedNum = 1;
+  for (const m of allBracketMatches) {
+    if (m.num >= preCheckExpectedNum && m.num <= preCheckExpectedNum + 5) {
+      preCheckLastIndex = m.index;
+      preCheckExpectedNum = m.num + 1;
+    } else if (m.num === 1 && preCheckExpectedNum === 1) {
+      preCheckLastIndex = m.index;
+      preCheckExpectedNum = 2;
+    }
+  }
+
+  // Estimate where the last reference ends (index + ~500 chars for a typical reference)
+  const estimatedLastRefEnd = preCheckLastIndex + 500;
+  console.log(`[RefParser] Last sequential ref [${preCheckExpectedNum - 1}] found at index ${preCheckLastIndex}, estimated end at ${estimatedLastRefEnd}`);
 
   // Find and trim at end-of-references patterns (appendices, etc.)
+  // But ONLY if they appear AFTER the last sequential reference
   let refSectionEnd = refSection.length;
   for (const endPattern of endSectionPatterns) {
     const endMatch = refSection.match(endPattern);
     if (endMatch && endMatch.index !== undefined && endMatch.index > 100) {
-      // Only consider it if it's after some content (not at the very start)
-      if (endMatch.index < refSectionEnd) {
+      // Only consider it if it's after the last sequential reference
+      // This prevents interleaved content (like "Table 1:" from another column) from cutting off references
+      if (endMatch.index > estimatedLastRefEnd && endMatch.index < refSectionEnd) {
         refSectionEnd = endMatch.index;
         console.log(`[RefParser] Detected end of references at position ${endMatch.index} via pattern: ${endPattern}`);
+      } else if (endMatch.index <= estimatedLastRefEnd) {
+        console.log(`[RefParser] Ignoring end pattern at position ${endMatch.index} (before last ref at ${preCheckLastIndex}) - likely interleaved column content`);
       }
     }
   }
@@ -186,9 +218,11 @@ function parseReferences(fullText: string): Map<string, string> {
   if (refSectionEnd < refSection.length) {
     console.log(`[RefParser] Trimming reference section from ${refSection.length} to ${refSectionEnd} chars`);
     refSection = refSection.slice(0, refSectionEnd);
+  } else {
+    console.log(`[RefParser] No trimming needed, using full reference section`);
   }
 
-  console.log(`[RefParser] Reference section length: ${refSection.length} chars`);
+  console.log(`[RefParser] Reference section length: ${refSection.length} chars (original: ${originalRefSectionLength})`);
   console.log(`[RefParser] First 500 chars of ref section: ${refSection.slice(0, 500)}`);
 
   // Helper: Check if text looks like a valid reference citation (not a table row)
@@ -1331,6 +1365,8 @@ export function Reader() {
     await deleteHighlight(highlightId);
     setHighlights((prev) => prev.filter((h) => h.id !== highlightId));
     setReadingList((prev) => prev.filter((h) => h.id !== highlightId));
+    // Also remove from global reading list for deduplication
+    setAllReadingListItems((prev) => prev.filter((h) => h.id !== highlightId));
     // Also delete related notes
     const relatedNotes = notes.filter((n) => n.highlightId === highlightId);
     for (const note of relatedNotes) {
