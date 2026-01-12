@@ -48,6 +48,7 @@ interface AttachedNote {
   highlightColor: HighlightColor;
   paperTitle: string;
   userComment: string;
+  isKept: boolean; // true = user kept it, false = still a suggestion
 }
 
 // Version of AI draft
@@ -67,6 +68,8 @@ interface ParagraphModule {
   aiDraft: string;
   draftVersions: DraftVersion[];
   isGeneratingDraft: boolean;
+  isFindingNotes: boolean;
+  hasLoadedSuggestions: boolean;
 }
 
 // Extend highlight with paper info
@@ -113,7 +116,6 @@ export function Compose() {
   const [compositionTitle, setCompositionTitle] = useState('Untitled Paper');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showDraftPanel, setShowDraftPanel] = useState(true);
-  const [showNotesPicker, setShowNotesPicker] = useState<string | null>(null);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [isGeneratingModules, setIsGeneratingModules] = useState(false);
 
@@ -302,6 +304,8 @@ export function Compose() {
       aiDraft: '',
       draftVersions: [],
       isGeneratingDraft: false,
+      isFindingNotes: false,
+      hasLoadedSuggestions: false,
     };
     setModules(prev => [...prev, newModule]);
   }, [modules]);
@@ -355,27 +359,114 @@ export function Compose() {
   }, []);
 
   // Attach note to module
-  const attachNote = useCallback((moduleId: string, highlight: HighlightWithPaper) => {
+  // Find relevant notes using AI
+  const findRelevantNotes = useCallback(async (moduleId: string) => {
+    const module = modules.find(m => m.id === moduleId);
+    if (!module) return;
+    
+    const section = sections.find(s => s.id === module.sectionId);
+    
+    updateModule(moduleId, { isFindingNotes: true });
+    
+    try {
+      // Get highlights not already attached
+      const attachedIds = module.attachedNotes.map(n => n.highlightId);
+      const availableHighlights = highlights.filter(h => !attachedIds.includes(h.id));
+      
+      if (availableHighlights.length === 0) {
+        updateModule(moduleId, { isFindingNotes: false, hasLoadedSuggestions: true });
+        return;
+      }
+
+      const highlightsList = availableHighlights.slice(0, 30).map((h, i) => 
+        `[${i}] Color: ${h.color}, Text: "${h.text.slice(0, 150)}...", Paper: ${h.paperTitle}`
+      ).join('\n');
+      
+      const response = await fetch('/api/openai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'system',
+              content: `You are helping find relevant research highlights for a paragraph in an academic paper.
+Based on the section name, paragraph topic, and available highlights, identify the most relevant ones.
+
+Color meanings:
+- yellow: Research gaps & problems
+- red: Limitations
+- purple: Further reading/references
+- blue: Methodology
+- green: Findings/results
+
+Return ONLY a JSON array of indices (e.g., [0, 2, 5]) for relevant highlights (max 5).`
+            },
+            {
+              role: 'user',
+              content: `Section: ${section?.title || 'Unknown'}
+Paragraph topic: ${module.userWriting || '(not specified yet)'}
+
+Available highlights:
+${highlightsList}
+
+Return JSON array of relevant highlight indices:`
+            }
+          ],
+          model: 'gpt-4o-mini',
+          max_tokens: 100,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content?.trim();
+        try {
+          const indices = JSON.parse(content);
+          if (Array.isArray(indices)) {
+            const suggestedNotes: AttachedNote[] = indices
+              .filter((i: number) => i >= 0 && i < availableHighlights.length)
+              .slice(0, 5)
+              .map((i: number) => ({
+                highlightId: availableHighlights[i].id,
+                highlightText: availableHighlights[i].text,
+                highlightColor: availableHighlights[i].color,
+                paperTitle: availableHighlights[i].paperTitle,
+                userComment: '',
+                isKept: false, // These are suggestions
+              }));
+            
+            updateModule(moduleId, {
+              attachedNotes: [...module.attachedNotes, ...suggestedNotes],
+              isFindingNotes: false,
+              hasLoadedSuggestions: true,
+            });
+          }
+        } catch {
+          console.error('Failed to parse AI response');
+          updateModule(moduleId, { isFindingNotes: false, hasLoadedSuggestions: true });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to find relevant notes:', error);
+      updateModule(moduleId, { isFindingNotes: false, hasLoadedSuggestions: true });
+    }
+  }, [modules, sections, highlights, updateModule]);
+
+  // Keep a suggested note
+  const keepNote = useCallback((moduleId: string, highlightId: string) => {
     setModules(prev => prev.map(m => {
       if (m.id !== moduleId) return m;
-      if (m.attachedNotes.some(n => n.highlightId === highlight.id)) return m;
-      
       return {
         ...m,
-        attachedNotes: [...m.attachedNotes, {
-          highlightId: highlight.id,
-          highlightText: highlight.text,
-          highlightColor: highlight.color,
-          paperTitle: highlight.paperTitle,
-          userComment: '',
-        }],
+        attachedNotes: m.attachedNotes.map(n =>
+          n.highlightId === highlightId ? { ...n, isKept: true } : n
+        ),
       };
     }));
-    setShowNotesPicker(null);
   }, []);
 
-  // Remove attached note
-  const removeAttachedNote = useCallback((moduleId: string, highlightId: string) => {
+  // Discard a suggested note
+  const discardNote = useCallback((moduleId: string, highlightId: string) => {
     setModules(prev => prev.map(m => {
       if (m.id !== moduleId) return m;
       return {
@@ -408,7 +499,9 @@ export function Compose() {
     updateModule(moduleId, { isGeneratingDraft: true });
     
     try {
-      const notesContext = module.attachedNotes.map(n => 
+      // Only use kept notes for draft generation
+      const keptNotes = module.attachedNotes.filter(n => n.isKept);
+      const notesContext = keptNotes.map(n => 
         `"${n.highlightText}" (${n.paperTitle})${n.userComment ? ` [Comment: ${n.userComment}]` : ''}`
       ).join('\n');
       
@@ -520,10 +613,13 @@ Suggest paragraph structure (JSON):`
                   highlightColor: availableHighlights[idx].color,
                   paperTitle: availableHighlights[idx].paperTitle,
                   userComment: '',
+                  isKept: false, // Start as suggestions
                 })),
               aiDraft: '',
               draftVersions: [],
               isGeneratingDraft: false,
+              isFindingNotes: false,
+              hasLoadedSuggestions: true, // Already has AI suggestions
             }));
             setModules(prev => [...prev, ...newModules]);
           }
@@ -792,59 +888,74 @@ Suggest paragraph structure (JSON):`
                           />
                         </div>
 
-                        {/* Attached Notes */}
+                        {/* Supporting Notes */}
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <label className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]">
                               <StickyNote className="w-3.5 h-3.5" />
-                              Supporting Notes ({module.attachedNotes.length})
+                              Supporting Notes
+                              {module.attachedNotes.filter(n => n.isKept).length > 0 && (
+                                <span className="text-[10px] px-1.5 py-0.5 bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] rounded-full">
+                                  {module.attachedNotes.filter(n => n.isKept).length} kept
+                                </span>
+                              )}
                             </label>
                             <button
-                              onClick={() => setShowNotesPicker(showNotesPicker === module.id ? null : module.id)}
-                              className="flex items-center gap-1 text-xs text-[var(--accent-primary)] hover:underline"
+                              onClick={() => findRelevantNotes(module.id)}
+                              disabled={module.isFindingNotes}
+                              className="flex items-center gap-1 text-xs text-[var(--accent-primary)] hover:underline disabled:opacity-50"
                             >
-                              <Plus className="w-3 h-3" />
-                              Add Note
+                              <Wand2 className="w-3 h-3" />
+                              {module.isFindingNotes ? 'Finding...' : module.hasLoadedSuggestions ? 'Find More' : 'Find Relevant Notes'}
                             </button>
                           </div>
                           
-                          {/* Notes Picker */}
-                          {showNotesPicker === module.id && (
-                            <div className="mb-3 p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-medium text-[var(--text-primary)]">Select a highlight</span>
-                                <button onClick={() => setShowNotesPicker(null)} className="text-[var(--text-muted)]">
-                                  <X className="w-4 h-4" />
-                                </button>
+                          {/* AI Suggestions (not kept yet) */}
+                          {module.attachedNotes.filter(n => !n.isKept).length > 0 && (
+                            <div className="mb-3 p-3 bg-[var(--accent-primary)]/5 rounded-lg border border-[var(--accent-primary)]/20">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Sparkles className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
+                                <span className="text-xs font-medium text-[var(--accent-primary)]">
+                                  AI Suggestions — keep the relevant ones
+                                </span>
                               </div>
-                              <div className="max-h-48 overflow-y-auto space-y-1.5">
-                                {highlights.slice(0, 20).map(h => (
-                                  <button
-                                    key={h.id}
-                                    onClick={() => attachNote(module.id, h)}
-                                    disabled={module.attachedNotes.some(n => n.highlightId === h.id)}
-                                    className="w-full text-left p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              <div className="space-y-2">
+                                {module.attachedNotes.filter(n => !n.isKept).map(note => (
+                                  <div
+                                    key={note.highlightId}
+                                    className="p-2 bg-[var(--bg-card)] rounded-lg border-l-4 flex items-start gap-2"
+                                    style={{ borderColor: HIGHLIGHT_COLOR_MAP[note.highlightColor] }}
                                   >
-                                    <div className="flex items-start gap-2">
-                                      <div
-                                        className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
-                                        style={{ backgroundColor: HIGHLIGHT_COLOR_MAP[h.color] }}
-                                      />
-                                      <div>
-                                        <p className="text-xs text-[var(--text-primary)] line-clamp-2">{h.text}</p>
-                                        <p className="text-[10px] text-[var(--text-muted)]">{h.paperTitle}</p>
-                                      </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs text-[var(--text-primary)] line-clamp-2">"{note.highlightText}"</p>
+                                      <p className="text-[10px] text-[var(--text-muted)] mt-1">— {note.paperTitle}</p>
                                     </div>
-                                  </button>
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                      <button
+                                        onClick={() => keepNote(module.id, note.highlightId)}
+                                        className="p-1.5 text-[var(--accent-green)] hover:bg-[var(--accent-green)]/10 rounded transition-colors"
+                                        title="Keep this note"
+                                      >
+                                        <Check className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => discardNote(module.id, note.highlightId)}
+                                        className="p-1.5 text-[var(--text-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 rounded transition-colors"
+                                        title="Discard"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
                                 ))}
                               </div>
                             </div>
                           )}
 
-                          {/* Attached Notes List */}
-                          {module.attachedNotes.length > 0 && (
+                          {/* Kept Notes */}
+                          {module.attachedNotes.filter(n => n.isKept).length > 0 ? (
                             <div className="space-y-2">
-                              {module.attachedNotes.map(note => (
+                              {module.attachedNotes.filter(n => n.isKept).map(note => (
                                 <div
                                   key={note.highlightId}
                                   className="p-3 bg-[var(--bg-secondary)] rounded-lg border-l-4"
@@ -853,7 +964,7 @@ Suggest paragraph structure (JSON):`
                                   <div className="flex items-start justify-between gap-2 mb-2">
                                     <p className="text-xs text-[var(--text-primary)] flex-1">"{note.highlightText}"</p>
                                     <button
-                                      onClick={() => removeAttachedNote(module.id, note.highlightId)}
+                                      onClick={() => discardNote(module.id, note.highlightId)}
                                       className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-red)]"
                                     >
                                       <X className="w-3 h-3" />
@@ -864,12 +975,16 @@ Suggest paragraph structure (JSON):`
                                     type="text"
                                     value={note.userComment}
                                     onChange={(e) => updateNoteComment(module.id, note.highlightId, e.target.value)}
-                                    placeholder="Add your comment..."
+                                    placeholder="Add your comment on this note..."
                                     className="w-full px-2 py-1 text-xs bg-[var(--bg-primary)] border border-[var(--border-default)] rounded text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/50"
                                   />
                                 </div>
                               ))}
                             </div>
+                          ) : !module.hasLoadedSuggestions && (
+                            <p className="text-xs text-[var(--text-muted)] italic py-2">
+                              Click "Find Relevant Notes" to get AI suggestions based on your writing
+                            </p>
                           )}
                         </div>
 
