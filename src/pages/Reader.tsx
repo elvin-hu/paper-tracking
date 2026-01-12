@@ -493,6 +493,8 @@ export function Reader() {
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const isMountedRef = useRef(true);
+  // Keep a ref to paperId to avoid stale closure issues when switching papers quickly
+  const paperIdRef = useRef(paperId);
 
   const loadData = useCallback(async () => {
     if (!paperId) return;
@@ -602,6 +604,11 @@ export function Reader() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Keep paperIdRef in sync with paperId to avoid stale closure issues
+  useEffect(() => {
+    paperIdRef.current = paperId;
+  }, [paperId]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -1239,7 +1246,9 @@ export function Reader() {
   };
 
   const createHighlight = async (color: HighlightColor, isFurtherReading: boolean = false, note?: string) => {
-    if (!paperId || !selectedText) return;
+    // Use ref to get the CURRENT paperId, avoiding stale closure issues when switching papers quickly
+    const currentPaperId = paperIdRef.current;
+    if (!currentPaperId || !selectedText) return;
 
     const pageContainer = pageRefs.current.get(selectionPage);
     if (!pageContainer) return;
@@ -1311,7 +1320,7 @@ export function Reader() {
 
     const highlight: Highlight = {
       id: uuidv4(),
-      paperId,
+      paperId: currentPaperId,
       pageNumber: selectionPage,
       // For further reading, use the selected color (allow user to choose, default to purple)
       color: markAsFurtherReading ? (color || 'purple') : color,
@@ -1325,7 +1334,7 @@ export function Reader() {
 
     await addHighlight(highlight);
     setHighlights((prev) => [...prev, highlight]);
-    if (markAsFurtherReading && highlight.paperId === paperId) {
+    if (markAsFurtherReading && highlight.paperId === currentPaperId) {
       // Add to reading list if it's from current paper
       setReadingList((prev) => [...prev, highlight]);
       // Also update global list for deduplication

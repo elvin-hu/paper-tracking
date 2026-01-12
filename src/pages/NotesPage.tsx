@@ -5,9 +5,10 @@ import {
   StickyNote,
   FileText,
   ChevronRight,
+  Download,
 } from 'lucide-react';
 import type { Note, Paper, Highlight } from '../types';
-import { getAllNotes, getAllPapers, getHighlightsByPaper } from '../lib/database';
+import { getAllNotes, getAllPapers, getHighlightsByPaper, getAllHighlightsByProject } from '../lib/database';
 import { useProject } from '../contexts/ProjectContext';
 
 const SCROLL_POSITION_KEY = 'notes-page-scroll';
@@ -133,6 +134,68 @@ export function NotesPage() {
     return HIGHLIGHT_COLORS[highlight.color] || HIGHLIGHT_COLORS.yellow;
   };
 
+  // Color meaning mapping for AI consumption
+  const COLOR_MEANINGS: Record<string, string> = {
+    yellow: 'Research gaps or open problems',
+    red: 'Limitations or caveats',
+    green: 'Key findings or results',
+    blue: 'Methods or research actions',
+    purple: 'Further reading or references to follow',
+  };
+
+  const exportHighlightsAsJson = async () => {
+    try {
+      // Fetch all highlights for the current project
+      const allHighlights = await getAllHighlightsByProject(currentProject?.id);
+
+      // Get all papers to map paper IDs to titles/authors
+      const papers = await getAllPapers(currentProject?.id);
+      const paperMap = new Map<string, Paper>();
+      papers.forEach(p => paperMap.set(p.id, p));
+
+      // Get all notes to attach to highlights
+      const notes = await getAllNotes(currentProject?.id);
+      const notesByHighlight = new Map<string, string>();
+      notes.forEach(n => notesByHighlight.set(n.highlightId, n.content));
+
+      // Build export data
+      const exportData = {
+        projectName: currentProject?.name || 'Untitled Project',
+        exportedAt: new Date().toISOString(),
+        colorLegend: COLOR_MEANINGS,
+        highlights: allHighlights.map(h => {
+          const paper = paperMap.get(h.paperId);
+          const source = paper
+            ? `${paper.title}${paper.authors ? ` - ${paper.authors}` : ''}`
+            : 'Unknown source';
+
+          return {
+            source,
+            selectedText: h.text,
+            note: notesByHighlight.get(h.id) || null,
+            colorCode: h.color,
+            colorMeaning: COLOR_MEANINGS[h.color] || 'Uncategorized',
+            pageNumber: h.pageNumber,
+          };
+        }),
+      };
+
+      // Create and download JSON file
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `highlights-${currentProject?.name?.toLowerCase().replace(/\s+/g, '-') || 'export'}-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting highlights:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
@@ -152,6 +215,15 @@ export function NotesPage() {
               </h1>
             </div>
           </div>
+          {/* Export Button */}
+          <button
+            onClick={exportHighlightsAsJson}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors text-sm font-medium text-[var(--text-secondary)]"
+            title="Export all highlights as JSON"
+          >
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">Export</span>
+          </button>
         </div>
       </header>
 

@@ -399,6 +399,27 @@ export async function deleteHighlight(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// Reassign all highlights from one paper to another (for fixing mis-assigned highlights)
+export async function reassignHighlights(fromPaperId: string, toPaperId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('highlights')
+    .update({ paper_id: toPaperId })
+    .eq('paper_id', fromPaperId)
+    .select('id');
+
+  if (error) throw error;
+  
+  // Also update notes that reference these highlights
+  if (data && data.length > 0) {
+    await supabase
+      .from('notes')
+      .update({ paper_id: toPaperId })
+      .eq('paper_id', fromPaperId);
+  }
+  
+  return data?.length || 0;
+}
+
 export async function getAllFurtherReadingHighlights(projectId?: string): Promise<Highlight[]> {
   const targetProjectId = projectId || getProjectId();
 
@@ -407,6 +428,19 @@ export async function getAllFurtherReadingHighlights(projectId?: string): Promis
     .select('*')
     .eq('project_id', targetProjectId)
     .eq('is_further_reading', true)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(rowToHighlight);
+}
+
+export async function getAllHighlightsByProject(projectId?: string): Promise<Highlight[]> {
+  const targetProjectId = projectId || getProjectId();
+
+  const { data, error } = await supabase
+    .from('highlights')
+    .select('*')
+    .eq('project_id', targetProjectId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
