@@ -117,29 +117,33 @@ export function Account() {
             {/* Name Field */}
             <div className="space-y-4">
               <div>
-                <label className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] mb-2">
+                <label htmlFor="display-name" className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] mb-2">
                   <User className="w-3.5 h-3.5" />
                   Display Name
                 </label>
                 <input
+                  id="display-name"
+                  name="name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full text-sm rounded-xl"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-colors"
+                  autoComplete="name"
                 />
               </div>
 
               <div>
-                <label className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] mb-2">
+                <label htmlFor="email-display" className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] mb-2">
                   <Mail className="w-3.5 h-3.5" />
                   Email
                 </label>
                 <input
+                  id="email-display"
                   type="email"
                   value={user?.email || ''}
                   disabled
-                  className="w-full text-sm rounded-xl opacity-60 cursor-not-allowed"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] opacity-60 cursor-not-allowed"
                 />
               </div>
 
@@ -174,18 +178,24 @@ export function Account() {
 
             <div className="space-y-4">
               <input
+                id="new-password"
+                name="new-password"
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="New password"
-                className="w-full text-sm rounded-xl"
+                className="w-full px-4 py-2.5 text-sm rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-colors"
+                autoComplete="new-password"
               />
               <input
+                id="confirm-password"
+                name="confirm-password"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm new password"
-                className="w-full text-sm rounded-xl"
+                className="w-full px-4 py-2.5 text-sm rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-colors"
+                autoComplete="new-password"
               />
 
               <button

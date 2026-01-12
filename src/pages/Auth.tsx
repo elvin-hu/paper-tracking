@@ -122,17 +122,19 @@ export function Auth() {
             {/* Name field (signup only) */}
             {mode === 'signup' && (
               <div className="animate-fade-in">
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5 ml-1">
+                <label htmlFor="name" className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5 ml-1">
                   Name
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
                   <input
+                    id="name"
+                    name="name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Your name"
-                    className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl"
+                    className="w-full pl-11 pr-4 py-2.5 text-sm rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-colors"
                     autoComplete="name"
                   />
                 </div>
@@ -141,18 +143,20 @@ export function Auth() {
 
             {/* Email */}
             <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5 ml-1">
+              <label htmlFor="email" className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5 ml-1">
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
                 <input
+                  id="email"
+                  name="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl"
-                  autoComplete="email"
+                  className="w-full pl-11 pr-4 py-2.5 text-sm rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-colors"
+                  autoComplete="email username"
                   required
                 />
               </div>
@@ -160,17 +164,19 @@ export function Auth() {
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5 ml-1">
+              <label htmlFor="password" className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5 ml-1">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
                 <input
+                  id="password"
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={mode === 'signup' ? 'Create a password' : 'Your password'}
-                  className="w-full pl-10 pr-10 py-2.5 text-sm rounded-xl"
+                  className="w-full pl-11 pr-11 py-2.5 text-sm rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-colors"
                   autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                   required
                   minLength={6}
@@ -178,7 +184,7 @@ export function Auth() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
                 >
                   {showPassword ? (
                     <EyeOff className="w-4 h-4" />
