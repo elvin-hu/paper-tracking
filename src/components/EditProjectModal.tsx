@@ -24,13 +24,9 @@ export function EditProjectModal({ isOpen, project, onClose, onSave, onDelete, c
         }
     }, [project]);
 
-    if (!isOpen || !project) return null;
-
-    const modalContent = (
-
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!name.trim() || isSaving) return;
+    const handleSave = async (e?: React.FormEvent) => {
+        e?.preventDefault();
+        if (!project || !name.trim() || isSaving) return;
 
         setIsSaving(true);
         try {
@@ -45,7 +41,7 @@ export function EditProjectModal({ isOpen, project, onClose, onSave, onDelete, c
     };
 
     const handleDelete = async () => {
-        if (isDeleting) return;
+        if (!project || isDeleting) return;
 
         setIsDeleting(true);
         try {
@@ -60,7 +56,9 @@ export function EditProjectModal({ isOpen, project, onClose, onSave, onDelete, c
         }
     };
 
-    return (
+    if (!isOpen || !project) return null;
+
+    const modalContent = (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
             {/* Backdrop */}
             <div
