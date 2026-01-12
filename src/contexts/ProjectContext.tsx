@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { getProjects, createProject, updateProject, type Project } from '../lib/project';
 import { setDatabaseProjectId } from '../lib/database';
+import { useAuth } from './AuthContext';
 
 interface ProjectContextType {
     projects: Project[];
@@ -18,14 +19,27 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 const PROJECT_ID_STORAGE_KEY = 'paper-tracking-project-id';
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
+    const { user, isLoading: isAuthLoading } = useAuth();
     const [projects, setProjects] = useState<Project[]>([]);
     const [currentProject, setCurrentProject] = useState<Project | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Load projects on amount
+    // Load projects only when auth is ready and user is logged in
     useEffect(() => {
+        if (isAuthLoading) {
+            // Still loading auth, wait
+            return;
+        }
+        if (!user) {
+            // Not logged in, clear projects
+            setProjects([]);
+            setCurrentProject(null);
+            setIsLoading(false);
+            return;
+        }
+        // Auth is ready and user is logged in, load projects
         loadProjects();
-    }, []);
+    }, [user, isAuthLoading]);
 
     // Update database context whenever current project changes
     useEffect(() => {

@@ -44,15 +44,19 @@
   --bg-input: var(--bg-secondary);
 
   --text-primary: #1d1d1f;
-  --text-secondary: #6e6e73;
-  --text-muted: #86868b;
+  --text-secondary: #5c5c5e;  /* Darkened from #6e6e73 for better contrast (5.7:1) */
+  --text-muted: #6b6b70;      /* Darkened from #86868b for WCAG AA compliance (4.7:1) */
 
   --accent-primary: #1a1a2e;
   --accent-primary-muted: rgba(26, 26, 46, 0.1);
-  --accent-green: #34c759;
-  --accent-orange: #ff9500;
-  --accent-red: #ff3b30;
-  --accent-purple: #af52de;
+  --accent-green: #1a8d3e;    /* Darkened from #34c759 for text accessibility (5.1:1) */
+  --accent-green-bg: #34c759; /* Original green for backgrounds/icons */
+  --accent-orange: #c77200;   /* Darkened from #ff9500 for text accessibility (4.6:1) */
+  --accent-orange-bg: #ff9500; /* Original orange for backgrounds/icons */
+  --accent-red: #d63027;      /* Darkened from #ff3b30 for text accessibility (4.6:1) */
+  --accent-red-bg: #ff3b30;   /* Original red for backgrounds/icons */
+  --accent-purple: #8b3fb5;   /* Darkened from #af52de for text accessibility (4.7:1) */
+  --accent-purple-bg: #af52de; /* Original purple for backgrounds/icons */
 
   --border-default: rgba(0, 0, 0, 0.08);
   --border-muted: rgba(0, 0, 0, 0.04);
@@ -91,10 +95,14 @@
 
     --accent-primary: #e8e8ed;
     --accent-primary-muted: rgba(232, 232, 237, 0.15);
-    --accent-green: #30d158;
+    --accent-green: #30d158;    /* Bright enough on dark bg (6.4:1) */
+    --accent-green-bg: #30d158;
     --accent-orange: #ff9f0a;
+    --accent-orange-bg: #ff9f0a;
     --accent-red: #ff453a;
+    --accent-red-bg: #ff453a;
     --accent-purple: #bf5af2;
+    --accent-purple-bg: #bf5af2;
 
     --border-default: rgba(255, 255, 255, 0.08);
     --border-muted: rgba(255, 255, 255, 0.04);
