@@ -83,6 +83,9 @@ export function Library() {
   // Project context
   const { currentProject, isLoading: isProjectLoading } = useProject();
   const sortOptionSaveTimeoutRef = useRef<number | null>(null);
+  
+  // Track if initial animation has played to prevent replay on tab switch
+  const hasAnimatedRef = useRef(false);
 
   // Filter states (initialized from sessionStorage)
   const [showStarredOnly, setShowStarredOnly] = useState(initialFilterState.showStarredOnly);
@@ -190,6 +193,10 @@ export function Library() {
       setPapers([]);
     } finally {
       setIsLoading(false);
+      // Mark initial animation as complete after a short delay
+      setTimeout(() => {
+        hasAnimatedRef.current = true;
+      }, 500);
     }
   }, [currentProject, isProjectLoading]);
 
@@ -1366,6 +1373,8 @@ export function Library() {
                       {filteredAndSortedPapers.map((paper, index) => {
                         const isSelected = selectedPapers.has(paper.id);
                         const isUnread = !paper.isRead;
+                        // Only animate on initial load, not on tab switch
+                        const shouldAnimate = !hasAnimatedRef.current;
                         const totalItems = filteredAndSortedPapers.length;
                         const animationDuration = 300;
                         const maxTotalTime = 450;
@@ -1376,9 +1385,9 @@ export function Library() {
                           <tr
                             key={paper.id}
                             onClick={(e) => handlePaperClick(e, paper)}
-                            className={`group border-b border-[var(--border-muted)] last:border-0 hover:bg-[var(--bg-secondary)] cursor-pointer transition-colors animate-fade-in ${isSelected ? 'bg-[var(--bg-tertiary)]' : ''
+                            className={`group border-b border-[var(--border-muted)] last:border-0 hover:bg-[var(--bg-secondary)] cursor-pointer transition-colors ${shouldAnimate ? 'animate-fade-in' : ''} ${isSelected ? 'bg-[var(--bg-tertiary)]' : ''
                               }`}
-                            style={{ animationDelay: `${delay}ms` }}
+                            style={shouldAnimate ? { animationDelay: `${delay}ms` } : undefined}
                           >
                             {/* Unread indicator */}
                             <td className="pl-4 py-3 w-8">
