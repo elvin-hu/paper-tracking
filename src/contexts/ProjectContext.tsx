@@ -1,6 +1,6 @@
 
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
-import { getProjects, createProject, updateProject, type Project } from '../lib/project';
+import { getProjects, createProject, updateProject, deleteProject, type Project } from '../lib/project';
 import { setDatabaseProjectId } from '../lib/database';
 import { useAuth } from './AuthContext';
 
@@ -11,6 +11,7 @@ interface ProjectContextType {
     createProject: (name: string) => Promise<void>;
     switchProject: (projectId: string) => void;
     updateProjectName: (projectId: string, newName: string) => Promise<void>;
+    deleteProject: (projectId: string) => Promise<void>;
     refreshProjects: () => Promise<void>;
 }
 
@@ -136,6 +137,30 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         }
     }
 
+    async function handleDeleteProject(projectId: string) {
+        try {
+            // Don't allow deleting the last project
+            if (projects.length <= 1) {
+                throw new Error('Cannot delete the only project');
+            }
+            
+            const wasCurrentProject = currentProject?.id === projectId;
+            await deleteProject(projectId);
+            
+            // Reload projects
+            const updatedProjects = await getProjects();
+            setProjects(updatedProjects);
+            
+            // If we deleted the current project, switch to another one
+            if (wasCurrentProject && updatedProjects.length > 0) {
+                setCurrentProject(updatedProjects[0]);
+            }
+        } catch (error) {
+            console.error('[ProjectContext] Failed to delete project:', error);
+            throw error;
+        }
+    }
+
     function switchProject(projectId: string) {
         const project = projects.find(p => p.id === projectId);
         if (project) {
@@ -152,6 +177,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
             createProject: handleCreateProject,
             switchProject,
             updateProjectName: handleUpdateProject,
+            deleteProject: handleDeleteProject,
             refreshProjects: loadProjects
         }}>
             {children}

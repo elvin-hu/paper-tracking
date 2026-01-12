@@ -1,25 +1,21 @@
 import { useState } from 'react';
 import { useProject } from '../contexts/ProjectContext';
 import { Check, ChevronDown, Folder, FolderPlus, Pencil } from 'lucide-react';
+import { EditProjectModal } from './EditProjectModal';
 
 export function ProjectSelector() {
-    const { projects, currentProject, switchProject, createProject, updateProjectName, isLoading } = useProject();
+    const { projects, currentProject, switchProject, createProject, updateProjectName, deleteProject, isLoading } = useProject();
     const [isOpen, setIsOpen] = useState(false);
     const [showCreate, setShowCreate] = useState(false);
     const [newProjectName, setNewProjectName] = useState('');
     const [editingProject, setEditingProject] = useState<{ id: string, name: string } | null>(null);
 
-    const handleUpdate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!editingProject || !editingProject.name.trim()) return;
+    const handleUpdateProject = async (id: string, name: string) => {
+        await updateProjectName(id, name);
+    };
 
-        try {
-            await updateProjectName(editingProject.id, editingProject.name.trim());
-            setEditingProject(null);
-        } catch (error) {
-            console.error('Failed to update project:', error);
-            alert('Failed to update project');
-        }
+    const handleDeleteProject = async (id: string) => {
+        await deleteProject(id);
     };
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -68,81 +64,46 @@ export function ProjectSelector() {
                                 <div className="max-h-64 overflow-y-auto space-y-0.5">
                                     {projects.map(project => {
                                         const isSelected = project.id === currentProject?.id;
-                                        const isEditing = editingProject?.id === project.id;
 
                                         return (
                                             <div
                                                 key={project.id}
-                                                className={`group relative flex items-center px-3 py-2 mx-1.5 rounded-lg transition-colors ${isSelected && !isEditing ? 'bg-[var(--bg-tertiary)]' : 'hover:bg-[var(--bg-secondary)]'
-                                                    }`}
+                                                className={`group relative flex items-center px-3 py-2 mx-1.5 rounded-lg transition-colors ${isSelected ? 'bg-[var(--bg-tertiary)]' : 'hover:bg-[var(--bg-secondary)]'}`}
                                             >
-                                                {isEditing ? (
-                                                    <form
-                                                        onSubmit={handleUpdate}
-                                                        className="flex-1 flex items-center gap-2"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        <input
-                                                            type="text"
-                                                            value={editingProject.name}
-                                                            onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
-                                                            className="flex-1 px-2 py-1 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-md text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent"
-                                                            autoFocus
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Escape') setEditingProject(null);
-                                                            }}
-                                                        />
-                                                        <button
-                                                            type="submit"
-                                                            className="px-2 py-1 text-xs font-medium text-[var(--bg-primary)] bg-[var(--accent-primary)] rounded-md hover:opacity-90 disabled:opacity-50"
-                                                            disabled={!editingProject.name.trim()}
-                                                        >
-                                                            Save
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setEditingProject(null)}
-                                                            className="px-2 py-1 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                    </form>
-                                                ) : (
-                                                    <>
-                                                        {/* Project name with inline edit button */}
-                                                        <button
-                                                            onClick={() => {
-                                                                if (!isSelected) {
-                                                                    switchProject(project.id);
-                                                                }
-                                                                setIsOpen(false);
-                                                            }}
-                                                            className="flex-1 flex items-center gap-2 text-left min-w-0"
-                                                        >
-                                                            <span className={`truncate text-sm ${isSelected ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-                                                                {project.name}
-                                                            </span>
-                                                            {/* Edit button - appears on hover, inline with text */}
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setEditingProject({ id: project.id, name: project.name });
-                                                                }}
-                                                                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-md hover:bg-[var(--bg-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                                                                title="Rename project"
-                                                            >
-                                                                <Pencil className="w-3 h-3" />
-                                                            </button>
-                                                        </button>
+                                                {/* Project name */}
+                                                <button
+                                                    onClick={() => {
+                                                        if (!isSelected) {
+                                                            switchProject(project.id);
+                                                        }
+                                                        setIsOpen(false);
+                                                    }}
+                                                    className="flex-1 flex items-center gap-2 text-left min-w-0"
+                                                >
+                                                    <span className={`truncate text-sm ${isSelected ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
+                                                        {project.name}
+                                                    </span>
+                                                </button>
 
-                                                        {/* Checkmark - anchored to right */}
-                                                        <div className="flex-shrink-0 w-5 flex justify-center">
-                                                            {isSelected && (
-                                                                <Check className="w-4 h-4 text-[var(--accent-primary)]" />
-                                                            )}
-                                                        </div>
-                                                    </>
-                                                )}
+                                                {/* Edit button - opens modal */}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingProject({ id: project.id, name: project.name });
+                                                        setIsOpen(false);
+                                                    }}
+                                                    className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-md hover:bg-[var(--bg-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                                    title="Edit project"
+                                                >
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                </button>
+
+                                                {/* Checkmark */}
+                                                <div className="flex-shrink-0 w-5 flex justify-center ml-1">
+                                                    {isSelected && (
+                                                        <Check className="w-4 h-4 text-[var(--accent-primary)]" />
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -192,6 +153,16 @@ export function ProjectSelector() {
                     </div>
                 </>
             )}
+
+            {/* Edit Project Modal */}
+            <EditProjectModal
+                isOpen={editingProject !== null}
+                project={editingProject}
+                onClose={() => setEditingProject(null)}
+                onSave={handleUpdateProject}
+                onDelete={handleDeleteProject}
+                canDelete={projects.length > 1}
+            />
         </div>
     );
 }

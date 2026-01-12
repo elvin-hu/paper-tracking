@@ -65,12 +65,63 @@ export async function updateProject(id: string, name: string): Promise<void> {
 }
 
 export async function deleteProject(id: string): Promise<void> {
-    // Check if it's the default project - prevent deletion (logic can be improved)
-    // relying on DB constraints or UI to prevent deleting the last project
+    // Delete related data first to avoid foreign key constraint violations
+    // Order matters: settings, notes, highlights, journal_entries, papers, then project
+    
+    // Delete settings for this project
+    const { error: settingsError } = await supabase
+        .from('settings')
+        .delete()
+        .eq('project_id', id);
+    if (settingsError) {
+        console.error('[Project] Error deleting project settings:', settingsError);
+        // Continue anyway - settings might not exist
+    }
+
+    // Delete notes for papers in this project
+    const { error: notesError } = await supabase
+        .from('notes')
+        .delete()
+        .eq('project_id', id);
+    if (notesError) {
+        console.error('[Project] Error deleting project notes:', notesError);
+    }
+
+    // Delete highlights for papers in this project
+    const { error: highlightsError } = await supabase
+        .from('highlights')
+        .delete()
+        .eq('project_id', id);
+    if (highlightsError) {
+        console.error('[Project] Error deleting project highlights:', highlightsError);
+    }
+
+    // Delete journal entries for this project
+    const { error: journalError } = await supabase
+        .from('journal_entries')
+        .delete()
+        .eq('project_id', id);
+    if (journalError) {
+        console.error('[Project] Error deleting project journal entries:', journalError);
+    }
+
+    // Delete papers for this project
+    const { error: papersError } = await supabase
+        .from('papers')
+        .delete()
+        .eq('project_id', id);
+    if (papersError) {
+        console.error('[Project] Error deleting project papers:', papersError);
+    }
+
+    // Finally delete the project itself
     const { error } = await supabase
         .from('projects')
         .delete()
         .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+        console.error('[Project] Error deleting project:', error);
+        throw error;
+    }
 }
