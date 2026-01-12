@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useProject } from '../contexts/ProjectContext';
 import { Check, ChevronDown, Folder, FolderPlus, Pencil } from 'lucide-react';
 import { EditProjectModal } from './EditProjectModal';
+import { CreateProjectModal } from './CreateProjectModal';
 
 export function ProjectSelector() {
     const { projects, currentProject, switchProject, createProject, updateProjectName, deleteProject, isLoading } = useProject();
     const [isOpen, setIsOpen] = useState(false);
-    const [showCreate, setShowCreate] = useState(false);
-    const [newProjectName, setNewProjectName] = useState('');
+    const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingProject, setEditingProject] = useState<{ id: string, name: string } | null>(null);
 
     const handleUpdateProject = async (id: string, name: string) => {
@@ -18,19 +18,8 @@ export function ProjectSelector() {
         await deleteProject(id);
     };
 
-    const handleCreate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newProjectName.trim()) return;
-
-        try {
-            await createProject(newProjectName.trim());
-            setNewProjectName('');
-            setShowCreate(false);
-            setIsOpen(false);
-        } catch (error) {
-            console.error('Failed to create project:', error);
-            alert('Failed to create project');
-        }
+    const handleCreateProject = async (name: string) => {
+        await createProject(name);
     };
 
     if (isLoading) return <div className="animate-pulse h-8 w-32 bg-[var(--bg-tertiary)] rounded-lg"></div>;
@@ -54,102 +43,69 @@ export function ProjectSelector() {
                         className="fixed inset-0 z-10"
                         onClick={() => {
                             setIsOpen(false);
-                            setShowCreate(false);
-                            setEditingProject(null);
                         }}
                     />
                     <div className="absolute top-full left-0 mt-1 w-72 bg-[var(--bg-card)] rounded-xl shadow-xl border border-[var(--border-default)] py-1.5 z-20 overflow-hidden">
-                        {!showCreate ? (
-                            <>
-                                <div className="max-h-64 overflow-y-auto space-y-0.5">
-                                    {projects.map(project => {
-                                        const isSelected = project.id === currentProject?.id;
+                        <div className="max-h-64 overflow-y-auto space-y-0.5">
+                            {projects.map(project => {
+                                const isSelected = project.id === currentProject?.id;
 
-                                        return (
-                                            <div
-                                                key={project.id}
-                                                className={`group relative flex items-center px-3 py-2 mx-1.5 rounded-lg transition-colors ${isSelected ? 'bg-[var(--bg-tertiary)]' : 'hover:bg-[var(--bg-secondary)]'}`}
-                                            >
-                                                {/* Checkmark - anchored to left */}
-                                                <div className="flex-shrink-0 w-5 flex justify-center mr-2">
-                                                    {isSelected && (
-                                                        <Check className="w-4 h-4 text-[var(--accent-primary)]" />
-                                                    )}
-                                                </div>
-
-                                                {/* Project name */}
-                                                <button
-                                                    onClick={() => {
-                                                        if (!isSelected) {
-                                                            switchProject(project.id);
-                                                        }
-                                                        setIsOpen(false);
-                                                    }}
-                                                    className="flex-1 text-left min-w-0"
-                                                >
-                                                    <span className={`truncate text-sm ${isSelected ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-                                                        {project.name}
-                                                    </span>
-                                                </button>
-
-                                                {/* Edit button - next to name, on hover */}
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setEditingProject({ id: project.id, name: project.name });
-                                                        setIsOpen(false);
-                                                    }}
-                                                    className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-md hover:bg-[var(--bg-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1"
-                                                    title="Edit project"
-                                                >
-                                                    <Pencil className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                <div className="border-t border-[var(--border-default)] mt-1.5 pt-1.5 mx-1.5">
-                                    <button
-                                        onClick={() => setShowCreate(true)}
-                                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--accent-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
+                                return (
+                                    <div
+                                        key={project.id}
+                                        className={`group relative flex items-center px-3 py-2 mx-1.5 rounded-lg transition-colors ${isSelected ? 'bg-[var(--bg-tertiary)]' : 'hover:bg-[var(--bg-secondary)]'}`}
                                     >
-                                        <FolderPlus className="w-4 h-4" />
-                                        New Project
-                                    </button>
-                                </div>
-                            </>
-                        ) : (
-                            <form onSubmit={handleCreate} className="p-3">
-                                <input
-                                    type="text"
-                                    value={newProjectName}
-                                    onChange={(e) => setNewProjectName(e.target.value)}
-                                    placeholder="Project Name"
-                                    className="w-full px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] mb-3 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent"
-                                    autoFocus
-                                />
-                                <div className="flex gap-2 justify-end">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setShowCreate(false);
-                                            setNewProjectName('');
-                                        }}
-                                        className="px-3 py-1.5 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={!newProjectName.trim()}
-                                        className="px-3 py-1.5 text-sm font-medium text-[var(--bg-primary)] bg-[var(--accent-primary)] rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
-                                    >
-                                        Create
-                                    </button>
-                                </div>
-                            </form>
-                        )}
+                                        {/* Checkmark - anchored to left */}
+                                        <div className="flex-shrink-0 w-5 flex justify-center mr-2">
+                                            {isSelected && (
+                                                <Check className="w-4 h-4 text-[var(--accent-primary)]" />
+                                            )}
+                                        </div>
+
+                                        {/* Project name */}
+                                        <button
+                                            onClick={() => {
+                                                if (!isSelected) {
+                                                    switchProject(project.id);
+                                                }
+                                                setIsOpen(false);
+                                            }}
+                                            className="flex-1 text-left min-w-0"
+                                        >
+                                            <span className={`truncate text-sm ${isSelected ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
+                                                {project.name}
+                                            </span>
+                                        </button>
+
+                                        {/* Edit button - next to name, on hover */}
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditingProject({ id: project.id, name: project.name });
+                                                setIsOpen(false);
+                                            }}
+                                            className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-md hover:bg-[var(--bg-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1"
+                                            title="Edit project"
+                                        >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="border-t border-[var(--border-default)] mt-1.5 pt-1.5 mx-1.5">
+                            <button
+                                onClick={() => {
+                                    setShowCreateModal(true);
+                                    setIsOpen(false);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--accent-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
+                            >
+                                <FolderPlus className="w-4 h-4" />
+                                New Project
+                            </button>
+                        </div>
                     </div>
                 </>
             )}
@@ -162,6 +118,13 @@ export function ProjectSelector() {
                 onSave={handleUpdateProject}
                 onDelete={handleDeleteProject}
                 canDelete={projects.length > 1}
+            />
+
+            {/* Create Project Modal */}
+            <CreateProjectModal
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                onCreate={handleCreateProject}
             />
         </div>
     );
