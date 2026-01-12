@@ -7,6 +7,12 @@ export interface Project {
     createdAt: Date;
 }
 
+// Helper to get current user ID
+async function getCurrentUserId(): Promise<string | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id ?? null;
+}
+
 export async function getProjects(): Promise<Project[]> {
     const { data, error } = await supabase
         .from('projects')
@@ -26,9 +32,14 @@ export async function getProjects(): Promise<Project[]> {
 }
 
 export async function createProject(name: string): Promise<Project> {
+    const userId = await getCurrentUserId();
+    
     const { data, error } = await supabase
         .from('projects')
-        .insert({ name })
+        .insert({ 
+            name,
+            user_id: userId,
+        })
         .select()
         .single();
 

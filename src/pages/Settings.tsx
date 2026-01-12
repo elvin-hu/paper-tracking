@@ -2,16 +2,18 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  Key,
   Palette,
   Save,
   Check,
   Info,
   BookOpen,
+  User,
+  Sparkles,
 } from 'lucide-react';
 import type { HighlightColor, AppSettings } from '../types';
 import { getSettings, updateSettings } from '../lib/database';
 import { useProject } from '../contexts/ProjectContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const HIGHLIGHT_COLORS: { color: HighlightColor; bg: string; border: string }[] = [
   { color: 'yellow', bg: 'var(--highlight-yellow)', border: '#fbbf24' },
@@ -23,11 +25,11 @@ const HIGHLIGHT_COLORS: { color: HighlightColor; bg: string; border: string }[] 
 
 export function Settings() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [settings, setSettings] = useState<AppSettings>({
     defaultHighlightColor: 'yellow',
     sidebarWidth: 320,
   });
-  const [apiKey, setApiKey] = useState('');
   const [researchContext, setResearchContext] = useState('');
   const [isSaved, setIsSaved] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,7 +41,6 @@ export function Settings() {
     const loadSettings = async () => {
       const loaded = await getSettings(currentProject?.id);
       setSettings(loaded);
-      setApiKey(loaded.openaiApiKey || '');
       setResearchContext(loaded.researchContext || '');
       setIsLoading(false);
     };
@@ -49,7 +50,6 @@ export function Settings() {
   const handleSave = async () => {
     const newSettings: AppSettings = {
       ...settings,
-      openaiApiKey: apiKey || undefined,
       researchContext: researchContext || undefined,
     };
     try {
@@ -112,53 +112,64 @@ export function Settings() {
 
       <main className="max-w-xl mx-auto px-6 py-6">
         <div className="space-y-6">
+          {/* Account Section */}
           <div className="space-y-4">
             <h2 className="text-sm font-bold text-[var(--accent-primary)] uppercase tracking-wide">
-              Global Settings
+              Account
             </h2>
 
-            {/* API Key Section */}
+            <button
+              onClick={() => navigate('/account')}
+              className="w-full bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4 flex items-center gap-4 hover:bg-[var(--bg-secondary)] transition-colors text-left"
+            >
+              <div className="w-12 h-12 rounded-full bg-[var(--accent-primary)] flex items-center justify-center flex-shrink-0">
+                <span className="text-lg font-semibold text-[var(--bg-primary)]">
+                  {user?.user_metadata?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || '?'}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+                  {user?.user_metadata?.name || 'User'}
+                </p>
+                <p className="text-xs text-[var(--text-secondary)] truncate">
+                  {user?.email}
+                </p>
+              </div>
+              <User className="w-5 h-5 text-[var(--text-muted)]" />
+            </button>
+          </div>
+
+          {/* AI Features */}
+          <div className="space-y-4">
+            <h2 className="text-sm font-bold text-[var(--accent-primary)] uppercase tracking-wide">
+              AI Features
+            </h2>
+
             <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4">
               <div className="flex items-center gap-2.5 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-[var(--accent-purple)]/15 flex items-center justify-center">
-                  <Key className="w-4 h-4 text-[var(--accent-purple)]" />
+                  <Sparkles className="w-4 h-4 text-[var(--accent-purple)]" />
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-                    OpenAI API Key
+                    AI-Powered Features
                   </h2>
                   <p className="text-xs text-[var(--text-muted)]">
-                    For AI features (optional)
+                    Autofill, summaries, and insights
                   </p>
                 </div>
               </div>
 
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-..."
-                className="w-full text-sm font-mono bg-[var(--bg-input)]"
-              />
-
-              <div className="flex items-start gap-2 mt-3 p-2.5 bg-[var(--bg-secondary)] rounded-lg">
-                <Info className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-[var(--text-muted)]">
-                  Stored locally. Get key from{' '}
-                  <a
-                    href="https://platform.openai.com/api-keys"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[var(--accent-primary)] hover:underline"
-                  >
-                    OpenAI
-                  </a>
+              <div className="flex items-center gap-2 p-3 bg-[var(--accent-green)]/10 rounded-lg border border-[var(--accent-green)]/20">
+                <div className="w-2 h-2 rounded-full bg-[var(--accent-green)]" />
+                <p className="text-xs text-[var(--accent-green)] font-medium">
+                  AI features enabled for all users
                 </p>
               </div>
             </section>
-
           </div>
 
+          {/* Project Settings */}
           <div className="space-y-4">
             <h2 className="text-sm font-bold text-[var(--accent-primary)] uppercase tracking-wide">
               Project Settings
@@ -230,7 +241,7 @@ export function Settings() {
                 About
               </h2>
               <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                Paper Lab is a local-first research paper reader. All data is stored in your browser using IndexedDB.
+                Paper Lab is a collaborative research paper reader. Your data is securely stored in the cloud and synced across devices.
               </p>
               <div className="mt-3 pt-3 border-t border-[var(--border-muted)]">
                 <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide font-medium">
@@ -240,7 +251,8 @@ export function Settings() {
                   <li>• Multi-color PDF highlighting</li>
                   <li>• Notes & annotations</li>
                   <li>• Reference tracking</li>
-                  <li>• Tag organization</li>
+                  <li>• AI-powered autofill</li>
+                  <li>• Multi-project organization</li>
                 </ul>
               </div>
             </section>

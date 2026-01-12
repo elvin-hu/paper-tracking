@@ -14,6 +14,12 @@ function getProjectId(): string {
   return currentProjectId || '00000000-0000-0000-0000-000000000000';
 }
 
+// Helper to get current user ID from Supabase auth
+async function getCurrentUserId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}
+
 // Helper to convert database row to Paper type
 function rowToPaper(row: Record<string, unknown>): Paper {
   const metadata = row.metadata as Record<string, unknown> | null;
@@ -125,10 +131,12 @@ export async function getPaper(id: string): Promise<Paper | undefined> {
 
 export async function addPaper(paper: Paper): Promise<void> {
   const targetProjectId = getProjectId();
+  const userId = await getCurrentUserId();
 
   const { error } = await supabase.from('papers').insert({
     id: paper.id,
     project_id: targetProjectId,
+    user_id: userId,
     title: paper.title,
     authors: paper.authors,
     tags: paper.tags,
@@ -359,10 +367,12 @@ export async function getHighlightsByPaper(paperId: string): Promise<Highlight[]
 
 export async function addHighlight(highlight: Highlight): Promise<void> {
   const targetProjectId = getProjectId();
+  const userId = await getCurrentUserId();
 
   const { error } = await supabase.from('highlights').insert({
     id: highlight.id,
     project_id: targetProjectId,
+    user_id: userId,
     paper_id: highlight.paperId,
     text: highlight.text,
     color: highlight.color,
@@ -485,10 +495,12 @@ export async function getNotesByPaper(paperId: string): Promise<Note[]> {
 
 export async function addNote(note: Note): Promise<void> {
   const targetProjectId = getProjectId();
+  const userId = await getCurrentUserId();
 
   const { error } = await supabase.from('notes').insert({
     id: note.id,
     project_id: targetProjectId,
+    user_id: userId,
     highlight_id: note.highlightId,
     paper_id: note.paperId,
     content: note.content,
@@ -659,10 +671,12 @@ export async function getJournalEntry(date: string): Promise<JournalEntry | unde
 
 export async function addJournalEntry(entry: JournalEntry): Promise<void> {
   const targetProjectId = getProjectId();
+  const userId = await getCurrentUserId();
 
   const { error } = await supabase.from('journal_entries').insert({
     id: entry.id,
     project_id: targetProjectId,
+    user_id: userId,
     date: entry.date,
     paper_ids: entry.paperIds,
     synthesis: entry.synthesis,
@@ -766,10 +780,12 @@ export async function updateSettings(settings: AppSettings, projectId?: string):
 
   // If no rows updated (row doesn't exist), try INSERT
   if (!updateResult.error && updateResult.data && updateResult.data.length === 0) {
+    const userId = await getCurrentUserId();
     const insertResult = await supabase
       .from('settings')
       .insert({
         project_id: targetProjectId,
+        user_id: userId,
         default_highlight_color: settings.defaultHighlightColor,
         research_context: settings.researchContext,
         sort_option: settings.sortOption,

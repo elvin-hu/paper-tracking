@@ -4,23 +4,62 @@ import { Reader } from './pages/Reader';
 import { FurtherReadingPage } from './pages/FurtherReadingPage';
 import { NotesPage } from './pages/NotesPage';
 import { Settings } from './pages/Settings';
+import { Auth } from './pages/Auth';
+import { Account } from './pages/Account';
 import Journal from './pages/Journal';
 import { ProjectProvider } from './contexts/ProjectContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
   return (
-    <ProjectProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Library />} />
-          <Route path="/reader/:paperId" element={<Reader />} />
-          <Route path="/further-reading" element={<FurtherReadingPage />} />
-          <Route path="/notes" element={<NotesPage />} />
-          <Route path="/journal" element={<Journal />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </BrowserRouter>
-    </ProjectProvider>
+    <AuthProvider>
+      <ProjectProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public route */}
+            <Route path="/auth" element={<Auth />} />
+            
+            {/* Protected routes */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Library />
+              </ProtectedRoute>
+            } />
+            <Route path="/reader/:paperId" element={
+              <ProtectedRoute>
+                <Reader />
+              </ProtectedRoute>
+            } />
+            <Route path="/further-reading" element={
+              <ProtectedRoute>
+                <FurtherReadingPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/notes" element={
+              <ProtectedRoute>
+                <NotesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/journal" element={
+              <ProtectedRoute>
+                <Journal />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="/account" element={
+              <ProtectedRoute>
+                <Account />
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </BrowserRouter>
+      </ProjectProvider>
+    </AuthProvider>
   );
 }
 
