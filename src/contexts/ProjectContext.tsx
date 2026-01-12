@@ -1,5 +1,5 @@
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import { getProjects, createProject, updateProject, type Project } from '../lib/project';
 import { setDatabaseProjectId } from '../lib/database';
 import { useAuth } from './AuthContext';
@@ -23,6 +23,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     const [projects, setProjects] = useState<Project[]>([]);
     const [currentProject, setCurrentProject] = useState<Project | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // Track user ID to prevent unnecessary reloads on tab switch
+    // (Supabase creates new user object references on session refresh)
+    const lastUserIdRef = useRef<string | null>(null);
 
     // Load projects only when auth is ready and user is logged in
     useEffect(() => {
@@ -35,8 +39,17 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
             setProjects([]);
             setCurrentProject(null);
             setIsLoading(false);
+            lastUserIdRef.current = null;
             return;
         }
+        
+        // Only load projects if user ID actually changed (not just object reference)
+        if (lastUserIdRef.current === user.id) {
+            // Same user, no need to reload
+            return;
+        }
+        
+        lastUserIdRef.current = user.id;
         // Auth is ready and user is logged in, load projects
         loadProjects();
     }, [user, isAuthLoading]);

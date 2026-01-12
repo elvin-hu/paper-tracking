@@ -208,6 +208,9 @@ export function Library() {
   useEffect(() => {
     const refreshNotes = async () => {
       if (currentProject && !isProjectLoading) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:refreshNotes',message:'Refreshing notes on visibility change',data:{projectId:currentProject.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
         try {
           const notes = await getAllNotes(currentProject.id);
           setAllNotes(notes);
@@ -218,12 +221,18 @@ export function Library() {
     };
 
     const handleVisibilityChange = () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:handleVisibilityChange',message:'Visibility changed',data:{state:document.visibilityState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       if (document.visibilityState === 'visible') {
         refreshNotes();
       }
     };
 
     const handleFocus = () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:handleFocus',message:'Window focus',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       refreshNotes();
     };
 
