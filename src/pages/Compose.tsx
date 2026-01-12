@@ -14,7 +14,7 @@ import {
   PenTool,
   Settings,
 } from 'lucide-react';
-import { Tldraw, Editor, TLShapeId, createShapeId } from 'tldraw';
+import { Tldraw, type Editor } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { useProject } from '../contexts/ProjectContext';
 import { getAllHighlightsByProject, getAllPapers } from '../lib/database';
