@@ -651,7 +651,7 @@ Generate an academic draft based on these canvas elements:`
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)] flex flex-col overflow-hidden">
+    <div className="h-screen bg-[var(--bg-secondary)] flex flex-col overflow-hidden">
       {/* Header */}
       <header className="h-12 border-b border-[var(--border-default)] bg-[var(--bg-card)] px-4 flex items-center justify-between flex-shrink-0 z-20">
         <div className="flex items-center gap-3">
@@ -801,7 +801,7 @@ Generate an academic draft based on these canvas elements:`
         {/* Canvas */}
         <main
           ref={canvasRef}
-          className="flex-1 relative overflow-hidden"
+          className="flex-1 relative overflow-hidden h-full"
           style={{
             background: `
               radial-gradient(circle at center, var(--bg-secondary) 0%, var(--bg-primary) 100%),
