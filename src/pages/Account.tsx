@@ -83,7 +83,7 @@ export function Account() {
       <header className="sticky top-0 z-30 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border-default)]">
         <div className="max-w-xl mx-auto px-6 py-4 flex items-center gap-4">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/settings')}
             className="p-2 rounded-full hover:bg-[var(--bg-tertiary)] transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />

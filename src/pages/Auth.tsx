@@ -126,7 +126,7 @@ export function Auth() {
                   Name
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
                   <input
                     id="name"
                     name="name"
@@ -134,7 +134,8 @@ export function Auth() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Your name"
-                    className="w-full pl-11 pr-4 py-2.5 text-sm rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-colors"
+                    className="w-full py-2.5 text-sm rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-colors"
+                    style={{ paddingLeft: '2.5rem', paddingRight: '1rem' }}
                     autoComplete="name"
                   />
                 </div>
@@ -147,7 +148,7 @@ export function Auth() {
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
                 <input
                   id="email"
                   name="email"
@@ -155,7 +156,8 @@ export function Auth() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full pl-11 pr-4 py-2.5 text-sm rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-colors"
+                  className="w-full py-2.5 text-sm rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-colors"
+                  style={{ paddingLeft: '2.5rem', paddingRight: '1rem' }}
                   autoComplete="email username"
                   required
                 />
@@ -168,7 +170,7 @@ export function Auth() {
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
                 <input
                   id="password"
                   name="password"
@@ -176,7 +178,8 @@ export function Auth() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={mode === 'signup' ? 'Create a password' : 'Your password'}
-                  className="w-full pl-11 pr-11 py-2.5 text-sm rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-colors"
+                  className="w-full py-2.5 text-sm rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-colors"
+                  style={{ paddingLeft: '2.5rem', paddingRight: '2.5rem' }}
                   autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                   required
                   minLength={6}
@@ -184,7 +187,7 @@ export function Auth() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
                 >
                   {showPassword ? (
                     <EyeOff className="w-4 h-4" />

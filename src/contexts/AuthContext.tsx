@@ -63,7 +63,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    // Force refresh the session first to sync client state
+    await supabase.auth.getSession();
+    
+    // Use scope: 'global' to sign out from all sessions and ensure complete logout
+    const { error } = await supabase.auth.signOut({ scope: 'global' });
+    
+    if (error) {
+      console.error('Supabase signOut error:', error);
+    }
+    
+    // Always clear local state regardless of signOut result
+    setUser(null);
+    setSession(null);
   }, []);
 
   const updateProfile = useCallback(async (data: { name?: string }) => {
