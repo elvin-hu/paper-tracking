@@ -7,7 +7,6 @@ import {
   GripVertical,
   FileText,
   Lightbulb,
-  Type,
   StickyNote,
   Trash2,
   ZoomIn,
@@ -15,10 +14,19 @@ import {
   Maximize2,
   Wand2,
   ChevronDown,
-  Circle,
+  ChevronRight,
   Square,
   Save,
-  Palette,
+  Link2,
+  Unlink,
+  List,
+  LayoutGrid,
+  Layers,
+  Search,
+  X,
+  Check,
+  MoveUp,
+  MoveDown,
 } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import { getAllHighlightsByProject, getAllPapers } from '../lib/database';
@@ -27,6 +35,10 @@ import { DEFAULT_HIGHLIGHT_THEMES as THEMES } from '../types';
 
 // LocalStorage key
 const COMPOSITION_STORAGE_KEY = 'paper-lab-canvas-composition';
+
+// Snap distance for magnetic alignment
+const SNAP_DISTANCE = 20;
+const SNAP_MARGIN = 10;
 
 // Element types
 type ElementType = 'thesis' | 'highlight' | 'text' | 'section';
@@ -46,15 +58,16 @@ interface CanvasElement {
   paperAuthors?: string;
   // For sections
   color?: string;
-  // For grouping
-  groupId?: string;
+  // For ordering in outline
+  order?: number;
+  // Connected elements (for drawing lines)
+  connectedTo?: string[];
 }
 
-interface SectionGroup {
-  id: string;
-  title: string;
-  color: string;
-  // Bounds are calculated from contained elements
+// Connection between elements
+interface Connection {
+  from: string;
+  to: string;
 }
 
 // Extend highlight with paper info
@@ -72,6 +85,25 @@ const SECTION_COLORS = [
   { name: 'Pink', value: '#ec4899', bg: 'rgba(236, 72, 153, 0.1)', border: 'rgba(236, 72, 153, 0.3)' },
   { name: 'Teal', value: '#14b8a6', bg: 'rgba(20, 184, 166, 0.1)', border: 'rgba(20, 184, 166, 0.3)' },
 ];
+
+// Paper structure templates
+const PAPER_TEMPLATES = {
+  standard: [
+    { title: 'Introduction', description: 'Present the problem and your contribution' },
+    { title: 'Related Work', description: 'Position within existing research' },
+    { title: 'Methodology', description: 'Explain your approach' },
+    { title: 'Results', description: 'Present findings' },
+    { title: 'Discussion', description: 'Interpret results' },
+    { title: 'Conclusion', description: 'Summarize and future work' },
+  ],
+  argumentative: [
+    { title: 'Introduction & Thesis', description: 'State your main argument' },
+    { title: 'Background', description: 'Context and definitions' },
+    { title: 'Supporting Evidence', description: 'Arguments for your thesis' },
+    { title: 'Counterarguments', description: 'Address opposing views' },
+    { title: 'Conclusion', description: 'Restate thesis with implications' },
+  ],
+};
 
 // Highlight color map
 const HIGHLIGHT_COLOR_MAP: Record<HighlightColor, string> = {
@@ -94,7 +126,7 @@ export function Compose() {
   
   // Canvas state
   const [elements, setElements] = useState<CanvasElement[]>([]);
-  const [groups, setGroups] = useState<SectionGroup[]>([]);
+  const [connections, setConnections] = useState<Connection[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -102,15 +134,27 @@ export function Compose() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPos, setLastPanPos] = useState({ x: 0, y: 0 });
+  const [snapLines, setSnapLines] = useState<{ x?: number; y?: number }>({});
   
   // UI state
   const [showHighlightPanel, setShowHighlightPanel] = useState(true);
-  const [showToolbar, setShowToolbar] = useState(true);
+  const [showOutlinePanel, setShowOutlinePanel] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [compositionTitle, setCompositionTitle] = useState('Untitled Paper');
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
   const [generatedDraft, setGeneratedDraft] = useState<string | null>(null);
   const [showDraftModal, setShowDraftModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  
+  // Floating action menu
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const [actionMenuPos, setActionMenuPos] = useState({ x: 0, y: 0 });
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  
+  // AI suggestions
+  const [isFindingRelevant, setIsFindingRelevant] = useState(false);
+  const [suggestedHighlights, setSuggestedHighlights] = useState<string[]>([]);
 
   // Load saved composition
   useEffect(() => {
@@ -121,7 +165,7 @@ export function Compose() {
       try {
         const parsed = JSON.parse(saved);
         setElements(parsed.elements || []);
-        setGroups(parsed.groups || []);
+        setConnections(parsed.connections || []);
         setCompositionTitle(parsed.title || 'Untitled Paper');
         setLastSaved(parsed.savedAt ? new Date(parsed.savedAt) : null);
         if (parsed.zoom) setZoom(parsed.zoom);
@@ -140,7 +184,7 @@ export function Compose() {
       const data = {
         title: compositionTitle,
         elements,
-        groups,
+        connections,
         zoom,
         pan,
         savedAt: new Date().toISOString(),
@@ -150,7 +194,7 @@ export function Compose() {
     }, 1000);
 
     return () => clearTimeout(saveTimeout);
-  }, [elements, groups, compositionTitle, zoom, pan, currentProject]);
+  }, [elements, connections, compositionTitle, zoom, pan, currentProject]);
 
   // Load data
   useEffect(() => {
@@ -191,31 +235,96 @@ export function Compose() {
     }));
   }, [highlights]);
 
-  // Calculate group bounds from contained elements
-  const calculateGroupBounds = useCallback((groupId: string) => {
-    const groupElements = elements.filter(e => e.groupId === groupId);
-    if (groupElements.length === 0) return null;
+  // Get thesis elements for outline
+  const thesisElements = useMemo(() => {
+    return elements
+      .filter(e => e.type === 'thesis')
+      .sort((a, b) => (a.order ?? a.y) - (b.order ?? b.y));
+  }, [elements]);
+
+  // Calculate snap position
+  const calculateSnap = useCallback((draggedElement: CanvasElement, newX: number, newY: number) => {
+    const otherElements = elements.filter(e => e.id !== draggedElement.id);
+    let snapX: number | undefined;
+    let snapY: number | undefined;
+    let resultX = newX;
+    let resultY = newY;
     
-    const padding = 20;
-    const headerHeight = 40;
-    
-    const minX = Math.min(...groupElements.map(e => e.x)) - padding;
-    const minY = Math.min(...groupElements.map(e => e.y)) - padding - headerHeight;
-    const maxX = Math.max(...groupElements.map(e => e.x + e.width)) + padding;
-    const maxY = Math.max(...groupElements.map(e => e.y + e.height)) + padding;
-    
-    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+    const draggedRight = newX + draggedElement.width;
+    const draggedBottom = newY + draggedElement.height;
+    const draggedCenterX = newX + draggedElement.width / 2;
+    const draggedCenterY = newY + draggedElement.height / 2;
+
+    for (const other of otherElements) {
+      const otherRight = other.x + other.width;
+      const otherBottom = other.y + other.height;
+      const otherCenterX = other.x + other.width / 2;
+      const otherCenterY = other.y + other.height / 2;
+
+      // Snap left edge to left edge
+      if (Math.abs(newX - other.x) < SNAP_DISTANCE) {
+        resultX = other.x;
+        snapX = other.x;
+      }
+      // Snap left edge to right edge (with margin)
+      if (Math.abs(newX - otherRight - SNAP_MARGIN) < SNAP_DISTANCE) {
+        resultX = otherRight + SNAP_MARGIN;
+        snapX = otherRight + SNAP_MARGIN;
+      }
+      // Snap right edge to right edge
+      if (Math.abs(draggedRight - otherRight) < SNAP_DISTANCE) {
+        resultX = otherRight - draggedElement.width;
+        snapX = otherRight;
+      }
+      // Snap right edge to left edge (with margin)
+      if (Math.abs(draggedRight - other.x + SNAP_MARGIN) < SNAP_DISTANCE) {
+        resultX = other.x - SNAP_MARGIN - draggedElement.width;
+        snapX = other.x - SNAP_MARGIN;
+      }
+      // Snap center X
+      if (Math.abs(draggedCenterX - otherCenterX) < SNAP_DISTANCE) {
+        resultX = otherCenterX - draggedElement.width / 2;
+        snapX = otherCenterX;
+      }
+
+      // Snap top edge to top edge
+      if (Math.abs(newY - other.y) < SNAP_DISTANCE) {
+        resultY = other.y;
+        snapY = other.y;
+      }
+      // Snap top edge to bottom edge (with margin)
+      if (Math.abs(newY - otherBottom - SNAP_MARGIN) < SNAP_DISTANCE) {
+        resultY = otherBottom + SNAP_MARGIN;
+        snapY = otherBottom + SNAP_MARGIN;
+      }
+      // Snap bottom edge to bottom edge
+      if (Math.abs(draggedBottom - otherBottom) < SNAP_DISTANCE) {
+        resultY = otherBottom - draggedElement.height;
+        snapY = otherBottom;
+      }
+      // Snap bottom edge to top edge (with margin)
+      if (Math.abs(draggedBottom - other.y + SNAP_MARGIN) < SNAP_DISTANCE) {
+        resultY = other.y - SNAP_MARGIN - draggedElement.height;
+        snapY = other.y - SNAP_MARGIN;
+      }
+      // Snap center Y
+      if (Math.abs(draggedCenterY - otherCenterY) < SNAP_DISTANCE) {
+        resultY = otherCenterY - draggedElement.height / 2;
+        snapY = otherCenterY;
+      }
+    }
+
+    return { x: resultX, y: resultY, snapX, snapY };
   }, [elements]);
 
   // Add element to canvas
-  const addElement = useCallback((type: ElementType, highlight?: HighlightWithPaper) => {
+  const addElement = useCallback((type: ElementType, highlight?: HighlightWithPaper, position?: { x: number; y: number }) => {
     const canvasRect = canvasRef.current?.getBoundingClientRect();
-    const centerX = canvasRect ? (canvasRect.width / 2 - pan.x) / zoom : 300;
-    const centerY = canvasRect ? (canvasRect.height / 2 - pan.y) / zoom : 300;
+    const centerX = position?.x ?? (canvasRect ? (canvasRect.width / 2 - pan.x) / zoom : 300);
+    const centerY = position?.y ?? (canvasRect ? (canvasRect.height / 2 - pan.y) / zoom : 300);
     
-    // Add some randomness to avoid stacking
-    const offsetX = (Math.random() - 0.5) * 100;
-    const offsetY = (Math.random() - 0.5) * 100;
+    const offsetX = position ? 0 : (Math.random() - 0.5) * 100;
+    const offsetY = position ? 0 : (Math.random() - 0.5) * 100;
     
     const newElement: CanvasElement = {
       id: crypto.randomUUID(),
@@ -232,28 +341,34 @@ export function Compose() {
       highlightColor: highlight?.color,
       paperTitle: highlight?.paperTitle,
       paperAuthors: highlight?.paperAuthors,
-      color: type === 'section' ? SECTION_COLORS[groups.length % SECTION_COLORS.length].value : undefined,
+      color: type === 'section' ? SECTION_COLORS[elements.filter(e => e.type === 'section').length % SECTION_COLORS.length].value : undefined,
+      order: type === 'thesis' ? thesisElements.length : undefined,
+      connectedTo: [],
     };
     
     setElements(prev => [...prev, newElement]);
     setSelectedId(newElement.id);
     
     return newElement;
-  }, [pan, zoom, groups.length]);
+  }, [pan, zoom, elements, thesisElements.length]);
 
-  // Add section group
-  const addSection = useCallback(() => {
-    const color = SECTION_COLORS[groups.length % SECTION_COLORS.length];
-    const newGroup: SectionGroup = {
-      id: crypto.randomUUID(),
-      title: 'New Section',
-      color: color.value,
-    };
-    setGroups(prev => [...prev, newGroup]);
-    
-    // Also add a section header element
-    addElement('section');
-  }, [groups.length, addElement]);
+  // Add connection between elements
+  const addConnection = useCallback((fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    const exists = connections.some(c => 
+      (c.from === fromId && c.to === toId) || (c.from === toId && c.to === fromId)
+    );
+    if (!exists) {
+      setConnections(prev => [...prev, { from: fromId, to: toId }]);
+    }
+  }, [connections]);
+
+  // Remove connection
+  const removeConnection = useCallback((fromId: string, toId: string) => {
+    setConnections(prev => prev.filter(c => 
+      !((c.from === fromId && c.to === toId) || (c.from === toId && c.to === fromId))
+    ));
+  }, []);
 
   // Update element
   const updateElement = useCallback((id: string, updates: Partial<CanvasElement>) => {
@@ -263,14 +378,47 @@ export function Compose() {
   // Delete element
   const deleteElement = useCallback((id: string) => {
     setElements(prev => prev.filter(el => el.id !== id));
-    if (selectedId === id) setSelectedId(null);
+    setConnections(prev => prev.filter(c => c.from !== id && c.to !== id));
+    if (selectedId === id) {
+      setSelectedId(null);
+      setShowActionMenu(false);
+    }
   }, [selectedId]);
+
+  // Move thesis in outline
+  const moveThesis = useCallback((id: string, direction: 'up' | 'down') => {
+    const thesisList = [...thesisElements];
+    const index = thesisList.findIndex(t => t.id === id);
+    if (index === -1) return;
+    
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= thesisList.length) return;
+    
+    [thesisList[index], thesisList[newIndex]] = [thesisList[newIndex], thesisList[index]];
+    
+    // Update order values
+    const updates = thesisList.map((t, i) => ({ id: t.id, order: i }));
+    setElements(prev => prev.map(el => {
+      const update = updates.find(u => u.id === el.id);
+      return update ? { ...el, order: update.order } : el;
+    }));
+  }, [thesisElements]);
 
   // Handle mouse down on element
   const handleElementMouseDown = useCallback((e: React.MouseEvent, element: CanvasElement) => {
     e.stopPropagation();
+    
+    if (isConnecting && connectingFrom) {
+      // Complete connection
+      addConnection(connectingFrom, element.id);
+      setIsConnecting(false);
+      setConnectingFrom(null);
+      return;
+    }
+    
     setSelectedId(element.id);
     setIsDragging(true);
+    setShowActionMenu(false);
     
     const rect = (e.target as HTMLElement).closest('.canvas-element')?.getBoundingClientRect();
     if (rect) {
@@ -279,16 +427,34 @@ export function Compose() {
         y: e.clientY - rect.top,
       });
     }
-  }, []);
+  }, [isConnecting, connectingFrom, addConnection]);
+
+  // Handle element click (for action menu)
+  const handleElementClick = useCallback((e: React.MouseEvent, element: CanvasElement) => {
+    if (element.type === 'thesis' && selectedId === element.id && !isDragging) {
+      const rect = (e.target as HTMLElement).closest('.canvas-element')?.getBoundingClientRect();
+      if (rect) {
+        setActionMenuPos({ x: rect.right + 8, y: rect.top });
+        setShowActionMenu(true);
+      }
+    }
+  }, [selectedId, isDragging]);
 
   // Handle mouse move
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isDragging && selectedId) {
       const canvasRect = canvasRef.current?.getBoundingClientRect();
       if (canvasRect) {
-        const x = (e.clientX - canvasRect.left - dragOffset.x - pan.x) / zoom;
-        const y = (e.clientY - canvasRect.top - dragOffset.y - pan.y) / zoom;
-        updateElement(selectedId, { x, y });
+        const element = elements.find(el => el.id === selectedId);
+        if (element) {
+          const rawX = (e.clientX - canvasRect.left - dragOffset.x - pan.x) / zoom;
+          const rawY = (e.clientY - canvasRect.top - dragOffset.y - pan.y) / zoom;
+          
+          const { x, y, snapX, snapY } = calculateSnap(element, rawX, rawY);
+          
+          updateElement(selectedId, { x, y });
+          setSnapLines({ x: snapX, y: snapY });
+        }
       }
     } else if (isPanning) {
       const dx = e.clientX - lastPanPos.x;
@@ -296,24 +462,29 @@ export function Compose() {
       setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
       setLastPanPos({ x: e.clientX, y: e.clientY });
     }
-  }, [isDragging, selectedId, dragOffset, pan, zoom, isPanning, lastPanPos, updateElement]);
+  }, [isDragging, selectedId, elements, dragOffset, pan, zoom, isPanning, lastPanPos, updateElement, calculateSnap]);
 
   // Handle mouse up
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     setIsPanning(false);
+    setSnapLines({});
   }, []);
 
-  // Handle canvas pan start
+  // Handle canvas mouse down
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
-      // Middle click or Alt+click to pan
       setIsPanning(true);
       setLastPanPos({ x: e.clientX, y: e.clientY });
     } else {
       setSelectedId(null);
+      setShowActionMenu(false);
+      if (isConnecting) {
+        setIsConnecting(false);
+        setConnectingFrom(null);
+      }
     }
-  }, []);
+  }, [isConnecting]);
 
   // Handle zoom
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -339,58 +510,35 @@ export function Compose() {
       if (highlight) {
         const canvasRect = canvasRef.current?.getBoundingClientRect();
         if (canvasRect) {
-          const x = (e.clientX - canvasRect.left - pan.x) / zoom;
-          const y = (e.clientY - canvasRect.top - pan.y) / zoom;
-          
-          const newElement: CanvasElement = {
-            id: crypto.randomUUID(),
-            type: 'highlight',
-            x: x - 130,
-            y: y - 60,
-            width: 260,
-            height: 120,
-            content: highlight.text,
-            highlightId: highlight.id,
-            highlightColor: highlight.color,
-            paperTitle: highlight.paperTitle,
-            paperAuthors: highlight.paperAuthors,
-          };
-          setElements(prev => [...prev, newElement]);
-          setSelectedId(newElement.id);
+          const x = (e.clientX - canvasRect.left - pan.x) / zoom - 130;
+          const y = (e.clientY - canvasRect.top - pan.y) / zoom - 60;
+          addElement('highlight', highlight, { x, y });
         }
       }
     }
-  }, [highlights, pan, zoom]);
+  }, [highlights, pan, zoom, addElement]);
 
-  // Generate draft from canvas
-  const generateDraft = useCallback(async () => {
-    setIsGeneratingDraft(true);
+  // Find relevant highlights for selected thesis
+  const findRelevantHighlights = useCallback(async () => {
+    const selectedElement = elements.find(e => e.id === selectedId);
+    if (!selectedElement || selectedElement.type !== 'thesis') return;
+    
+    setIsFindingRelevant(true);
+    setSuggestedHighlights([]);
     
     try {
-      // Collect all elements and organize by position (top to bottom)
-      const sortedElements = [...elements].sort((a, b) => a.y - b.y);
+      // Get highlights not already on canvas
+      const canvasHighlightIds = elements.filter(e => e.highlightId).map(e => e.highlightId);
+      const availableHighlights = highlights.filter(h => !canvasHighlightIds.includes(h.id));
       
-      // Build context from canvas
-      const thesisStatements = sortedElements
-        .filter(e => e.type === 'thesis')
-        .map(e => e.content);
-      
-      const highlightElements = sortedElements
-        .filter(e => e.type === 'highlight')
-        .map(e => ({
-          text: e.content,
-          paper: e.paperTitle,
-          authors: e.paperAuthors,
-          note: highlights.find(h => h.id === e.highlightId)?.note,
-        }));
-      
-      const freeTextElements = sortedElements
-        .filter(e => e.type === 'text')
-        .map(e => e.content);
-      
-      const sectionElements = sortedElements
-        .filter(e => e.type === 'section')
-        .map(e => e.content);
+      if (availableHighlights.length === 0) {
+        setIsFindingRelevant(false);
+        return;
+      }
+
+      const highlightSummaries = availableHighlights.map((h, i) => 
+        `[${i}] Color: ${h.color}, Text: "${h.text.slice(0, 150)}...", Paper: ${h.paperTitle}`
+      ).join('\n');
       
       const response = await fetch('/api/openai', {
         method: 'POST',
@@ -399,36 +547,128 @@ export function Compose() {
           messages: [
             {
               role: 'system',
-              content: `You are helping a researcher write an academic paper. Based on the canvas elements they've arranged (thesis statements, research highlights, notes, and section headers), generate well-structured academic prose.
-
-Guidelines:
-- Weave together the thesis statements as the main argument
-- Incorporate quotes from research with proper citations (e.g., "According to [Author]...")
-- Use the free-form notes to guide tone and structure
-- Organize content following any section headers provided
-- Use academic transitions between ideas
-- Write approximately 400-800 words
-- Maintain a scholarly but readable tone`
+              content: `Find highlights that support this thesis statement. Return ONLY a JSON array of indices (max 5).`
             },
             {
               role: 'user',
-              content: `Paper Title: ${compositionTitle}
+              content: `Thesis: "${selectedElement.content}"\n\nAvailable highlights:\n${highlightSummaries}\n\nReturn JSON array:`
+            }
+          ],
+          model: 'gpt-4o-mini',
+          max_tokens: 100,
+        }),
+      });
 
-Thesis Statements:
-${thesisStatements.length > 0 ? thesisStatements.map((t, i) => `${i + 1}. ${t}`).join('\n') : 'None yet'}
+      if (response.ok) {
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content?.trim();
+        try {
+          const indices = JSON.parse(content);
+          if (Array.isArray(indices)) {
+            const suggestedIds = indices
+              .filter((i: number) => i >= 0 && i < availableHighlights.length)
+              .map((i: number) => availableHighlights[i].id);
+            setSuggestedHighlights(suggestedIds);
+          }
+        } catch {
+          console.error('Failed to parse:', content);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to find relevant highlights:', error);
+    } finally {
+      setIsFindingRelevant(false);
+    }
+  }, [selectedId, elements, highlights]);
 
-Section Headers:
-${sectionElements.length > 0 ? sectionElements.join(', ') : 'None'}
+  // Add suggested highlight near thesis
+  const addSuggestedHighlight = useCallback((highlightId: string) => {
+    const highlight = highlights.find(h => h.id === highlightId);
+    const selectedElement = elements.find(e => e.id === selectedId);
+    if (!highlight || !selectedElement) return;
+    
+    // Position below and slightly to the right of the thesis
+    const newElement = addElement('highlight', highlight, {
+      x: selectedElement.x + 20,
+      y: selectedElement.y + selectedElement.height + 20,
+    });
+    
+    // Auto-connect
+    addConnection(selectedId!, newElement.id);
+    
+    // Remove from suggestions
+    setSuggestedHighlights(prev => prev.filter(id => id !== highlightId));
+  }, [highlights, elements, selectedId, addElement, addConnection]);
 
-Research Highlights:
-${highlightElements.length > 0 ? highlightElements.map(h => 
-  `"${h.text}" (${h.paper}${h.authors ? `, ${h.authors}` : ''})${h.note ? ` [Note: ${h.note}]` : ''}`
-).join('\n\n') : 'None yet'}
+  // Apply paper template
+  const applyTemplate = useCallback((templateKey: keyof typeof PAPER_TEMPLATES) => {
+    const template = PAPER_TEMPLATES[templateKey];
+    const startX = 100;
+    let currentY = 100;
+    
+    template.forEach((section, index) => {
+      const thesisElement: CanvasElement = {
+        id: crypto.randomUUID(),
+        type: 'thesis',
+        x: startX,
+        y: currentY,
+        width: 320,
+        height: 100,
+        content: section.title,
+        order: index,
+        connectedTo: [],
+      };
+      setElements(prev => [...prev, thesisElement]);
+      currentY += 140;
+    });
+    
+    setShowTemplateModal(false);
+  }, []);
 
-Author's Notes:
-${freeTextElements.length > 0 ? freeTextElements.join('\n') : 'None'}
-
-Generate an academic draft based on these canvas elements:`
+  // Generate draft from canvas
+  const generateDraft = useCallback(async () => {
+    setIsGeneratingDraft(true);
+    
+    try {
+      // Use thesis order for structure
+      const orderedTheses = [...thesisElements];
+      
+      // For each thesis, find connected highlights
+      const sections = orderedTheses.map(thesis => {
+        const connectedIds = connections
+          .filter(c => c.from === thesis.id || c.to === thesis.id)
+          .map(c => c.from === thesis.id ? c.to : c.from);
+        
+        const connectedHighlights = elements
+          .filter(e => connectedIds.includes(e.id) && e.type === 'highlight')
+          .map(e => ({
+            text: e.content,
+            paper: e.paperTitle,
+            authors: e.paperAuthors,
+          }));
+        
+        return {
+          thesis: thesis.content,
+          highlights: connectedHighlights,
+        };
+      });
+      
+      const response = await fetch('/api/openai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'system',
+              content: `You are helping write an academic paper. Generate prose based on the structured outline provided. Each section has a thesis/main point and supporting evidence. Use academic tone, proper citations, and smooth transitions.`
+            },
+            {
+              role: 'user',
+              content: `Paper Title: ${compositionTitle}\n\nSections:\n${sections.map((s, i) => 
+                `${i + 1}. ${s.thesis}\nSupporting evidence:\n${s.highlights.length > 0 ? s.highlights.map(h => 
+                  `- "${h.text}" (${h.paper})`
+                ).join('\n') : '(No evidence linked yet)'}`
+              ).join('\n\n')}\n\nGenerate an academic draft (~500-800 words):`
             }
           ],
           model: 'gpt-4o-mini',
@@ -449,7 +689,35 @@ Generate an academic draft based on these canvas elements:`
     } finally {
       setIsGeneratingDraft(false);
     }
-  }, [elements, highlights, compositionTitle]);
+  }, [thesisElements, connections, elements, compositionTitle]);
+
+  // Render connection lines
+  const renderConnections = () => {
+    return connections.map(conn => {
+      const fromEl = elements.find(e => e.id === conn.from);
+      const toEl = elements.find(e => e.id === conn.to);
+      if (!fromEl || !toEl) return null;
+      
+      const fromX = (fromEl.x + fromEl.width / 2) * zoom + pan.x;
+      const fromY = (fromEl.y + fromEl.height / 2) * zoom + pan.y;
+      const toX = (toEl.x + toEl.width / 2) * zoom + pan.x;
+      const toY = (toEl.y + toEl.height / 2) * zoom + pan.y;
+      
+      return (
+        <line
+          key={`${conn.from}-${conn.to}`}
+          x1={fromX}
+          y1={fromY}
+          x2={toX}
+          y2={toY}
+          stroke="var(--accent-primary)"
+          strokeWidth={2}
+          strokeDasharray="4 4"
+          opacity={0.5}
+        />
+      );
+    });
+  };
 
   // Render element based on type
   const renderElement = (element: CanvasElement) => {
@@ -461,9 +729,9 @@ Generate an academic draft based on these canvas elements:`
       top: element.y * zoom + pan.y,
       width: element.width * zoom,
       minHeight: element.height * zoom,
-      transform: 'translate(0, 0)',
       cursor: isDragging && isSelected ? 'grabbing' : 'grab',
       transition: isDragging ? 'none' : 'box-shadow 0.2s',
+      zIndex: isSelected ? 10 : 1,
     };
 
     switch (element.type) {
@@ -481,12 +749,16 @@ Generate an academic draft based on these canvas elements:`
               padding: 16 * zoom,
             }}
             onMouseDown={(e) => handleElementMouseDown(e, element)}
+            onClick={(e) => handleElementClick(e, element)}
           >
             <div className="flex items-center gap-2 mb-2" style={{ fontSize: 12 * zoom }}>
               <Lightbulb className="text-[var(--accent-primary)]" style={{ width: 14 * zoom, height: 14 * zoom }} />
               <span className="font-semibold text-[var(--accent-primary)]">Thesis</span>
+              {element.order !== undefined && (
+                <span className="text-[var(--text-muted)] text-xs">#{element.order + 1}</span>
+              )}
               <button
-                onClick={() => deleteElement(element.id)}
+                onClick={(e) => { e.stopPropagation(); deleteElement(element.id); }}
                 className="ml-auto opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--accent-red)]/10 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-all"
               >
                 <Trash2 style={{ width: 12 * zoom, height: 12 * zoom }} />
@@ -505,6 +777,7 @@ Generate an academic draft based on these canvas elements:`
 
       case 'highlight':
         const highlightColor = element.highlightColor ? HIGHLIGHT_COLOR_MAP[element.highlightColor] : '#fbbf24';
+        const isConnected = connections.some(c => c.from === element.id || c.to === element.id);
         return (
           <div
             key={element.id}
@@ -519,6 +792,11 @@ Generate an academic draft based on these canvas elements:`
             }}
             onMouseDown={(e) => handleElementMouseDown(e, element)}
           >
+            {isConnected && (
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--accent-primary)] rounded-full flex items-center justify-center">
+                <Link2 className="w-2.5 h-2.5 text-white" />
+              </div>
+            )}
             <div className="flex items-start gap-2">
               <div
                 className="rounded-full flex-shrink-0"
@@ -530,21 +808,15 @@ Generate an academic draft based on these canvas elements:`
                 }}
               />
               <div className="flex-1 min-w-0">
-                <p
-                  className="text-[var(--text-primary)]"
-                  style={{ fontSize: 13 * zoom, lineHeight: 1.5 }}
-                >
+                <p className="text-[var(--text-primary)]" style={{ fontSize: 13 * zoom, lineHeight: 1.5 }}>
                   "{element.content}"
                 </p>
-                <p
-                  className="text-[var(--text-muted)] mt-1 truncate"
-                  style={{ fontSize: 10 * zoom }}
-                >
+                <p className="text-[var(--text-muted)] mt-1 truncate" style={{ fontSize: 10 * zoom }}>
                   — {element.paperTitle}
                 </p>
               </div>
               <button
-                onClick={() => deleteElement(element.id)}
+                onClick={(e) => { e.stopPropagation(); deleteElement(element.id); }}
                 className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--accent-red)]/10 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-all flex-shrink-0"
               >
                 <Trash2 style={{ width: 12 * zoom, height: 12 * zoom }} />
@@ -569,7 +841,7 @@ Generate an academic draft based on these canvas elements:`
             onMouseDown={(e) => handleElementMouseDown(e, element)}
           >
             <button
-              onClick={() => deleteElement(element.id)}
+              onClick={(e) => { e.stopPropagation(); deleteElement(element.id); }}
               className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--accent-red)]/10 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-all"
             >
               <Trash2 style={{ width: 12 * zoom, height: 12 * zoom }} />
@@ -578,7 +850,7 @@ Generate an academic draft based on these canvas elements:`
               value={element.content}
               onChange={(e) => updateElement(element.id, { content: e.target.value })}
               className="w-full bg-transparent text-gray-800 resize-none focus:outline-none"
-              style={{ fontSize: 14 * zoom, lineHeight: 1.5, fontFamily: 'inherit' }}
+              style={{ fontSize: 14 * zoom, lineHeight: 1.5 }}
               placeholder="Add your notes..."
               onClick={(e) => e.stopPropagation()}
             />
@@ -601,14 +873,7 @@ Generate an academic draft based on these canvas elements:`
             onMouseDown={(e) => handleElementMouseDown(e, element)}
           >
             <div className="flex items-center gap-2">
-              <div
-                className="rounded-full"
-                style={{
-                  width: 12 * zoom,
-                  height: 12 * zoom,
-                  backgroundColor: sectionColor.value,
-                }}
-              />
+              <div className="rounded-full" style={{ width: 12 * zoom, height: 12 * zoom, backgroundColor: sectionColor.value }} />
               <input
                 type="text"
                 value={element.content}
@@ -619,16 +884,13 @@ Generate an academic draft based on these canvas elements:`
                 onClick={(e) => e.stopPropagation()}
               />
               <button
-                onClick={() => deleteElement(element.id)}
+                onClick={(e) => { e.stopPropagation(); deleteElement(element.id); }}
                 className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--accent-red)]/10 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-all"
               >
                 <Trash2 style={{ width: 14 * zoom, height: 14 * zoom }} />
               </button>
             </div>
-            <p
-              className="text-[var(--text-muted)] mt-2"
-              style={{ fontSize: 11 * zoom }}
-            >
+            <p className="text-[var(--text-muted)] mt-2" style={{ fontSize: 11 * zoom }}>
               Drop highlights and notes here
             </p>
           </div>
@@ -676,7 +938,6 @@ Generate an academic draft based on these canvas elements:`
           <button
             onClick={() => addElement('thesis')}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-card)] rounded-md transition-colors"
-            title="Add Thesis Statement"
           >
             <Lightbulb className="w-3.5 h-3.5" />
             Thesis
@@ -684,23 +945,21 @@ Generate an academic draft based on these canvas elements:`
           <button
             onClick={() => addElement('text')}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-card)] rounded-md transition-colors"
-            title="Add Sticky Note"
           >
             <StickyNote className="w-3.5 h-3.5" />
             Note
           </button>
           <button
-            onClick={addSection}
+            onClick={() => setShowTemplateModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-card)] rounded-md transition-colors"
-            title="Add Section"
           >
-            <Square className="w-3.5 h-3.5" />
-            Section
+            <Layers className="w-3.5 h-3.5" />
+            Template
           </button>
           <div className="w-px h-4 bg-[var(--border-default)] mx-1" />
           <button
             onClick={generateDraft}
-            disabled={isGeneratingDraft || elements.length === 0}
+            disabled={isGeneratingDraft || thesisElements.length === 0}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--bg-primary)] bg-[var(--accent-primary)] hover:opacity-90 rounded-md transition-opacity disabled:opacity-50"
           >
             <Wand2 className="w-3.5 h-3.5" />
@@ -713,29 +972,25 @@ Generate an academic draft based on these canvas elements:`
           {lastSaved && (
             <span className="text-[10px] text-[var(--text-muted)] flex items-center gap-1">
               <Save className="w-3 h-3" />
-              Saved {lastSaved.toLocaleTimeString()}
+              Saved
             </span>
           )}
+          <button
+            onClick={() => setShowOutlinePanel(!showOutlinePanel)}
+            className={`p-1.5 rounded-lg transition-colors ${showOutlinePanel ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}
+            title="Toggle Outline"
+          >
+            <List className="w-4 h-4" />
+          </button>
           <div className="flex items-center gap-0.5 bg-[var(--bg-secondary)] rounded-lg p-0.5">
-            <button
-              onClick={() => setZoom(z => Math.max(z * 0.9, 0.25))}
-              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded transition-colors"
-            >
+            <button onClick={() => setZoom(z => Math.max(z * 0.9, 0.25))} className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded transition-colors">
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
-            <span className="text-xs text-[var(--text-muted)] w-10 text-center">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              onClick={() => setZoom(z => Math.min(z * 1.1, 2))}
-              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded transition-colors"
-            >
+            <span className="text-xs text-[var(--text-muted)] w-10 text-center">{Math.round(zoom * 100)}%</span>
+            <button onClick={() => setZoom(z => Math.min(z * 1.1, 2))} className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded transition-colors">
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
-            <button
-              onClick={resetView}
-              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded transition-colors"
-            >
+            <button onClick={resetView} className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded transition-colors">
               <Maximize2 className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -754,41 +1009,46 @@ Generate an academic draft based on these canvas elements:`
             {themeGroups.map(group => (
               <div key={group.theme.color}>
                 <div className="flex items-center gap-2 mb-2">
-                  <div
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{ backgroundColor: HIGHLIGHT_COLOR_MAP[group.theme.color] }}
-                  />
-                  <span className="text-xs font-medium text-[var(--text-secondary)]">
-                    {group.theme.name}
-                  </span>
-                  <span className="text-[10px] text-[var(--text-muted)]">
-                    ({group.highlights.length})
-                  </span>
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: HIGHLIGHT_COLOR_MAP[group.theme.color] }} />
+                  <span className="text-xs font-medium text-[var(--text-secondary)]">{group.theme.name}</span>
+                  <span className="text-[10px] text-[var(--text-muted)]">({group.highlights.length})</span>
                 </div>
                 
                 <div className="space-y-1.5 ml-4">
-                  {group.highlights.slice(0, 8).map(highlight => (
-                    <div
-                      key={highlight.id}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('highlightId', highlight.id);
-                      }}
-                      className="p-2 bg-[var(--bg-secondary)] rounded-lg border border-transparent hover:border-[var(--accent-primary)]/30 cursor-grab active:cursor-grabbing transition-all hover:shadow-sm"
-                    >
-                      <p className="text-[11px] text-[var(--text-primary)] line-clamp-2 leading-relaxed">
-                        {highlight.text}
-                      </p>
-                      <p className="text-[9px] text-[var(--text-muted)] mt-1 truncate">
-                        {highlight.paperTitle}
-                      </p>
-                    </div>
-                  ))}
-                  {group.highlights.length > 8 && (
-                    <p className="text-[10px] text-[var(--accent-primary)] cursor-pointer hover:underline">
-                      +{group.highlights.length - 8} more
-                    </p>
-                  )}
+                  {group.highlights.slice(0, 8).map(highlight => {
+                    const isSuggested = suggestedHighlights.includes(highlight.id);
+                    return (
+                      <div
+                        key={highlight.id}
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData('highlightId', highlight.id)}
+                        className={`p-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all hover:shadow-sm ${
+                          isSuggested 
+                            ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30' 
+                            : 'bg-[var(--bg-secondary)] border-transparent hover:border-[var(--accent-primary)]/30'
+                        }`}
+                      >
+                        {isSuggested && (
+                          <div className="flex items-center gap-1 mb-1">
+                            <Sparkles className="w-3 h-3 text-[var(--accent-primary)]" />
+                            <span className="text-[9px] text-[var(--accent-primary)] font-medium">Suggested</span>
+                            <button
+                              onClick={() => addSuggestedHighlight(highlight.id)}
+                              className="ml-auto p-0.5 hover:bg-[var(--accent-primary)]/20 rounded"
+                            >
+                              <Plus className="w-3 h-3 text-[var(--accent-primary)]" />
+                            </button>
+                          </div>
+                        )}
+                        <p className="text-[11px] text-[var(--text-primary)] line-clamp-2 leading-relaxed">
+                          {highlight.text}
+                        </p>
+                        <p className="text-[9px] text-[var(--text-muted)] mt-1 truncate">
+                          {highlight.paperTitle}
+                        </p>
+                      </div>
+                    );
+                  })}
                   {group.highlights.length === 0 && (
                     <p className="text-[10px] text-[var(--text-muted)] italic">No highlights</p>
                   )}
@@ -803,13 +1063,7 @@ Generate an academic draft based on these canvas elements:`
           ref={canvasRef}
           className="flex-1 relative overflow-hidden h-full"
           style={{
-            background: `
-              radial-gradient(circle at center, var(--bg-secondary) 0%, var(--bg-primary) 100%),
-              repeating-linear-gradient(0deg, transparent, transparent 20px, var(--border-default) 20px, var(--border-default) 21px),
-              repeating-linear-gradient(90deg, transparent, transparent 20px, var(--border-default) 20px, var(--border-default) 21px)
-            `,
-            backgroundSize: '100% 100%, 100% 100%, 100% 100%',
-            backgroundBlendMode: 'normal',
+            background: 'var(--bg-secondary)',
           }}
           onMouseDown={handleCanvasMouseDown}
           onMouseMove={handleMouseMove}
@@ -819,15 +1073,34 @@ Generate an academic draft based on these canvas elements:`
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
         >
-          {/* Canvas dot pattern overlay */}
+          {/* Dot pattern */}
           <div
-            className="absolute inset-0 pointer-events-none opacity-30"
+            className="absolute inset-0 pointer-events-none opacity-20"
             style={{
               backgroundImage: `radial-gradient(circle, var(--text-muted) 1px, transparent 1px)`,
               backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
               backgroundPosition: `${pan.x}px ${pan.y}px`,
             }}
           />
+
+          {/* Snap lines */}
+          {snapLines.x !== undefined && (
+            <div
+              className="absolute top-0 bottom-0 w-px bg-[var(--accent-primary)] pointer-events-none z-50"
+              style={{ left: snapLines.x * zoom + pan.x }}
+            />
+          )}
+          {snapLines.y !== undefined && (
+            <div
+              className="absolute left-0 right-0 h-px bg-[var(--accent-primary)] pointer-events-none z-50"
+              style={{ top: snapLines.y * zoom + pan.y }}
+            />
+          )}
+
+          {/* Connection lines */}
+          <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+            {renderConnections()}
+          </svg>
 
           {/* Elements */}
           {elements.map(renderElement)}
@@ -841,37 +1114,188 @@ Generate an academic draft based on these canvas elements:`
                   Start Building Your Paper
                 </h2>
                 <p className="text-sm text-[var(--text-muted)] mb-4">
-                  Add thesis statements, drag highlights from the sidebar, and organize your thoughts visually.
+                  Add thesis statements, drag highlights, and connect ideas to build your paper structure.
                 </p>
                 <div className="flex gap-2 justify-center pointer-events-auto">
                   <button
-                    onClick={() => addElement('thesis')}
+                    onClick={() => setShowTemplateModal(true)}
                     className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 rounded-lg hover:bg-[var(--accent-primary)]/20 transition-colors"
+                  >
+                    <Layers className="w-4 h-4" />
+                    Use Template
+                  </button>
+                  <button
+                    onClick={() => addElement('thesis')}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-secondary)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
                   >
                     <Lightbulb className="w-4 h-4" />
                     Add Thesis
-                  </button>
-                  <button
-                    onClick={addSection}
-                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-secondary)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
-                  >
-                    <Square className="w-4 h-4" />
-                    Add Section
                   </button>
                 </div>
               </div>
             </div>
           )}
         </main>
+
+        {/* Right Panel - Outline */}
+        {showOutlinePanel && (
+          <aside className="w-72 border-l border-[var(--border-default)] bg-[var(--bg-card)] flex flex-col">
+            <div className="p-3 border-b border-[var(--border-default)]">
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">Paper Outline</h2>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">Drag to reorder sections</p>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-3">
+              {thesisElements.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)] text-center py-8">
+                  Add thesis statements to build your outline
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {thesisElements.map((thesis, index) => (
+                    <div
+                      key={thesis.id}
+                      className={`p-3 rounded-lg border transition-colors cursor-pointer ${
+                        selectedId === thesis.id
+                          ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30'
+                          : 'bg-[var(--bg-secondary)] border-transparent hover:border-[var(--border-default)]'
+                      }`}
+                      onClick={() => {
+                        setSelectedId(thesis.id);
+                        // Center on element
+                        const canvasRect = canvasRef.current?.getBoundingClientRect();
+                        if (canvasRect) {
+                          setPan({
+                            x: canvasRect.width / 2 - (thesis.x + thesis.width / 2) * zoom,
+                            y: canvasRect.height / 2 - (thesis.y + thesis.height / 2) * zoom,
+                          });
+                        }
+                      }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="text-xs font-bold text-[var(--accent-primary)] mt-0.5">
+                          {index + 1}.
+                        </span>
+                        <p className="flex-1 text-sm text-[var(--text-primary)] line-clamp-2">
+                          {thesis.content}
+                        </p>
+                        <div className="flex flex-col gap-0.5">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); moveThesis(thesis.id, 'up'); }}
+                            disabled={index === 0}
+                            className="p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30"
+                          >
+                            <MoveUp className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); moveThesis(thesis.id, 'down'); }}
+                            disabled={index === thesisElements.length - 1}
+                            className="p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30"
+                          >
+                            <MoveDown className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                      {/* Show connected highlights count */}
+                      {connections.filter(c => c.from === thesis.id || c.to === thesis.id).length > 0 && (
+                        <div className="flex items-center gap-1 mt-2 text-[10px] text-[var(--text-muted)]">
+                          <Link2 className="w-3 h-3" />
+                          {connections.filter(c => c.from === thesis.id || c.to === thesis.id).length} sources linked
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        )}
       </div>
+
+      {/* Floating Action Menu */}
+      {showActionMenu && selectedId && (
+        <div
+          className="fixed bg-[var(--bg-card)] rounded-xl shadow-xl border border-[var(--border-default)] py-1 z-50 animate-scale-in"
+          style={{ left: actionMenuPos.x, top: actionMenuPos.y }}
+        >
+          <button
+            onClick={() => {
+              findRelevantHighlights();
+              setShowActionMenu(false);
+            }}
+            disabled={isFindingRelevant}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
+          >
+            <Search className="w-4 h-4 text-[var(--accent-primary)]" />
+            {isFindingRelevant ? 'Finding...' : 'Find Relevant Notes'}
+          </button>
+          <button
+            onClick={() => {
+              setIsConnecting(true);
+              setConnectingFrom(selectedId);
+              setShowActionMenu(false);
+            }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
+          >
+            <Link2 className="w-4 h-4 text-[var(--text-muted)]" />
+            Connect to Card
+          </button>
+        </div>
+      )}
+
+      {/* Connecting indicator */}
+      {isConnecting && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-[var(--accent-primary)] text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 z-50">
+          <Link2 className="w-4 h-4" />
+          Click another card to connect
+          <button
+            onClick={() => { setIsConnecting(false); setConnectingFrom(null); }}
+            className="ml-2 p-1 hover:bg-white/20 rounded-full"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Template Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-8 animate-fade-in">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowTemplateModal(false)} />
+          <div className="relative bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-[var(--border-default)] w-full max-w-lg overflow-hidden animate-scale-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)]">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Choose a Template</h2>
+              <button onClick={() => setShowTemplateModal(false)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {Object.entries(PAPER_TEMPLATES).map(([key, sections]) => (
+                <button
+                  key={key}
+                  onClick={() => applyTemplate(key as keyof typeof PAPER_TEMPLATES)}
+                  className="w-full p-4 text-left bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-default)] transition-colors"
+                >
+                  <h3 className="font-semibold text-[var(--text-primary)] capitalize mb-2">
+                    {key.replace('_', ' ')} Paper
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {sections.map((s, i) => (
+                      <span key={i} className="text-xs px-2 py-1 bg-[var(--bg-card)] rounded-full text-[var(--text-muted)]">
+                        {s.title}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Draft Modal */}
       {showDraftModal && generatedDraft && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-8 animate-fade-in">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setShowDraftModal(false)}
-          />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDraftModal(false)} />
           <div className="relative bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-[var(--border-default)] w-full max-w-3xl max-h-[80vh] overflow-hidden animate-scale-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)]">
               <div className="flex items-center gap-3">
@@ -880,11 +1304,8 @@ Generate an academic draft based on these canvas elements:`
                 </div>
                 <h2 className="text-lg font-semibold text-[var(--text-primary)]">Generated Draft</h2>
               </div>
-              <button
-                onClick={() => setShowDraftModal(false)}
-                className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
-              >
-                ✕
+              <button onClick={() => setShowDraftModal(false)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6 overflow-y-auto max-h-[60vh]">
@@ -896,16 +1317,14 @@ Generate an academic draft based on these canvas elements:`
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-[var(--border-default)] bg-[var(--bg-secondary)]/50">
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(generatedDraft);
-                }}
-                className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                onClick={() => navigator.clipboard.writeText(generatedDraft)}
+                className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               >
                 Copy to Clipboard
               </button>
               <button
                 onClick={() => setShowDraftModal(false)}
-                className="px-4 py-2 text-sm font-medium text-[var(--bg-primary)] bg-[var(--accent-primary)] rounded-lg hover:opacity-90 transition-opacity"
+                className="px-4 py-2 text-sm font-medium text-[var(--bg-primary)] bg-[var(--accent-primary)] rounded-lg hover:opacity-90"
               >
                 Done
               </button>
@@ -917,7 +1336,7 @@ Generate an academic draft based on these canvas elements:`
       {/* Toggle sidebar button */}
       <button
         onClick={() => setShowHighlightPanel(!showHighlightPanel)}
-        className="fixed left-0 top-1/2 -translate-y-1/2 p-1.5 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-r-lg shadow-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors z-10"
+        className="fixed top-1/2 -translate-y-1/2 p-1.5 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-r-lg shadow-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors z-10"
         style={{ left: showHighlightPanel ? '286px' : '0' }}
       >
         <ChevronDown className={`w-4 h-4 transition-transform ${showHighlightPanel ? '-rotate-90' : 'rotate-90'}`} />
