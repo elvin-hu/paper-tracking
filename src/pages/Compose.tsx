@@ -1,341 +1,118 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  Palette,
   Sparkles,
   Plus,
-  ChevronRight,
-  ChevronDown,
   GripVertical,
   FileText,
   Lightbulb,
-  Layers,
-  PenTool,
-  Settings,
-  Wand2,
-  Check,
-  X,
-  RefreshCw,
-  Save,
+  Type,
+  StickyNote,
   Trash2,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Wand2,
+  ChevronDown,
+  Circle,
+  Square,
+  Save,
+  Palette,
 } from 'lucide-react';
-import { Tldraw, type Editor } from 'tldraw';
-import 'tldraw/tldraw.css';
 import { useProject } from '../contexts/ProjectContext';
 import { getAllHighlightsByProject, getAllPapers } from '../lib/database';
-import type { 
-  Highlight, 
-  Paper, 
-  ThemeGroup,
-  CompositionSection,
-} from '../types';
+import type { Highlight, Paper, HighlightColor } from '../types';
 import { DEFAULT_HIGHLIGHT_THEMES as THEMES } from '../types';
 
-// LocalStorage key for compositions
-const COMPOSITION_STORAGE_KEY = 'paper-lab-composition';
+// LocalStorage key
+const COMPOSITION_STORAGE_KEY = 'paper-lab-canvas-composition';
 
-// Extended highlight type with paper info
+// Element types
+type ElementType = 'thesis' | 'highlight' | 'text' | 'section';
+
+interface CanvasElement {
+  id: string;
+  type: ElementType;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  content: string;
+  // For highlights
+  highlightId?: string;
+  highlightColor?: HighlightColor;
+  paperTitle?: string;
+  paperAuthors?: string;
+  // For sections
+  color?: string;
+  // For grouping
+  groupId?: string;
+}
+
+interface SectionGroup {
+  id: string;
+  title: string;
+  color: string;
+  // Bounds are calculated from contained elements
+}
+
+// Extend highlight with paper info
 interface HighlightWithPaper extends Highlight {
   paperTitle: string;
   paperAuthors?: string;
 }
 
-// Section card component
-interface SectionCardProps {
-  section: CompositionSection;
-  highlights: HighlightWithPaper[];
-  allHighlights: HighlightWithPaper[];
-  onUpdate: (section: CompositionSection) => void;
-  onDelete: (sectionId: string) => void;
-  onGenerateThesis: (sectionId: string) => void;
-  onGenerateDraft: (sectionId: string) => void;
-  onSuggestHighlights: (sectionId: string) => void;
-  isGeneratingThesis: boolean;
-  isGeneratingDraft: boolean;
-  isSuggestingHighlights: boolean;
-  suggestedHighlightIds: string[];
-  onAcceptSuggestion: (sectionId: string, highlightId: string) => void;
-  onRejectSuggestion: (highlightId: string) => void;
-}
+// Color palette for sections
+const SECTION_COLORS = [
+  { name: 'Blue', value: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', border: 'rgba(59, 130, 246, 0.3)' },
+  { name: 'Purple', value: '#a855f7', bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)' },
+  { name: 'Green', value: '#22c55e', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)' },
+  { name: 'Orange', value: '#f97316', bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.3)' },
+  { name: 'Pink', value: '#ec4899', bg: 'rgba(236, 72, 153, 0.1)', border: 'rgba(236, 72, 153, 0.3)' },
+  { name: 'Teal', value: '#14b8a6', bg: 'rgba(20, 184, 166, 0.1)', border: 'rgba(20, 184, 166, 0.3)' },
+];
 
-function SectionCard({ 
-  section, 
-  highlights,
-  allHighlights,
-  onUpdate, 
-  onDelete,
-  onGenerateThesis, 
-  onGenerateDraft,
-  onSuggestHighlights,
-  isGeneratingThesis,
-  isGeneratingDraft,
-  isSuggestingHighlights,
-  suggestedHighlightIds,
-  onAcceptSuggestion,
-  onRejectSuggestion,
-}: SectionCardProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [showDraft, setShowDraft] = useState(false);
-
-  const sectionHighlights = highlights.filter(h => section.highlightIds.includes(h.id));
-  const suggestedHighlights = allHighlights.filter(h => suggestedHighlightIds.includes(h.id));
-
-  return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl shadow-lg overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)]">
-        <GripVertical className="w-4 h-4 text-[var(--text-muted)] cursor-grab" />
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="p-1 hover:bg-[var(--bg-tertiary)] rounded"
-        >
-          {isExpanded ? (
-            <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
-          ) : (
-            <ChevronRight className="w-4 h-4 text-[var(--text-muted)]" />
-          )}
-        </button>
-        <input
-          type="text"
-          value={section.title}
-          onChange={(e) => onUpdate({ ...section, title: e.target.value })}
-          className="flex-1 bg-transparent text-sm font-semibold text-[var(--text-primary)] focus:outline-none"
-          placeholder="Section Title"
-        />
-        <span className="text-xs text-[var(--text-muted)] px-2 py-0.5 bg-[var(--bg-tertiary)] rounded-full">
-          {sectionHighlights.length} sources
-        </span>
-        <button
-          onClick={() => onDelete(section.id)}
-          className="p-1.5 text-[var(--text-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 rounded transition-colors"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* Content */}
-      {isExpanded && (
-        <div className="p-4 space-y-4">
-          {/* Thesis Statement */}
-          <div>
-            <label className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] mb-1.5">
-              <Lightbulb className="w-3.5 h-3.5" />
-              Thesis Statement
-              <span className="text-[var(--text-muted)]">— What's the main argument?</span>
-            </label>
-            <div className="relative">
-              <textarea
-                value={section.thesisStatement || ''}
-                onChange={(e) => onUpdate({ ...section, thesisStatement: e.target.value })}
-                placeholder="Write a clear, specific claim that this section will support..."
-                className="w-full px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50"
-                rows={2}
-              />
-              <button
-                onClick={() => onGenerateThesis(section.id)}
-                disabled={isGeneratingThesis}
-                className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 text-xs font-medium text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 rounded-md transition-colors disabled:opacity-50"
-              >
-                <Sparkles className="w-3 h-3" />
-                {isGeneratingThesis ? 'Thinking...' : 'AI Suggest'}
-              </button>
-            </div>
-            {section.aiSuggestedThesis && section.aiSuggestedThesis !== section.thesisStatement && (
-              <div className="mt-2 p-3 bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/20 rounded-lg">
-                <p className="text-xs text-[var(--text-muted)] mb-1">💡 AI Suggestion:</p>
-                <p className="text-sm text-[var(--text-secondary)] italic mb-2">
-                  "{section.aiSuggestedThesis}"
-                </p>
-                <button
-                  onClick={() => onUpdate({ ...section, thesisStatement: section.aiSuggestedThesis })}
-                  className="text-xs text-[var(--accent-primary)] hover:underline font-medium"
-                >
-                  Use this thesis
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Connected Highlights */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]">
-                <FileText className="w-3.5 h-3.5" />
-                Supporting Evidence
-              </label>
-              <button
-                onClick={() => onSuggestHighlights(section.id)}
-                disabled={isSuggestingHighlights}
-                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 rounded-md transition-colors disabled:opacity-50"
-              >
-                <Wand2 className="w-3 h-3" />
-                {isSuggestingHighlights ? 'Finding...' : 'Find Relevant'}
-              </button>
-            </div>
-
-            {/* AI Suggested Highlights */}
-            {suggestedHighlights.length > 0 && (
-              <div className="mb-3 p-3 bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/20 rounded-lg">
-                <p className="text-xs text-[var(--text-muted)] mb-2">✨ Suggested highlights for this section:</p>
-                <div className="space-y-2">
-                  {suggestedHighlights.map(h => (
-                    <div key={h.id} className="flex items-start gap-2 p-2 bg-[var(--bg-primary)] rounded-lg">
-                      <div
-                        className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
-                        style={{
-                          backgroundColor: h.color === 'yellow' ? '#fbbf24' :
-                            h.color === 'red' ? '#ef4444' :
-                            h.color === 'purple' ? '#a855f7' :
-                            h.color === 'blue' ? '#3b82f6' : '#22c55e'
-                        }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-[var(--text-primary)] line-clamp-2">{h.text}</p>
-                        <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{h.paperTitle}</p>
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => onAcceptSuggestion(section.id, h.id)}
-                          className="p-1 text-[var(--accent-green)] hover:bg-[var(--accent-green)]/10 rounded"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => onRejectSuggestion(h.id)}
-                          className="p-1 text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] rounded"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Connected Highlights List */}
-            {sectionHighlights.length > 0 ? (
-              <div className="space-y-2">
-                {sectionHighlights.map(h => (
-                  <div key={h.id} className="flex items-start gap-2 p-2 bg-[var(--bg-secondary)] rounded-lg group">
-                    <div
-                      className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
-                      style={{
-                        backgroundColor: h.color === 'yellow' ? '#fbbf24' :
-                          h.color === 'red' ? '#ef4444' :
-                          h.color === 'purple' ? '#a855f7' :
-                          h.color === 'blue' ? '#3b82f6' : '#22c55e'
-                      }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-[var(--text-primary)] line-clamp-2">{h.text}</p>
-                      <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{h.paperTitle}</p>
-                      {h.note && (
-                        <p className="text-[10px] text-[var(--accent-primary)] mt-1">📝 {h.note}</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => onUpdate({
-                        ...section,
-                        highlightIds: section.highlightIds.filter(id => id !== h.id)
-                      })}
-                      className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-red)] opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-[var(--text-muted)] italic p-3 bg-[var(--bg-secondary)] rounded-lg text-center">
-                Drag highlights here or use "Find Relevant" to add supporting evidence
-              </p>
-            )}
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] mb-1.5">
-              <PenTool className="w-3.5 h-3.5" />
-              Your Notes
-            </label>
-            <textarea
-              value={section.notes || ''}
-              onChange={(e) => onUpdate({ ...section, notes: e.target.value })}
-              placeholder="Additional thoughts, outline points, or ideas..."
-              className="w-full px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50"
-              rows={2}
-            />
-          </div>
-
-          {/* AI Draft Generation */}
-          <div className="pt-3 border-t border-[var(--border-default)]">
-            <div className="flex items-center justify-between mb-2">
-              <label className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]">
-                <Wand2 className="w-3.5 h-3.5" />
-                AI Draft
-              </label>
-              <button
-                onClick={() => {
-                  onGenerateDraft(section.id);
-                  setShowDraft(true);
-                }}
-                disabled={isGeneratingDraft || !section.thesisStatement}
-                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-[var(--bg-primary)] bg-[var(--accent-primary)] rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                <Sparkles className="w-3 h-3" />
-                {isGeneratingDraft ? 'Writing...' : 'Generate Draft'}
-              </button>
-            </div>
-            {!section.thesisStatement && (
-              <p className="text-xs text-[var(--text-muted)] italic">
-                Add a thesis statement first to generate a draft
-              </p>
-            )}
-            {showDraft && section.draft && (
-              <div className="mt-2 p-3 bg-[var(--bg-secondary)] rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-[var(--text-muted)]">Generated Draft</span>
-                  <button
-                    onClick={() => setShowDraft(false)}
-                    className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  >
-                    Hide
-                  </button>
-                </div>
-                <div className="text-sm text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed">
-                  {section.draft}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+// Highlight color map
+const HIGHLIGHT_COLOR_MAP: Record<HighlightColor, string> = {
+  yellow: '#fbbf24',
+  red: '#ef4444',
+  purple: '#a855f7',
+  blue: '#3b82f6',
+  green: '#22c55e',
+};
 
 export function Compose() {
   const navigate = useNavigate();
   const { currentProject, isLoading: isProjectLoading } = useProject();
+  const canvasRef = useRef<HTMLDivElement>(null);
   
   // Data state
   const [highlights, setHighlights] = useState<HighlightWithPaper[]>([]);
   const [papers, setPapers] = useState<Paper[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Canvas state
+  const [elements, setElements] = useState<CanvasElement[]>([]);
+  const [groups, setGroups] = useState<SectionGroup[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [lastPanPos, setLastPanPos] = useState({ x: 0, y: 0 });
+  
   // UI state
-  const [activePanel, setActivePanel] = useState<'themes' | 'settings'>('themes');
-  const [sections, setSections] = useState<CompositionSection[]>([]);
-  const [generatingThesisFor, setGeneratingThesisFor] = useState<string | null>(null);
-  const [generatingDraftFor, setGeneratingDraftFor] = useState<string | null>(null);
-  const [suggestingHighlightsFor, setSuggestingHighlightsFor] = useState<string | null>(null);
-  const [suggestedHighlights, setSuggestedHighlights] = useState<Record<string, string[]>>({});
+  const [showHighlightPanel, setShowHighlightPanel] = useState(true);
+  const [showToolbar, setShowToolbar] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [compositionTitle, setCompositionTitle] = useState('Untitled Paper');
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+  const [generatedDraft, setGeneratedDraft] = useState<string | null>(null);
+  const [showDraftModal, setShowDraftModal] = useState(false);
 
-  // Load saved composition from localStorage
+  // Load saved composition
   useEffect(() => {
     if (!currentProject) return;
     
@@ -343,31 +120,37 @@ export function Compose() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setSections(parsed.sections || []);
+        setElements(parsed.elements || []);
+        setGroups(parsed.groups || []);
         setCompositionTitle(parsed.title || 'Untitled Paper');
         setLastSaved(parsed.savedAt ? new Date(parsed.savedAt) : null);
+        if (parsed.zoom) setZoom(parsed.zoom);
+        if (parsed.pan) setPan(parsed.pan);
       } catch (e) {
         console.error('Failed to load saved composition:', e);
       }
     }
   }, [currentProject]);
 
-  // Auto-save composition
+  // Auto-save
   useEffect(() => {
-    if (!currentProject || sections.length === 0) return;
+    if (!currentProject) return;
 
     const saveTimeout = setTimeout(() => {
       const data = {
         title: compositionTitle,
-        sections,
+        elements,
+        groups,
+        zoom,
+        pan,
         savedAt: new Date().toISOString(),
       };
       localStorage.setItem(`${COMPOSITION_STORAGE_KEY}-${currentProject.id}`, JSON.stringify(data));
       setLastSaved(new Date());
-    }, 1000); // Debounce saves
+    }, 1000);
 
     return () => clearTimeout(saveTimeout);
-  }, [sections, compositionTitle, currentProject]);
+  }, [elements, groups, compositionTitle, zoom, pan, currentProject]);
 
   // Load data
   useEffect(() => {
@@ -391,7 +174,7 @@ export function Compose() {
         setHighlights(highlightsWithPapers);
         setPapers(loadedPapers);
       } catch (error) {
-        console.error('Failed to load composing data:', error);
+        console.error('Failed to load data:', error);
       } finally {
         setIsLoading(false);
       }
@@ -401,112 +184,213 @@ export function Compose() {
   }, [currentProject, isProjectLoading]);
 
   // Group highlights by theme
-  const themeGroups = useMemo<ThemeGroup[]>(() => {
+  const themeGroups = useMemo(() => {
     return THEMES.map(theme => ({
       theme,
       highlights: highlights.filter(h => h.color === theme.color),
     }));
   }, [highlights]);
 
-  // Add new section
-  const addSection = useCallback((title: string = 'New Section') => {
-    const newSection: CompositionSection = {
-      id: crypto.randomUUID(),
-      title,
-      order: sections.length,
-      highlightIds: [],
-      notes: '',
-      x: 100,
-      y: 100,
-      width: 300,
-      height: 200,
-    };
-    setSections(prev => [...prev, newSection]);
-  }, [sections.length]);
-
-  // Update section
-  const updateSection = useCallback((updatedSection: CompositionSection) => {
-    setSections(prev => prev.map(s => s.id === updatedSection.id ? updatedSection : s));
-  }, []);
-
-  // Delete section
-  const deleteSection = useCallback((sectionId: string) => {
-    setSections(prev => prev.filter(s => s.id !== sectionId));
-  }, []);
-
-  // Generate thesis with AI
-  const generateThesis = useCallback(async (sectionId: string) => {
-    const section = sections.find(s => s.id === sectionId);
-    if (!section) return;
-
-    setGeneratingThesisFor(sectionId);
+  // Calculate group bounds from contained elements
+  const calculateGroupBounds = useCallback((groupId: string) => {
+    const groupElements = elements.filter(e => e.groupId === groupId);
+    if (groupElements.length === 0) return null;
     
-    try {
-      const sectionHighlights = highlights.filter(h => section.highlightIds.includes(h.id));
-      const highlightTexts = sectionHighlights.map(h => 
-        `"${h.text}" (from: ${h.paperTitle})${h.note ? ` [Note: ${h.note}]` : ''}`
-      ).join('\n');
-      
-      const response = await fetch('/api/openai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: 'system',
-              content: `You are helping a researcher write a thesis statement for a section of their academic paper. 
-Based on the section title, notes, and supporting evidence from research papers, suggest a concise, compelling thesis statement.
-The thesis should:
-- Be specific and arguable (not just descriptive)
-- Capture the main claim the section will support
-- Be 1-2 sentences maximum
-- Use academic tone`
-            },
-            {
-              role: 'user',
-              content: `Section title: "${section.title}"
+    const padding = 20;
+    const headerHeight = 40;
+    
+    const minX = Math.min(...groupElements.map(e => e.x)) - padding;
+    const minY = Math.min(...groupElements.map(e => e.y)) - padding - headerHeight;
+    const maxX = Math.max(...groupElements.map(e => e.x + e.width)) + padding;
+    const maxY = Math.max(...groupElements.map(e => e.y + e.height)) + padding;
+    
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  }, [elements]);
 
-Author's notes: ${section.notes || 'None yet'}
+  // Add element to canvas
+  const addElement = useCallback((type: ElementType, highlight?: HighlightWithPaper) => {
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
+    const centerX = canvasRect ? (canvasRect.width / 2 - pan.x) / zoom : 300;
+    const centerY = canvasRect ? (canvasRect.height / 2 - pan.y) / zoom : 300;
+    
+    // Add some randomness to avoid stacking
+    const offsetX = (Math.random() - 0.5) * 100;
+    const offsetY = (Math.random() - 0.5) * 100;
+    
+    const newElement: CanvasElement = {
+      id: crypto.randomUUID(),
+      type,
+      x: centerX + offsetX,
+      y: centerY + offsetY,
+      width: type === 'section' ? 300 : type === 'thesis' ? 280 : type === 'highlight' ? 260 : 200,
+      height: type === 'section' ? 200 : type === 'thesis' ? 100 : type === 'highlight' ? 120 : 80,
+      content: type === 'thesis' ? 'Write your thesis statement...' : 
+               type === 'section' ? 'Section Title' :
+               type === 'text' ? 'Add your notes...' :
+               highlight?.text || '',
+      highlightId: highlight?.id,
+      highlightColor: highlight?.color,
+      paperTitle: highlight?.paperTitle,
+      paperAuthors: highlight?.paperAuthors,
+      color: type === 'section' ? SECTION_COLORS[groups.length % SECTION_COLORS.length].value : undefined,
+    };
+    
+    setElements(prev => [...prev, newElement]);
+    setSelectedId(newElement.id);
+    
+    return newElement;
+  }, [pan, zoom, groups.length]);
 
-Supporting evidence from research:
-${highlightTexts || 'No highlights added yet - suggest a thesis based on the section title'}
+  // Add section group
+  const addSection = useCallback(() => {
+    const color = SECTION_COLORS[groups.length % SECTION_COLORS.length];
+    const newGroup: SectionGroup = {
+      id: crypto.randomUUID(),
+      title: 'New Section',
+      color: color.value,
+    };
+    setGroups(prev => [...prev, newGroup]);
+    
+    // Also add a section header element
+    addElement('section');
+  }, [groups.length, addElement]);
 
-Generate a thesis statement for this section:`
-            }
-          ],
-          model: 'gpt-4o-mini',
-          max_tokens: 200,
-        }),
+  // Update element
+  const updateElement = useCallback((id: string, updates: Partial<CanvasElement>) => {
+    setElements(prev => prev.map(el => el.id === id ? { ...el, ...updates } : el));
+  }, []);
+
+  // Delete element
+  const deleteElement = useCallback((id: string) => {
+    setElements(prev => prev.filter(el => el.id !== id));
+    if (selectedId === id) setSelectedId(null);
+  }, [selectedId]);
+
+  // Handle mouse down on element
+  const handleElementMouseDown = useCallback((e: React.MouseEvent, element: CanvasElement) => {
+    e.stopPropagation();
+    setSelectedId(element.id);
+    setIsDragging(true);
+    
+    const rect = (e.target as HTMLElement).closest('.canvas-element')?.getBoundingClientRect();
+    if (rect) {
+      setDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
       });
+    }
+  }, []);
 
-      if (response.ok) {
-        const data = await response.json();
-        const suggestedThesis = data.choices?.[0]?.message?.content?.trim();
-        if (suggestedThesis) {
-          updateSection({ ...section, aiSuggestedThesis: suggestedThesis });
+  // Handle mouse move
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isDragging && selectedId) {
+      const canvasRect = canvasRef.current?.getBoundingClientRect();
+      if (canvasRect) {
+        const x = (e.clientX - canvasRect.left - dragOffset.x - pan.x) / zoom;
+        const y = (e.clientY - canvasRect.top - dragOffset.y - pan.y) / zoom;
+        updateElement(selectedId, { x, y });
+      }
+    } else if (isPanning) {
+      const dx = e.clientX - lastPanPos.x;
+      const dy = e.clientY - lastPanPos.y;
+      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      setLastPanPos({ x: e.clientX, y: e.clientY });
+    }
+  }, [isDragging, selectedId, dragOffset, pan, zoom, isPanning, lastPanPos, updateElement]);
+
+  // Handle mouse up
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    setIsPanning(false);
+  }, []);
+
+  // Handle canvas pan start
+  const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+      // Middle click or Alt+click to pan
+      setIsPanning(true);
+      setLastPanPos({ x: e.clientX, y: e.clientY });
+    } else {
+      setSelectedId(null);
+    }
+  }, []);
+
+  // Handle zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      setZoom(prev => Math.min(Math.max(prev * delta, 0.25), 2));
+    }
+  }, []);
+
+  // Reset view
+  const resetView = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
+  // Drop highlight onto canvas
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const highlightId = e.dataTransfer.getData('highlightId');
+    if (highlightId) {
+      const highlight = highlights.find(h => h.id === highlightId);
+      if (highlight) {
+        const canvasRect = canvasRef.current?.getBoundingClientRect();
+        if (canvasRect) {
+          const x = (e.clientX - canvasRect.left - pan.x) / zoom;
+          const y = (e.clientY - canvasRect.top - pan.y) / zoom;
+          
+          const newElement: CanvasElement = {
+            id: crypto.randomUUID(),
+            type: 'highlight',
+            x: x - 130,
+            y: y - 60,
+            width: 260,
+            height: 120,
+            content: highlight.text,
+            highlightId: highlight.id,
+            highlightColor: highlight.color,
+            paperTitle: highlight.paperTitle,
+            paperAuthors: highlight.paperAuthors,
+          };
+          setElements(prev => [...prev, newElement]);
+          setSelectedId(newElement.id);
         }
       }
-    } catch (error) {
-      console.error('Failed to generate thesis:', error);
-    } finally {
-      setGeneratingThesisFor(null);
     }
-  }, [sections, highlights, updateSection]);
+  }, [highlights, pan, zoom]);
 
-  // Generate draft with AI
-  const generateDraft = useCallback(async (sectionId: string) => {
-    const section = sections.find(s => s.id === sectionId);
-    if (!section || !section.thesisStatement) return;
-
-    setGeneratingDraftFor(sectionId);
+  // Generate draft from canvas
+  const generateDraft = useCallback(async () => {
+    setIsGeneratingDraft(true);
     
     try {
-      const sectionHighlights = highlights.filter(h => section.highlightIds.includes(h.id));
-      const highlightTexts = sectionHighlights.map(h => 
-        `Source: ${h.paperTitle}${h.paperAuthors ? ` (${h.paperAuthors})` : ''}
-Quote: "${h.text}"
-${h.note ? `Your note: ${h.note}` : ''}`
-      ).join('\n\n');
+      // Collect all elements and organize by position (top to bottom)
+      const sortedElements = [...elements].sort((a, b) => a.y - b.y);
+      
+      // Build context from canvas
+      const thesisStatements = sortedElements
+        .filter(e => e.type === 'thesis')
+        .map(e => e.content);
+      
+      const highlightElements = sortedElements
+        .filter(e => e.type === 'highlight')
+        .map(e => ({
+          text: e.content,
+          paper: e.paperTitle,
+          authors: e.paperAuthors,
+          note: highlights.find(h => h.id === e.highlightId)?.note,
+        }));
+      
+      const freeTextElements = sortedElements
+        .filter(e => e.type === 'text')
+        .map(e => e.content);
+      
+      const sectionElements = sortedElements
+        .filter(e => e.type === 'section')
+        .map(e => e.content);
       
       const response = await fetch('/api/openai', {
         method: 'POST',
@@ -515,34 +399,40 @@ ${h.note ? `Your note: ${h.note}` : ''}`
           messages: [
             {
               role: 'system',
-              content: `You are helping a researcher write a draft for a section of their academic paper.
-Generate well-structured academic prose that:
-- Opens with the thesis statement
-- Weaves in the supporting evidence naturally with proper citations
-- Uses academic tone and transitions
-- Is approximately 200-400 words
-- References sources by author name (e.g., "According to Smith et al.")
-- Maintains the researcher's voice and argument
+              content: `You are helping a researcher write an academic paper. Based on the canvas elements they've arranged (thesis statements, research highlights, notes, and section headers), generate well-structured academic prose.
 
-Do NOT include section headers or bullet points - write flowing paragraphs.`
+Guidelines:
+- Weave together the thesis statements as the main argument
+- Incorporate quotes from research with proper citations (e.g., "According to [Author]...")
+- Use the free-form notes to guide tone and structure
+- Organize content following any section headers provided
+- Use academic transitions between ideas
+- Write approximately 400-800 words
+- Maintain a scholarly but readable tone`
             },
             {
               role: 'user',
-              content: `Write a draft for this section:
+              content: `Paper Title: ${compositionTitle}
 
-Section: ${section.title}
-Thesis: ${section.thesisStatement}
+Thesis Statements:
+${thesisStatements.length > 0 ? thesisStatements.map((t, i) => `${i + 1}. ${t}`).join('\n') : 'None yet'}
 
-Author's notes: ${section.notes || 'None'}
+Section Headers:
+${sectionElements.length > 0 ? sectionElements.join(', ') : 'None'}
 
-Supporting evidence to incorporate:
-${highlightTexts || 'No specific quotes - write based on the thesis'}
+Research Highlights:
+${highlightElements.length > 0 ? highlightElements.map(h => 
+  `"${h.text}" (${h.paper}${h.authors ? `, ${h.authors}` : ''})${h.note ? ` [Note: ${h.note}]` : ''}`
+).join('\n\n') : 'None yet'}
 
-Generate an academic draft:`
+Author's Notes:
+${freeTextElements.length > 0 ? freeTextElements.join('\n') : 'None'}
+
+Generate an academic draft based on these canvas elements:`
             }
           ],
           model: 'gpt-4o-mini',
-          max_tokens: 800,
+          max_tokens: 1500,
         }),
       });
 
@@ -550,155 +440,204 @@ Generate an academic draft:`
         const data = await response.json();
         const draft = data.choices?.[0]?.message?.content?.trim();
         if (draft) {
-          updateSection({ ...section, draft });
+          setGeneratedDraft(draft);
+          setShowDraftModal(true);
         }
       }
     } catch (error) {
       console.error('Failed to generate draft:', error);
     } finally {
-      setGeneratingDraftFor(null);
+      setIsGeneratingDraft(false);
     }
-  }, [sections, highlights, updateSection]);
+  }, [elements, highlights, compositionTitle]);
 
-  // Suggest relevant highlights for a section
-  const suggestHighlights = useCallback(async (sectionId: string) => {
-    const section = sections.find(s => s.id === sectionId);
-    if (!section) return;
-
-    setSuggestingHighlightsFor(sectionId);
+  // Render element based on type
+  const renderElement = (element: CanvasElement) => {
+    const isSelected = selectedId === element.id;
     
-    try {
-      // Filter out already-added highlights
-      const availableHighlights = highlights.filter(h => !section.highlightIds.includes(h.id));
-      
-      if (availableHighlights.length === 0) {
-        setSuggestedHighlights(prev => ({ ...prev, [sectionId]: [] }));
-        return;
-      }
+    const baseStyle: React.CSSProperties = {
+      position: 'absolute',
+      left: element.x * zoom + pan.x,
+      top: element.y * zoom + pan.y,
+      width: element.width * zoom,
+      minHeight: element.height * zoom,
+      transform: 'translate(0, 0)',
+      cursor: isDragging && isSelected ? 'grabbing' : 'grab',
+      transition: isDragging ? 'none' : 'box-shadow 0.2s',
+    };
 
-      const highlightSummaries = availableHighlights.map((h, i) => 
-        `[${i}] Color: ${h.color}, Text: "${h.text.slice(0, 150)}...", Paper: ${h.paperTitle}`
-      ).join('\n');
-      
-      const response = await fetch('/api/openai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: 'system',
-              content: `You are helping a researcher find relevant highlights for a paper section.
-Based on the section title, thesis, and available highlights, identify the most relevant ones.
+    switch (element.type) {
+      case 'thesis':
+        return (
+          <div
+            key={element.id}
+            className={`canvas-element group ${isSelected ? 'ring-2 ring-[var(--accent-primary)]' : ''}`}
+            style={{
+              ...baseStyle,
+              background: 'linear-gradient(135deg, var(--bg-card) 0%, var(--bg-secondary) 100%)',
+              borderRadius: 16,
+              border: '2px solid var(--accent-primary)',
+              boxShadow: isSelected ? '0 8px 32px rgba(0,0,0,0.15)' : '0 4px 16px rgba(0,0,0,0.1)',
+              padding: 16 * zoom,
+            }}
+            onMouseDown={(e) => handleElementMouseDown(e, element)}
+          >
+            <div className="flex items-center gap-2 mb-2" style={{ fontSize: 12 * zoom }}>
+              <Lightbulb className="text-[var(--accent-primary)]" style={{ width: 14 * zoom, height: 14 * zoom }} />
+              <span className="font-semibold text-[var(--accent-primary)]">Thesis</span>
+              <button
+                onClick={() => deleteElement(element.id)}
+                className="ml-auto opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--accent-red)]/10 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-all"
+              >
+                <Trash2 style={{ width: 12 * zoom, height: 12 * zoom }} />
+              </button>
+            </div>
+            <textarea
+              value={element.content}
+              onChange={(e) => updateElement(element.id, { content: e.target.value })}
+              className="w-full bg-transparent text-[var(--text-primary)] resize-none focus:outline-none"
+              style={{ fontSize: 14 * zoom, lineHeight: 1.5 }}
+              placeholder="Write your thesis statement..."
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        );
 
-Color meanings:
-- yellow: Research gaps & problems
-- red: Limitations
-- purple: Further reading/references  
-- blue: Methodology (what the paper did)
-- green: Findings/results
+      case 'highlight':
+        const highlightColor = element.highlightColor ? HIGHLIGHT_COLOR_MAP[element.highlightColor] : '#fbbf24';
+        return (
+          <div
+            key={element.id}
+            className={`canvas-element group ${isSelected ? 'ring-2 ring-[var(--accent-primary)]' : ''}`}
+            style={{
+              ...baseStyle,
+              background: 'var(--bg-card)',
+              borderRadius: 12,
+              borderLeft: `4px solid ${highlightColor}`,
+              boxShadow: isSelected ? '0 8px 32px rgba(0,0,0,0.15)' : '0 2px 12px rgba(0,0,0,0.08)',
+              padding: 12 * zoom,
+            }}
+            onMouseDown={(e) => handleElementMouseDown(e, element)}
+          >
+            <div className="flex items-start gap-2">
+              <div
+                className="rounded-full flex-shrink-0"
+                style={{
+                  width: 8 * zoom,
+                  height: 8 * zoom,
+                  marginTop: 6 * zoom,
+                  backgroundColor: highlightColor,
+                }}
+              />
+              <div className="flex-1 min-w-0">
+                <p
+                  className="text-[var(--text-primary)]"
+                  style={{ fontSize: 13 * zoom, lineHeight: 1.5 }}
+                >
+                  "{element.content}"
+                </p>
+                <p
+                  className="text-[var(--text-muted)] mt-1 truncate"
+                  style={{ fontSize: 10 * zoom }}
+                >
+                  — {element.paperTitle}
+                </p>
+              </div>
+              <button
+                onClick={() => deleteElement(element.id)}
+                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--accent-red)]/10 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-all flex-shrink-0"
+              >
+                <Trash2 style={{ width: 12 * zoom, height: 12 * zoom }} />
+              </button>
+            </div>
+          </div>
+        );
 
-Return ONLY a JSON array of indices (e.g., [0, 3, 7]) for the most relevant highlights (max 5).
-Consider both the content AND the color meaning when selecting.`
-            },
-            {
-              role: 'user',
-              content: `Section: ${section.title}
-Thesis: ${section.thesisStatement || 'Not yet written'}
-Notes: ${section.notes || 'None'}
+      case 'text':
+        return (
+          <div
+            key={element.id}
+            className={`canvas-element group ${isSelected ? 'ring-2 ring-[var(--accent-primary)]' : ''}`}
+            style={{
+              ...baseStyle,
+              background: '#fffef0',
+              borderRadius: 4,
+              boxShadow: isSelected ? '0 8px 32px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.1)',
+              padding: 12 * zoom,
+              transform: 'rotate(-1deg)',
+            }}
+            onMouseDown={(e) => handleElementMouseDown(e, element)}
+          >
+            <button
+              onClick={() => deleteElement(element.id)}
+              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--accent-red)]/10 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-all"
+            >
+              <Trash2 style={{ width: 12 * zoom, height: 12 * zoom }} />
+            </button>
+            <textarea
+              value={element.content}
+              onChange={(e) => updateElement(element.id, { content: e.target.value })}
+              className="w-full bg-transparent text-gray-800 resize-none focus:outline-none"
+              style={{ fontSize: 14 * zoom, lineHeight: 1.5, fontFamily: 'inherit' }}
+              placeholder="Add your notes..."
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        );
 
-Available highlights:
-${highlightSummaries}
+      case 'section':
+        const sectionColor = SECTION_COLORS.find(c => c.value === element.color) || SECTION_COLORS[0];
+        return (
+          <div
+            key={element.id}
+            className={`canvas-element group ${isSelected ? 'ring-2 ring-[var(--accent-primary)]' : ''}`}
+            style={{
+              ...baseStyle,
+              background: sectionColor.bg,
+              borderRadius: 20,
+              border: `2px dashed ${sectionColor.border}`,
+              padding: 16 * zoom,
+            }}
+            onMouseDown={(e) => handleElementMouseDown(e, element)}
+          >
+            <div className="flex items-center gap-2">
+              <div
+                className="rounded-full"
+                style={{
+                  width: 12 * zoom,
+                  height: 12 * zoom,
+                  backgroundColor: sectionColor.value,
+                }}
+              />
+              <input
+                type="text"
+                value={element.content}
+                onChange={(e) => updateElement(element.id, { content: e.target.value })}
+                className="flex-1 bg-transparent font-semibold focus:outline-none"
+                style={{ fontSize: 16 * zoom, color: sectionColor.value }}
+                placeholder="Section Title"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <button
+                onClick={() => deleteElement(element.id)}
+                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--accent-red)]/10 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-all"
+              >
+                <Trash2 style={{ width: 14 * zoom, height: 14 * zoom }} />
+              </button>
+            </div>
+            <p
+              className="text-[var(--text-muted)] mt-2"
+              style={{ fontSize: 11 * zoom }}
+            >
+              Drop highlights and notes here
+            </p>
+          </div>
+        );
 
-Return JSON array of relevant highlight indices:`
-            }
-          ],
-          model: 'gpt-4o-mini',
-          max_tokens: 100,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content?.trim();
-        try {
-          const indices = JSON.parse(content);
-          if (Array.isArray(indices)) {
-            const suggestedIds = indices
-              .filter((i: number) => i >= 0 && i < availableHighlights.length)
-              .map((i: number) => availableHighlights[i].id);
-            setSuggestedHighlights(prev => ({ ...prev, [sectionId]: suggestedIds }));
-          }
-        } catch {
-          console.error('Failed to parse AI suggestion:', content);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to suggest highlights:', error);
-    } finally {
-      setSuggestingHighlightsFor(null);
+      default:
+        return null;
     }
-  }, [sections, highlights]);
-
-  // Accept a suggested highlight
-  const acceptSuggestion = useCallback((sectionId: string, highlightId: string) => {
-    setSections(prev => prev.map(s => {
-      if (s.id === sectionId && !s.highlightIds.includes(highlightId)) {
-        return { ...s, highlightIds: [...s.highlightIds, highlightId] };
-      }
-      return s;
-    }));
-    setSuggestedHighlights(prev => ({
-      ...prev,
-      [sectionId]: (prev[sectionId] || []).filter(id => id !== highlightId)
-    }));
-  }, []);
-
-  // Reject a suggested highlight
-  const rejectSuggestion = useCallback((highlightId: string) => {
-    setSuggestedHighlights(prev => {
-      const newSuggestions = { ...prev };
-      Object.keys(newSuggestions).forEach(sectionId => {
-        newSuggestions[sectionId] = newSuggestions[sectionId].filter(id => id !== highlightId);
-      });
-      return newSuggestions;
-    });
-  }, []);
-
-  // Handle dropping a highlight onto a section
-  const handleDropHighlight = useCallback((sectionId: string, highlightId: string) => {
-    setSections(prev => prev.map(s => {
-      if (s.id === sectionId && !s.highlightIds.includes(highlightId)) {
-        return { ...s, highlightIds: [...s.highlightIds, highlightId] };
-      }
-      return s;
-    }));
-  }, []);
-
-  // Quick add sections based on common paper structure
-  const addCommonSections = useCallback(() => {
-    const commonSections = [
-      { title: 'Introduction', placeholder: 'Introduce the problem and your contribution' },
-      { title: 'Related Work', placeholder: 'Position your work within existing research' },
-      { title: 'Methodology', placeholder: 'Explain your approach' },
-      { title: 'Results', placeholder: 'Present your findings' },
-      { title: 'Discussion', placeholder: 'Interpret results and implications' },
-      { title: 'Conclusion', placeholder: 'Summarize and suggest future work' },
-    ];
-    
-    const newSections = commonSections.map((s, index) => ({
-      id: crypto.randomUUID(),
-      title: s.title,
-      order: sections.length + index,
-      highlightIds: [],
-      notes: '',
-      x: 100,
-      y: 100,
-      width: 300,
-      height: 200,
-    }));
-    
-    setSections(prev => [...prev, ...newSections]);
-  }, [sections.length]);
+  };
 
   if (isLoading || isProjectLoading) {
     return (
@@ -712,255 +651,277 @@ Return JSON array of relevant highlight indices:`
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col">
+    <div className="min-h-screen bg-[var(--bg-secondary)] flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="h-14 border-b border-[var(--border-default)] bg-[var(--bg-card)] px-4 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-4">
+      <header className="h-12 border-b border-[var(--border-default)] bg-[var(--bg-card)] px-4 flex items-center justify-between flex-shrink-0 z-20">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/')}
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
-          <div className="flex items-center gap-3">
-            <FileText className="w-5 h-5 text-[var(--accent-primary)]" />
-            <input
-              type="text"
-              value={compositionTitle}
-              onChange={(e) => setCompositionTitle(e.target.value)}
-              className="text-base font-semibold text-[var(--text-primary)] bg-transparent focus:outline-none focus:bg-[var(--bg-secondary)] px-2 py-1 rounded-lg -ml-2"
-              placeholder="Paper Title"
-            />
-          </div>
+          <div className="w-px h-5 bg-[var(--border-default)]" />
+          <input
+            type="text"
+            value={compositionTitle}
+            onChange={(e) => setCompositionTitle(e.target.value)}
+            className="text-sm font-medium text-[var(--text-primary)] bg-transparent focus:outline-none focus:bg-[var(--bg-secondary)] px-2 py-1 rounded -ml-2 max-w-[200px]"
+            placeholder="Paper Title"
+          />
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Center Toolbar */}
+        <div className="flex items-center gap-1 bg-[var(--bg-secondary)] rounded-lg p-1">
+          <button
+            onClick={() => addElement('thesis')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-card)] rounded-md transition-colors"
+            title="Add Thesis Statement"
+          >
+            <Lightbulb className="w-3.5 h-3.5" />
+            Thesis
+          </button>
+          <button
+            onClick={() => addElement('text')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-card)] rounded-md transition-colors"
+            title="Add Sticky Note"
+          >
+            <StickyNote className="w-3.5 h-3.5" />
+            Note
+          </button>
+          <button
+            onClick={addSection}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-card)] rounded-md transition-colors"
+            title="Add Section"
+          >
+            <Square className="w-3.5 h-3.5" />
+            Section
+          </button>
+          <div className="w-px h-4 bg-[var(--border-default)] mx-1" />
+          <button
+            onClick={generateDraft}
+            disabled={isGeneratingDraft || elements.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--bg-primary)] bg-[var(--accent-primary)] hover:opacity-90 rounded-md transition-opacity disabled:opacity-50"
+          >
+            <Wand2 className="w-3.5 h-3.5" />
+            {isGeneratingDraft ? 'Writing...' : 'Generate Draft'}
+          </button>
+        </div>
+
+        {/* Right controls */}
+        <div className="flex items-center gap-2">
           {lastSaved && (
-            <span className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+            <span className="text-[10px] text-[var(--text-muted)] flex items-center gap-1">
               <Save className="w-3 h-3" />
               Saved {lastSaved.toLocaleTimeString()}
             </span>
           )}
-          <button
-            onClick={addCommonSections}
-            disabled={sections.some(s => ['Introduction', 'Related Work', 'Methodology'].includes(s.title))}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors disabled:opacity-50"
-          >
-            <Layers className="w-4 h-4" />
-            Paper Template
-          </button>
-          <button
-            onClick={() => addSection()}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[var(--bg-primary)] bg-[var(--accent-primary)] rounded-lg hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-4 h-4" />
-            Add Section
-          </button>
+          <div className="flex items-center gap-0.5 bg-[var(--bg-secondary)] rounded-lg p-0.5">
+            <button
+              onClick={() => setZoom(z => Math.max(z * 0.9, 0.25))}
+              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded transition-colors"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-xs text-[var(--text-muted)] w-10 text-center">
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              onClick={() => setZoom(z => Math.min(z * 1.1, 2))}
+              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded transition-colors"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={resetView}
+              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded transition-colors"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Theme Groups */}
-        <aside className="w-80 border-r border-[var(--border-default)] bg-[var(--bg-card)] flex flex-col overflow-hidden">
-          {/* Panel Tabs */}
-          <div className="flex border-b border-[var(--border-default)]">
-            <button
-              onClick={() => setActivePanel('themes')}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
-                activePanel === 'themes'
-                  ? 'text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <Palette className="w-4 h-4" />
-              Research
-            </button>
-            <button
-              onClick={() => setActivePanel('settings')}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
-                activePanel === 'settings'
-                  ? 'text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <Settings className="w-4 h-4" />
-              Guide
-            </button>
+        {/* Left Panel - Highlights */}
+        <aside className={`${showHighlightPanel ? 'w-72' : 'w-0'} border-r border-[var(--border-default)] bg-[var(--bg-card)] flex flex-col overflow-hidden transition-all duration-200`}>
+          <div className="p-3 border-b border-[var(--border-default)]">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Research Highlights</h2>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">Drag onto canvas</p>
           </div>
-
-          {/* Panel Content */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {activePanel === 'themes' && (
-              <div className="space-y-4">
-                <p className="text-xs text-[var(--text-muted)]">
-                  Drag highlights to sections, or let AI suggest matches
-                </p>
-                
-                {themeGroups.map(group => (
-                  <div key={group.theme.color} className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{
-                          backgroundColor: group.theme.color === 'yellow' ? '#fbbf24' :
-                            group.theme.color === 'red' ? '#ef4444' :
-                            group.theme.color === 'purple' ? '#a855f7' :
-                            group.theme.color === 'blue' ? '#3b82f6' :
-                            '#22c55e'
-                        }}
-                      />
-                      <span className="text-sm font-medium text-[var(--text-primary)]">
-                        {group.theme.name}
-                      </span>
-                      <span className="text-xs text-[var(--text-muted)]">
-                        ({group.highlights.length})
-                      </span>
-                    </div>
-                    
-                    <div className="space-y-1.5 ml-5">
-                      {group.highlights.slice(0, 5).map(highlight => (
-                        <div
-                          key={highlight.id}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData('highlightId', highlight.id);
-                          }}
-                          className="p-2 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)] cursor-grab hover:border-[var(--accent-primary)]/50 transition-colors"
-                        >
-                          <p className="text-xs text-[var(--text-primary)] line-clamp-2">
-                            {highlight.text}
-                          </p>
-                          <p className="text-[10px] text-[var(--text-muted)] mt-1 truncate">
-                            {highlight.paperTitle}
-                          </p>
-                          {highlight.note && (
-                            <p className="text-[10px] text-[var(--accent-primary)] mt-1 line-clamp-1">
-                              📝 {highlight.note}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                      {group.highlights.length > 5 && (
-                        <button className="text-xs text-[var(--accent-primary)] hover:underline">
-                          Show {group.highlights.length - 5} more...
-                        </button>
-                      )}
-                      {group.highlights.length === 0 && (
-                        <p className="text-xs text-[var(--text-muted)] italic">
-                          No highlights
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {activePanel === 'settings' && (
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">How to Use Compose</h3>
-                  <ol className="text-xs text-[var(--text-secondary)] space-y-2 list-decimal list-inside">
-                    <li>Add sections for your paper structure</li>
-                    <li>Write thesis statements for each section</li>
-                    <li>Connect relevant highlights as evidence</li>
-                    <li>Use AI to suggest highlights & generate drafts</li>
-                  </ol>
+          
+          <div className="flex-1 overflow-y-auto p-3 space-y-4">
+            {themeGroups.map(group => (
+              <div key={group.theme.color}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: HIGHLIGHT_COLOR_MAP[group.theme.color] }}
+                  />
+                  <span className="text-xs font-medium text-[var(--text-secondary)]">
+                    {group.theme.name}
+                  </span>
+                  <span className="text-[10px] text-[var(--text-muted)]">
+                    ({group.highlights.length})
+                  </span>
                 </div>
                 
-                <div className="pt-3 border-t border-[var(--border-default)]">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Color Guide</h3>
-                  {THEMES.map(theme => (
-                    <div key={theme.color} className="flex items-start gap-2 mb-2">
-                      <div
-                        className="w-3 h-3 rounded-full mt-0.5 flex-shrink-0"
-                        style={{
-                          backgroundColor: theme.color === 'yellow' ? '#fbbf24' :
-                            theme.color === 'red' ? '#ef4444' :
-                            theme.color === 'purple' ? '#a855f7' :
-                            theme.color === 'blue' ? '#3b82f6' :
-                            '#22c55e'
-                        }}
-                      />
-                      <div>
-                        <p className="text-xs font-medium text-[var(--text-primary)]">{theme.name}</p>
-                        <p className="text-[10px] text-[var(--text-muted)]">{theme.description}</p>
-                      </div>
+                <div className="space-y-1.5 ml-4">
+                  {group.highlights.slice(0, 8).map(highlight => (
+                    <div
+                      key={highlight.id}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('highlightId', highlight.id);
+                      }}
+                      className="p-2 bg-[var(--bg-secondary)] rounded-lg border border-transparent hover:border-[var(--accent-primary)]/30 cursor-grab active:cursor-grabbing transition-all hover:shadow-sm"
+                    >
+                      <p className="text-[11px] text-[var(--text-primary)] line-clamp-2 leading-relaxed">
+                        {highlight.text}
+                      </p>
+                      <p className="text-[9px] text-[var(--text-muted)] mt-1 truncate">
+                        {highlight.paperTitle}
+                      </p>
                     </div>
                   ))}
+                  {group.highlights.length > 8 && (
+                    <p className="text-[10px] text-[var(--accent-primary)] cursor-pointer hover:underline">
+                      +{group.highlights.length - 8} more
+                    </p>
+                  )}
+                  {group.highlights.length === 0 && (
+                    <p className="text-[10px] text-[var(--text-muted)] italic">No highlights</p>
+                  )}
                 </div>
               </div>
-            )}
+            ))}
           </div>
         </aside>
 
-        {/* Main Canvas Area */}
-        <main className="flex-1 overflow-auto bg-[var(--bg-secondary)] p-6">
-          {sections.length === 0 ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center max-w-md">
+        {/* Canvas */}
+        <main
+          ref={canvasRef}
+          className="flex-1 relative overflow-hidden"
+          style={{
+            background: `
+              radial-gradient(circle at center, var(--bg-secondary) 0%, var(--bg-primary) 100%),
+              repeating-linear-gradient(0deg, transparent, transparent 20px, var(--border-default) 20px, var(--border-default) 21px),
+              repeating-linear-gradient(90deg, transparent, transparent 20px, var(--border-default) 20px, var(--border-default) 21px)
+            `,
+            backgroundSize: '100% 100%, 100% 100%, 100% 100%',
+            backgroundBlendMode: 'normal',
+          }}
+          onMouseDown={handleCanvasMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onWheel={handleWheel}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleDrop}
+        >
+          {/* Canvas dot pattern overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-30"
+            style={{
+              backgroundImage: `radial-gradient(circle, var(--text-muted) 1px, transparent 1px)`,
+              backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
+              backgroundPosition: `${pan.x}px ${pan.y}px`,
+            }}
+          />
+
+          {/* Elements */}
+          {elements.map(renderElement)}
+
+          {/* Empty state */}
+          {elements.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-center max-w-md p-8 bg-[var(--bg-card)]/80 backdrop-blur-sm rounded-2xl border border-[var(--border-default)]">
                 <FileText className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-4" />
                 <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-                  Start Composing Your Paper
+                  Start Building Your Paper
                 </h2>
-                <p className="text-sm text-[var(--text-muted)] mb-6">
-                  Structure your paper with sections, connect your research highlights, and let AI help you draft compelling prose.
+                <p className="text-sm text-[var(--text-muted)] mb-4">
+                  Add thesis statements, drag highlights from the sidebar, and organize your thoughts visually.
                 </p>
-                <div className="flex gap-3 justify-center">
+                <div className="flex gap-2 justify-center pointer-events-auto">
                   <button
-                    onClick={addCommonSections}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+                    onClick={() => addElement('thesis')}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 rounded-lg hover:bg-[var(--accent-primary)]/20 transition-colors"
                   >
-                    <Layers className="w-4 h-4" />
-                    Use Paper Template
+                    <Lightbulb className="w-4 h-4" />
+                    Add Thesis
                   </button>
                   <button
-                    onClick={() => addSection()}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[var(--bg-primary)] bg-[var(--accent-primary)] rounded-lg hover:opacity-90 transition-opacity"
+                    onClick={addSection}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-secondary)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
                   >
-                    <Plus className="w-4 h-4" />
-                    Add Custom Section
+                    <Square className="w-4 h-4" />
+                    Add Section
                   </button>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {sections.map(section => (
-                <div
-                  key={section.id}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const highlightId = e.dataTransfer.getData('highlightId');
-                    if (highlightId) {
-                      handleDropHighlight(section.id, highlightId);
-                    }
-                  }}
-                >
-                  <SectionCard
-                    section={section}
-                    highlights={highlights}
-                    allHighlights={highlights}
-                    onUpdate={updateSection}
-                    onDelete={deleteSection}
-                    onGenerateThesis={generateThesis}
-                    onGenerateDraft={generateDraft}
-                    onSuggestHighlights={suggestHighlights}
-                    isGeneratingThesis={generatingThesisFor === section.id}
-                    isGeneratingDraft={generatingDraftFor === section.id}
-                    isSuggestingHighlights={suggestingHighlightsFor === section.id}
-                    suggestedHighlightIds={suggestedHighlights[section.id] || []}
-                    onAcceptSuggestion={acceptSuggestion}
-                    onRejectSuggestion={rejectSuggestion}
-                  />
-                </div>
-              ))}
             </div>
           )}
         </main>
       </div>
+
+      {/* Draft Modal */}
+      {showDraftModal && generatedDraft && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-8 animate-fade-in">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowDraftModal(false)}
+          />
+          <div className="relative bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-[var(--border-default)] w-full max-w-3xl max-h-[80vh] overflow-hidden animate-scale-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)]">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-[var(--accent-primary)]/15 flex items-center justify-center">
+                  <Wand2 className="w-4 h-4 text-[var(--accent-primary)]" />
+                </div>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Generated Draft</h2>
+              </div>
+              <button
+                onClick={() => setShowDraftModal(false)}
+                className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="prose prose-sm max-w-none text-[var(--text-primary)]">
+                {generatedDraft.split('\n').map((paragraph, i) => (
+                  <p key={i} className="mb-4 leading-relaxed">{paragraph}</p>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-[var(--border-default)] bg-[var(--bg-secondary)]/50">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedDraft);
+                }}
+                className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                Copy to Clipboard
+              </button>
+              <button
+                onClick={() => setShowDraftModal(false)}
+                className="px-4 py-2 text-sm font-medium text-[var(--bg-primary)] bg-[var(--accent-primary)] rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toggle sidebar button */}
+      <button
+        onClick={() => setShowHighlightPanel(!showHighlightPanel)}
+        className="fixed left-0 top-1/2 -translate-y-1/2 p-1.5 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-r-lg shadow-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors z-10"
+        style={{ left: showHighlightPanel ? '286px' : '0' }}
+      >
+        <ChevronDown className={`w-4 h-4 transition-transform ${showHighlightPanel ? '-rotate-90' : 'rotate-90'}`} />
+      </button>
     </div>
   );
 }
