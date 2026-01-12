@@ -748,18 +748,40 @@ export async function updateSettings(settings: AppSettings, projectId?: string):
   // Store other settings in Supabase (synced across devices, per project)
   const targetProjectId = projectId || getProjectId();
 
-  const { error } = await supabase
+  // Try UPDATE first (most common case - settings already exist)
+  const updateResult = await supabase
     .from('settings')
-    .upsert({
-      project_id: targetProjectId,
+    .update({
       default_highlight_color: settings.defaultHighlightColor,
       research_context: settings.researchContext,
       sort_option: settings.sortOption,
-    }, {
-      onConflict: 'project_id'
-    });
+    })
+    .eq('project_id', targetProjectId)
+    .select();
 
-  if (error) throw error;
+  // If update succeeded and affected rows, we're done
+  if (!updateResult.error && updateResult.data && updateResult.data.length > 0) {
+    return;
+  }
+
+  // If no rows updated (row doesn't exist), try INSERT
+  if (!updateResult.error && updateResult.data && updateResult.data.length === 0) {
+    const insertResult = await supabase
+      .from('settings')
+      .insert({
+        project_id: targetProjectId,
+        default_highlight_color: settings.defaultHighlightColor,
+        research_context: settings.researchContext,
+        sort_option: settings.sortOption,
+      })
+      .select();
+
+    if (insertResult.error) throw insertResult.error;
+    return;
+  }
+
+  // If update had an error, throw it
+  if (updateResult.error) throw updateResult.error;
 }
 
 // Get all unique tags

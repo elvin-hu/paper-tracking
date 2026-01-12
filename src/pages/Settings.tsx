@@ -52,10 +52,14 @@ export function Settings() {
       openaiApiKey: apiKey || undefined,
       researchContext: researchContext || undefined,
     };
-    await updateSettings(newSettings, currentProject?.id);
-    setSettings(newSettings);
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
+    try {
+      await updateSettings(newSettings, currentProject?.id);
+      setSettings(newSettings);
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+    }
   };
 
   const handleColorChange = (color: HighlightColor) => {
