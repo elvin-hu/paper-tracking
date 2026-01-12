@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Trash2, AlertTriangle } from 'lucide-react';
 
 interface EditProjectModalProps {
@@ -24,6 +25,8 @@ export function EditProjectModal({ isOpen, project, onClose, onSave, onDelete, c
     }, [project]);
 
     if (!isOpen || !project) return null;
+
+    const modalContent = (
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -166,4 +169,6 @@ export function EditProjectModal({ isOpen, project, onClose, onSave, onDelete, c
             </div>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 }

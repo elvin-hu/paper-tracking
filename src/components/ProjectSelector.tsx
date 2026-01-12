@@ -70,6 +70,13 @@ export function ProjectSelector() {
                                                 key={project.id}
                                                 className={`group relative flex items-center px-3 py-2 mx-1.5 rounded-lg transition-colors ${isSelected ? 'bg-[var(--bg-tertiary)]' : 'hover:bg-[var(--bg-secondary)]'}`}
                                             >
+                                                {/* Checkmark - anchored to left */}
+                                                <div className="flex-shrink-0 w-5 flex justify-center mr-2">
+                                                    {isSelected && (
+                                                        <Check className="w-4 h-4 text-[var(--accent-primary)]" />
+                                                    )}
+                                                </div>
+
                                                 {/* Project name */}
                                                 <button
                                                     onClick={() => {
@@ -78,32 +85,25 @@ export function ProjectSelector() {
                                                         }
                                                         setIsOpen(false);
                                                     }}
-                                                    className="flex-1 flex items-center gap-2 text-left min-w-0"
+                                                    className="flex-1 text-left min-w-0"
                                                 >
                                                     <span className={`truncate text-sm ${isSelected ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
                                                         {project.name}
                                                     </span>
                                                 </button>
 
-                                                {/* Edit button - opens modal */}
+                                                {/* Edit button - next to name, on hover */}
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         setEditingProject({ id: project.id, name: project.name });
                                                         setIsOpen(false);
                                                     }}
-                                                    className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-md hover:bg-[var(--bg-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                                    className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-md hover:bg-[var(--bg-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1"
                                                     title="Edit project"
                                                 >
                                                     <Pencil className="w-3.5 h-3.5" />
                                                 </button>
-
-                                                {/* Checkmark */}
-                                                <div className="flex-shrink-0 w-5 flex justify-center ml-1">
-                                                    {isSelected && (
-                                                        <Check className="w-4 h-4 text-[var(--accent-primary)]" />
-                                                    )}
-                                                </div>
                                             </div>
                                         );
                                     })}
