@@ -233,9 +233,7 @@ export function Settings() {
                   </div>
                   <button
                     onClick={() => setFlag('composingEnabled', !flags.composingEnabled)}
-                    className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
-                      flags.composingEnabled ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'
-                    }`}
+                    className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
                     style={{
                       padding: 0,
                       border: 'none',
@@ -244,12 +242,14 @@ export function Settings() {
                     }}
                   >
                     <span
-                      className="absolute w-4 h-4 rounded-full bg-white shadow-sm transition-transform"
+                      className="absolute w-4 h-4 rounded-full shadow-sm transition-all"
                       style={{
                         top: '4px',
                         left: flags.composingEnabled ? '24px' : '4px',
                         border: 'none',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                        // Use bg-primary for ON (contrasts with accent), text-primary for OFF (contrasts with bg-tertiary)
+                        background: flags.composingEnabled ? 'var(--bg-primary)' : 'var(--text-primary)',
                       }}
                     />
                   </button>
