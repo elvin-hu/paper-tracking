@@ -109,3 +109,85 @@ export interface AppSettings {
   researchContext?: string; // Context about user's research for AI autofill
   sortOption?: SortOption; // Library sort preference
 }
+
+// === Composing Feature Types ===
+
+// Theme definitions for grouping highlights by color
+export interface HighlightTheme {
+  color: HighlightColor;
+  name: string;
+  description: string;
+  // Maps to paper sections like introduction, related work, methodology, etc.
+  suggestedSections: string[];
+}
+
+// Default color semantics
+export const DEFAULT_HIGHLIGHT_THEMES: HighlightTheme[] = [
+  {
+    color: 'yellow',
+    name: 'Research Gaps & Problems',
+    description: 'Identifies gaps in current research and problem statements',
+    suggestedSections: ['Introduction', 'Problem Statement', 'Motivation'],
+  },
+  {
+    color: 'red',
+    name: 'Limitations',
+    description: 'Limitations and weaknesses of the research',
+    suggestedSections: ['Limitations', 'Future Work', 'Discussion'],
+  },
+  {
+    color: 'purple',
+    name: 'Further Reading',
+    description: 'References and related work to explore',
+    suggestedSections: ['Related Work', 'Background'],
+  },
+  {
+    color: 'blue',
+    name: 'Methodology',
+    description: 'What the paper did - approaches and methods',
+    suggestedSections: ['Methodology', 'Approach', 'Implementation'],
+  },
+  {
+    color: 'green',
+    name: 'Findings',
+    description: 'Key results and discoveries',
+    suggestedSections: ['Results', 'Findings', 'Evaluation', 'Conclusion'],
+  },
+];
+
+// A section in the paper being composed
+export interface CompositionSection {
+  id: string;
+  title: string;
+  thesisStatement?: string;
+  aiSuggestedThesis?: string;
+  parentId?: string; // For subsections
+  order: number;
+  // Highlight IDs that support this section
+  highlightIds: string[];
+  // Notes associated with this section
+  notes: string;
+  // Position on the canvas (for tldraw)
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+// A composition document
+export interface Composition {
+  id: string;
+  projectId: string;
+  title: string;
+  sections: CompositionSection[];
+  // Custom theme mappings (if user overrides defaults)
+  themeOverrides?: Partial<Record<HighlightColor, { name: string; description: string }>>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Grouped highlights by theme for the composing panel
+export interface ThemeGroup {
+  theme: HighlightTheme;
+  highlights: (Highlight & { paperTitle: string })[];
+}

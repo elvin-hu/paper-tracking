@@ -25,12 +25,14 @@ import {
   ArrowUp,
   ArrowDown,
   Archive,
+  PenTool,
 } from 'lucide-react';
 import type { Paper, SortOption, Note } from '../types';
 import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, updatePapersBatch, getSettings, updateSettings, getAllNotes, archivePaper } from '../lib/database';
 import { EditPaperModal } from '../components/EditPaperModal';
 import { ProjectSelector } from '../components/ProjectSelector';
 import { useProject } from '../contexts/ProjectContext';
+import { useComposingEnabled } from '../contexts/FeatureFlagContext';
 
 // Setup pdfjs worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -69,6 +71,7 @@ function loadFilterState(): { selectedTags: string[]; searchQuery: string; showS
 
 export function Library() {
   const navigate = useNavigate();
+  const composingEnabled = useComposingEnabled();
   const [papers, setPapers] = useState<Paper[]>([]);
   const [allNotes, setAllNotes] = useState<Note[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -1151,6 +1154,15 @@ export function Library() {
               <BookMarked className="w-4 h-4" />
               <span className="font-medium">Reading List</span>
             </button>
+            {composingEnabled && (
+              <button
+                onClick={() => navigate('/compose')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm"
+              >
+                <PenTool className="w-4 h-4" />
+                <span className="font-medium">Compose</span>
+              </button>
+            )}
             <button
               onClick={() => navigate('/settings')}
               className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"

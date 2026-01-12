@@ -8,11 +8,13 @@ import {
   Info,
   BookOpen,
   User,
+  FlaskConical,
 } from 'lucide-react';
 import type { HighlightColor, AppSettings } from '../types';
 import { getSettings, updateSettings } from '../lib/database';
 import { useProject } from '../contexts/ProjectContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useFeatureFlags } from '../contexts/FeatureFlagContext';
 
 const HIGHLIGHT_COLORS: { color: HighlightColor; bg: string; border: string }[] = [
   { color: 'yellow', bg: 'var(--highlight-yellow)', border: '#fbbf24' },
@@ -25,6 +27,7 @@ const HIGHLIGHT_COLORS: { color: HighlightColor; bg: string; border: string }[] 
 export function Settings() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { flags, setFlag } = useFeatureFlags();
   const [settings, setSettings] = useState<AppSettings>({
     defaultHighlightColor: 'yellow',
     sidebarWidth: 320,
@@ -201,6 +204,46 @@ export function Settings() {
                     style={{ backgroundColor: c.border }}
                   />
                 ))}
+              </div>
+            </section>
+
+            {/* Experimental Features */}
+            <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-[var(--accent-purple)]/15 flex items-center justify-center">
+                  <FlaskConical className="w-4 h-4 text-[var(--accent-purple)]" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+                    Experimental Features
+                  </h2>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    Try new features before they're released
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-[var(--bg-secondary)] rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium text-[var(--text-primary)]">Compose</p>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Visual paper structuring & AI thesis suggestions
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setFlag('composingEnabled', !flags.composingEnabled)}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${
+                      flags.composingEnabled ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                        flags.composingEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
             </section>
 
