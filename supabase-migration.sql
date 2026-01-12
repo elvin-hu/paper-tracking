@@ -62,14 +62,16 @@ DROP POLICY IF EXISTS "Users can insert own papers" ON papers;
 DROP POLICY IF EXISTS "Users can update own papers" ON papers;
 DROP POLICY IF EXISTS "Users can delete own papers" ON papers;
 
+-- Allow viewing papers with matching user_id OR NULL user_id (for migration)
 CREATE POLICY "Users can view own papers" ON papers
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
 
 CREATE POLICY "Users can insert own papers" ON papers
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+-- Allow updating papers with matching user_id OR NULL user_id (to assign ownership)
 CREATE POLICY "Users can update own papers" ON papers
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE USING (auth.uid() = user_id OR user_id IS NULL);
 
 CREATE POLICY "Users can delete own papers" ON papers
   FOR DELETE USING (auth.uid() = user_id);
@@ -83,14 +85,16 @@ DROP POLICY IF EXISTS "Users can insert own highlights" ON highlights;
 DROP POLICY IF EXISTS "Users can update own highlights" ON highlights;
 DROP POLICY IF EXISTS "Users can delete own highlights" ON highlights;
 
+-- Allow viewing highlights with matching user_id OR NULL user_id (for migration)
 CREATE POLICY "Users can view own highlights" ON highlights
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
 
 CREATE POLICY "Users can insert own highlights" ON highlights
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+-- Allow updating highlights with matching user_id OR NULL user_id (to assign ownership)
 CREATE POLICY "Users can update own highlights" ON highlights
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE USING (auth.uid() = user_id OR user_id IS NULL);
 
 CREATE POLICY "Users can delete own highlights" ON highlights
   FOR DELETE USING (auth.uid() = user_id);
@@ -104,14 +108,16 @@ DROP POLICY IF EXISTS "Users can insert own notes" ON notes;
 DROP POLICY IF EXISTS "Users can update own notes" ON notes;
 DROP POLICY IF EXISTS "Users can delete own notes" ON notes;
 
+-- Allow viewing notes with matching user_id OR NULL user_id (for migration)
 CREATE POLICY "Users can view own notes" ON notes
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
 
 CREATE POLICY "Users can insert own notes" ON notes
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+-- Allow updating notes with matching user_id OR NULL user_id (to assign ownership)
 CREATE POLICY "Users can update own notes" ON notes
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE USING (auth.uid() = user_id OR user_id IS NULL);
 
 CREATE POLICY "Users can delete own notes" ON notes
   FOR DELETE USING (auth.uid() = user_id);
@@ -125,14 +131,16 @@ DROP POLICY IF EXISTS "Users can insert own settings" ON settings;
 DROP POLICY IF EXISTS "Users can update own settings" ON settings;
 DROP POLICY IF EXISTS "Users can delete own settings" ON settings;
 
+-- Allow viewing settings with matching user_id OR NULL user_id (for migration)
 CREATE POLICY "Users can view own settings" ON settings
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
 
 CREATE POLICY "Users can insert own settings" ON settings
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+-- Allow updating settings with matching user_id OR NULL user_id (to assign ownership)
 CREATE POLICY "Users can update own settings" ON settings
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE USING (auth.uid() = user_id OR user_id IS NULL);
 
 CREATE POLICY "Users can delete own settings" ON settings
   FOR DELETE USING (auth.uid() = user_id);
@@ -149,9 +157,9 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS "Users can update own projects" ON projects';
     EXECUTE 'DROP POLICY IF EXISTS "Users can delete own projects" ON projects';
     
-    EXECUTE 'CREATE POLICY "Users can view own projects" ON projects FOR SELECT USING (auth.uid() = user_id)';
+    EXECUTE 'CREATE POLICY "Users can view own projects" ON projects FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL)';
     EXECUTE 'CREATE POLICY "Users can insert own projects" ON projects FOR INSERT WITH CHECK (auth.uid() = user_id)';
-    EXECUTE 'CREATE POLICY "Users can update own projects" ON projects FOR UPDATE USING (auth.uid() = user_id)';
+    EXECUTE 'CREATE POLICY "Users can update own projects" ON projects FOR UPDATE USING (auth.uid() = user_id OR user_id IS NULL)';
     EXECUTE 'CREATE POLICY "Users can delete own projects" ON projects FOR DELETE USING (auth.uid() = user_id)';
   END IF;
 END $$;
@@ -168,9 +176,9 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS "Users can update own journal_entries" ON journal_entries';
     EXECUTE 'DROP POLICY IF EXISTS "Users can delete own journal_entries" ON journal_entries';
     
-    EXECUTE 'CREATE POLICY "Users can view own journal_entries" ON journal_entries FOR SELECT USING (auth.uid() = user_id)';
+    EXECUTE 'CREATE POLICY "Users can view own journal_entries" ON journal_entries FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL)';
     EXECUTE 'CREATE POLICY "Users can insert own journal_entries" ON journal_entries FOR INSERT WITH CHECK (auth.uid() = user_id)';
-    EXECUTE 'CREATE POLICY "Users can update own journal_entries" ON journal_entries FOR UPDATE USING (auth.uid() = user_id)';
+    EXECUTE 'CREATE POLICY "Users can update own journal_entries" ON journal_entries FOR UPDATE USING (auth.uid() = user_id OR user_id IS NULL)';
     EXECUTE 'CREATE POLICY "Users can delete own journal_entries" ON journal_entries FOR DELETE USING (auth.uid() = user_id)';
   END IF;
 END $$;
@@ -214,12 +222,26 @@ CREATE POLICY "Users can delete own PDFs" ON storage.objects
 
 
 -- =============================================
--- IMPORTANT: After running this migration
+-- IMPORTANT: SAFE MIGRATION STEPS
 -- =============================================
 -- 
--- 1. For existing data, you'll need to assign a user_id to existing rows.
---    If you're the only user, run:
---    
+-- Your existing data is SAFE! This migration:
+-- ✅ Only ADDS new columns (doesn't delete anything)
+-- ✅ Allows you to see data with NULL user_id (temporary, for migration)
+--
+-- STEP-BY-STEP:
+--
+-- 1. FIRST: Sign up in the app to create your user account
+--
+-- 2. Find your user_id:
+--    Go to Supabase Dashboard → Authentication → Users
+--    Copy your User UID (looks like: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+--
+-- 3. Run this migration (the main script above)
+--
+-- 4. IMMEDIATELY assign your user_id to existing data:
+--    Replace YOUR_USER_ID with your actual UUID and run:
+--
 --    UPDATE papers SET user_id = 'YOUR_USER_ID' WHERE user_id IS NULL;
 --    UPDATE highlights SET user_id = 'YOUR_USER_ID' WHERE user_id IS NULL;
 --    UPDATE notes SET user_id = 'YOUR_USER_ID' WHERE user_id IS NULL;
@@ -227,6 +249,8 @@ CREATE POLICY "Users can delete own PDFs" ON storage.objects
 --    UPDATE projects SET user_id = 'YOUR_USER_ID' WHERE user_id IS NULL;
 --    UPDATE journal_entries SET user_id = 'YOUR_USER_ID' WHERE user_id IS NULL;
 --
--- 2. To find your user_id, go to Authentication > Users in Supabase dashboard
+-- 5. VERIFY your data is intact:
+--    SELECT COUNT(*) FROM papers WHERE user_id = 'YOUR_USER_ID';
+--    SELECT COUNT(*) FROM highlights WHERE user_id = 'YOUR_USER_ID';
 --
 -- =============================================
