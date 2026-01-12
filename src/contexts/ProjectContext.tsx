@@ -27,6 +27,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     // Track user ID to prevent unnecessary reloads on tab switch
     // (Supabase creates new user object references on session refresh)
     const lastUserIdRef = useRef<string | null>(null);
+    
+    // Guard to prevent multiple simultaneous default project creations (React Strict Mode)
+    const isCreatingDefaultProjectRef = useRef(false);
 
     // Load projects only when auth is ready and user is logged in
     useEffect(() => {
@@ -88,11 +91,17 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
             let data = await getProjects();
             
             // If user has no projects, create a default one
-            if (data.length === 0) {
+            // Use guard to prevent multiple simultaneous creations (React Strict Mode)
+            if (data.length === 0 && !isCreatingDefaultProjectRef.current) {
+                isCreatingDefaultProjectRef.current = true;
                 console.log('[ProjectContext] No projects found, creating default project for new user');
-                const defaultProject = await createProject('My Research');
-                data = [defaultProject];
-                setCurrentProject(defaultProject);
+                try {
+                    const defaultProject = await createProject('My Research');
+                    data = [defaultProject];
+                    setCurrentProject(defaultProject);
+                } finally {
+                    isCreatingDefaultProjectRef.current = false;
+                }
             }
             
             setProjects(data);
