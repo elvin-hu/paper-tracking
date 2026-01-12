@@ -233,14 +233,24 @@ export function Settings() {
                   </div>
                   <button
                     onClick={() => setFlag('composingEnabled', !flags.composingEnabled)}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${
+                    className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
                       flags.composingEnabled ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'
                     }`}
+                    style={{
+                      padding: 0,
+                      border: 'none',
+                      boxShadow: 'none',
+                      background: flags.composingEnabled ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
+                    }}
                   >
                     <span
-                      className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
-                        flags.composingEnabled ? 'translate-x-6' : 'translate-x-1'
-                      }`}
+                      className="absolute w-4 h-4 rounded-full bg-white shadow-sm transition-transform"
+                      style={{
+                        top: '4px',
+                        left: flags.composingEnabled ? '24px' : '4px',
+                        border: 'none',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      }}
                     />
                   </button>
                 </div>
