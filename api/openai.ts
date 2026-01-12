@@ -6,10 +6,17 @@ export const config = {
   runtime: 'edge',
 };
 
-interface RequestBody {
+interface LegacyRequestBody {
   action: 'autofill' | 'summarize' | 'chat';
   content: string;
   researchContext?: string;
+}
+
+interface DirectRequestBody {
+  messages: { role: string; content: string }[];
+  model?: string;
+  max_tokens?: number;
+  temperature?: number;
 }
 
 export default async function handler(req: Request) {
@@ -31,8 +38,45 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const body: RequestBody = await req.json();
-    const { action, content, researchContext } = body;
+    const body = await req.json();
+    
+    // Check if this is a direct OpenAI-style request (has messages array)
+    if (body.messages && Array.isArray(body.messages)) {
+      const directBody = body as DirectRequestBody;
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: directBody.model || 'gpt-4o-mini',
+          messages: directBody.messages,
+          temperature: directBody.temperature ?? 0.7,
+          max_tokens: directBody.max_tokens || 1000,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('OpenAI API error:', error);
+        return new Response(JSON.stringify({ error: 'OpenAI API error', details: error }), {
+          status: response.status,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      const data = await response.json();
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // Legacy format with action/content
+    const legacyBody = body as LegacyRequestBody;
+    const { action, content, researchContext } = legacyBody;
 
     let systemPrompt = '';
     let userPrompt = content;

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import { getAllHighlightsByProject, getAllPapers } from '../lib/database';
+import { callOpenAI } from '../lib/openai';
 import type { Highlight, Paper, HighlightColor } from '../types';
 import { DEFAULT_HIGHLIGHT_THEMES as THEMES } from '../types';
 
@@ -382,14 +383,11 @@ export function Compose() {
         `[${i}] Color: ${h.color}, Text: "${h.text.slice(0, 150)}...", Paper: ${h.paperTitle}`
       ).join('\n');
       
-      const response = await fetch('/api/openai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: 'system',
-              content: `You are helping find relevant research highlights for a paragraph in an academic paper.
+      const data = await callOpenAI({
+        messages: [
+          {
+            role: 'system',
+            content: `You are helping find relevant research highlights for a paragraph in an academic paper.
 Based on the section name, paragraph topic, and available highlights, identify the most relevant ones.
 
 Color meanings:
@@ -400,25 +398,23 @@ Color meanings:
 - green: Findings/results
 
 Return ONLY a JSON array of indices (e.g., [0, 2, 5]) for relevant highlights (max 5).`
-            },
-            {
-              role: 'user',
-              content: `Section: ${section?.title || 'Unknown'}
+          },
+          {
+            role: 'user',
+            content: `Section: ${section?.title || 'Unknown'}
 Paragraph topic: ${module.userWriting || '(not specified yet)'}
 
 Available highlights:
 ${highlightsList}
 
 Return JSON array of relevant highlight indices:`
-            }
-          ],
-          model: 'gpt-4o-mini',
-          max_tokens: 100,
-        }),
+          }
+        ],
+        model: 'gpt-4o-mini',
+        max_tokens: 100,
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      {
         const content = data.choices?.[0]?.message?.content?.trim();
         try {
           const indices = JSON.parse(content);
@@ -505,18 +501,15 @@ Return JSON array of relevant highlight indices:`
         `"${n.highlightText}" (${n.paperTitle})${n.userComment ? ` [Comment: ${n.userComment}]` : ''}`
       ).join('\n');
       
-      const response = await fetch('/api/openai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: 'system',
-              content: `You are helping write a paragraph for an academic paper. Generate polished academic prose based on the user's rough writing and supporting notes. Keep the user's voice but improve clarity and flow. Include citations where appropriate (e.g., "According to [Author]..."). Write 100-200 words.`
-            },
-            {
-              role: 'user',
-              content: `Section: ${section?.title || 'Unknown'}
+      const data = await callOpenAI({
+        messages: [
+          {
+            role: 'system',
+            content: `You are helping write a paragraph for an academic paper. Generate polished academic prose based on the user's rough writing and supporting notes. Keep the user's voice but improve clarity and flow. Include citations where appropriate (e.g., "According to [Author]..."). Write 100-200 words.`
+          },
+          {
+            role: 'user',
+            content: `Section: ${section?.title || 'Unknown'}
               
 User's rough draft:
 ${module.userWriting || '(No user writing yet - generate based on notes)'}
@@ -525,15 +518,13 @@ Supporting notes/quotes:
 ${notesContext || '(No notes attached)'}
 
 Generate a polished paragraph:`
-            }
-          ],
-          model: 'gpt-4o-mini',
-          max_tokens: 500,
-        }),
+          }
+        ],
+        model: 'gpt-4o-mini',
+        max_tokens: 500,
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      {
         const draft = data.choices?.[0]?.message?.content?.trim();
         if (draft) {
           const newVersion: DraftVersion = {
@@ -568,33 +559,28 @@ Generate a polished paragraph:`
         `[${i}] "${h.text.slice(0, 100)}..." (${h.paperTitle})`
       ).join('\n');
       
-      const response = await fetch('/api/openai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: 'system',
-              content: `You are helping structure an academic paper section. Based on the section name and available research highlights, suggest 2-4 paragraph topics with key points. Return as JSON array:
+      const data = await callOpenAI({
+        messages: [
+          {
+            role: 'system',
+            content: `You are helping structure an academic paper section. Based on the section name and available research highlights, suggest 2-4 paragraph topics with key points. Return as JSON array:
 [{"topic": "Main point of paragraph", "relevantHighlightIndices": [0, 2]}]`
-            },
-            {
-              role: 'user',
-              content: `Section: ${section.title}
+          },
+          {
+            role: 'user',
+            content: `Section: ${section.title}
 
 Available highlights:
 ${highlightsList || '(No highlights available)'}
 
 Suggest paragraph structure (JSON):`
-            }
-          ],
-          model: 'gpt-4o-mini',
-          max_tokens: 500,
-        }),
+          }
+        ],
+        model: 'gpt-4o-mini',
+        max_tokens: 500,
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      {
         const content = data.choices?.[0]?.message?.content?.trim();
         try {
           const suggestions = JSON.parse(content);
