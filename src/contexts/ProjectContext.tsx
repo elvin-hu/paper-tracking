@@ -72,7 +72,16 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     async function loadProjects() {
         try {
             setIsLoading(true);
-            const data = await getProjects();
+            let data = await getProjects();
+            
+            // If user has no projects, create a default one
+            if (data.length === 0) {
+                console.log('[ProjectContext] No projects found, creating default project for new user');
+                const defaultProject = await createProject('My Research');
+                data = [defaultProject];
+                setCurrentProject(defaultProject);
+            }
+            
             setProjects(data);
         } catch (error) {
             console.error('[ProjectContext] Failed to load projects:', error);
