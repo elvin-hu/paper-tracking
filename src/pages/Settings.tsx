@@ -8,7 +8,6 @@ import {
   Info,
   BookOpen,
   User,
-  Sparkles,
 } from 'lucide-react';
 import type { HighlightColor, AppSettings } from '../types';
 import { getSettings, updateSettings } from '../lib/database';
@@ -139,36 +138,6 @@ export function Settings() {
             </button>
           </div>
 
-          {/* AI Features */}
-          <div className="space-y-4">
-            <h2 className="text-sm font-bold text-[var(--accent-primary)] uppercase tracking-wide">
-              AI Features
-            </h2>
-
-            <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4">
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-[var(--accent-purple)]/15 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-[var(--accent-purple)]" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-                    AI-Powered Features
-                  </h2>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    Autofill, summaries, and insights
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 p-3 bg-[var(--accent-green)]/10 rounded-lg border border-[var(--accent-green)]/20">
-                <div className="w-2 h-2 rounded-full bg-[var(--accent-green)]" />
-                <p className="text-xs text-[var(--accent-green)] font-medium">
-                  AI features enabled for all users
-                </p>
-              </div>
-            </section>
-          </div>
-
           {/* Project Settings */}
           <div className="space-y-4">
             <h2 className="text-sm font-bold text-[var(--accent-primary)] uppercase tracking-wide">
@@ -251,9 +220,14 @@ export function Settings() {
                   <li>• Multi-color PDF highlighting</li>
                   <li>• Notes & annotations</li>
                   <li>• Reference tracking</li>
-                  <li>• AI-powered autofill</li>
+                  <li>• AI-powered autofill & insights</li>
                   <li>• Multi-project organization</li>
                 </ul>
+              </div>
+              <div className="mt-3 pt-3 border-t border-[var(--border-muted)]">
+                <p className="text-[10px] text-[var(--text-muted)]">
+                  AI features powered by OpenAI
+                </p>
               </div>
             </section>
           </div>
