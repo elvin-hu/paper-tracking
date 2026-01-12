@@ -151,7 +151,7 @@ export function EditProjectModal({ isOpen, project, onClose, onSave, onDelete, c
                             <button
                                 type="button"
                                 onClick={() => setShowDeleteConfirm(true)}
-                                className="flex items-center gap-2 text-sm text-[var(--accent-red)] hover:text-[var(--accent-red)]/80 transition-colors"
+                                className="flex items-center gap-2 px-3 py-2 -ml-3 text-sm text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 rounded-full transition-colors"
                             >
                                 <Trash2 className="w-4 h-4" />
                                 Delete Project
