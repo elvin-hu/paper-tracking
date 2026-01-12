@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -6,27 +6,23 @@ import {
   Plus,
   GripVertical,
   FileText,
-  Lightbulb,
-  StickyNote,
-  Trash2,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  Wand2,
-  ChevronDown,
   ChevronRight,
-  Square,
+  ChevronDown,
+  Trash2,
   Save,
-  Link2,
-  Unlink,
-  List,
-  LayoutGrid,
-  Layers,
-  Search,
+  Wand2,
   X,
+  RotateCcw,
+  Copy,
   Check,
-  MoveUp,
-  MoveDown,
+  MessageSquare,
+  StickyNote,
+  PanelRightOpen,
+  PanelRightClose,
+  Layers,
+  FolderPlus,
+  MoreHorizontal,
+  Pencil,
 } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import { getAllHighlightsByProject, getAllPapers } from '../lib/database';
@@ -34,40 +30,43 @@ import type { Highlight, Paper, HighlightColor } from '../types';
 import { DEFAULT_HIGHLIGHT_THEMES as THEMES } from '../types';
 
 // LocalStorage key
-const COMPOSITION_STORAGE_KEY = 'paper-lab-canvas-composition';
+const COMPOSITION_STORAGE_KEY = 'paper-lab-structured-composition';
 
-// Snap distance for magnetic alignment
-const SNAP_DISTANCE = 20;
-const SNAP_MARGIN = 10;
-
-// Element types
-type ElementType = 'thesis' | 'highlight' | 'text' | 'section';
-
-interface CanvasElement {
+// Section structure
+interface Section {
   id: string;
-  type: ElementType;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  content: string;
-  // For highlights
-  highlightId?: string;
-  highlightColor?: HighlightColor;
-  paperTitle?: string;
-  paperAuthors?: string;
-  // For sections
-  color?: string;
-  // For ordering in outline
-  order?: number;
-  // Connected elements (for drawing lines)
-  connectedTo?: string[];
+  title: string;
+  parentId: string | null;
+  order: number;
+  isExpanded: boolean;
 }
 
-// Connection between elements
-interface Connection {
-  from: string;
-  to: string;
+// Note attached to a module
+interface AttachedNote {
+  highlightId: string;
+  highlightText: string;
+  highlightColor: HighlightColor;
+  paperTitle: string;
+  userComment: string;
+}
+
+// Version of AI draft
+interface DraftVersion {
+  id: string;
+  content: string;
+  createdAt: Date;
+}
+
+// Paragraph module
+interface ParagraphModule {
+  id: string;
+  sectionId: string;
+  order: number;
+  userWriting: string;
+  attachedNotes: AttachedNote[];
+  aiDraft: string;
+  draftVersions: DraftVersion[];
+  isGeneratingDraft: boolean;
 }
 
 // Extend highlight with paper info
@@ -75,35 +74,6 @@ interface HighlightWithPaper extends Highlight {
   paperTitle: string;
   paperAuthors?: string;
 }
-
-// Color palette for sections
-const SECTION_COLORS = [
-  { name: 'Blue', value: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', border: 'rgba(59, 130, 246, 0.3)' },
-  { name: 'Purple', value: '#a855f7', bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)' },
-  { name: 'Green', value: '#22c55e', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)' },
-  { name: 'Orange', value: '#f97316', bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.3)' },
-  { name: 'Pink', value: '#ec4899', bg: 'rgba(236, 72, 153, 0.1)', border: 'rgba(236, 72, 153, 0.3)' },
-  { name: 'Teal', value: '#14b8a6', bg: 'rgba(20, 184, 166, 0.1)', border: 'rgba(20, 184, 166, 0.3)' },
-];
-
-// Paper structure templates
-const PAPER_TEMPLATES = {
-  standard: [
-    { title: 'Introduction', description: 'Present the problem and your contribution' },
-    { title: 'Related Work', description: 'Position within existing research' },
-    { title: 'Methodology', description: 'Explain your approach' },
-    { title: 'Results', description: 'Present findings' },
-    { title: 'Discussion', description: 'Interpret results' },
-    { title: 'Conclusion', description: 'Summarize and future work' },
-  ],
-  argumentative: [
-    { title: 'Introduction & Thesis', description: 'State your main argument' },
-    { title: 'Background', description: 'Context and definitions' },
-    { title: 'Supporting Evidence', description: 'Arguments for your thesis' },
-    { title: 'Counterarguments', description: 'Address opposing views' },
-    { title: 'Conclusion', description: 'Restate thesis with implications' },
-  ],
-};
 
 // Highlight color map
 const HIGHLIGHT_COLOR_MAP: Record<HighlightColor, string> = {
@@ -114,47 +84,38 @@ const HIGHLIGHT_COLOR_MAP: Record<HighlightColor, string> = {
   green: '#22c55e',
 };
 
+// Default sections
+const DEFAULT_SECTIONS: Section[] = [
+  { id: 'intro', title: 'Introduction', parentId: null, order: 0, isExpanded: true },
+  { id: 'background', title: 'Background', parentId: null, order: 1, isExpanded: true },
+  { id: 'related', title: 'Related Work', parentId: null, order: 2, isExpanded: true },
+  { id: 'methodology', title: 'Methodology', parentId: null, order: 3, isExpanded: true },
+  { id: 'results', title: 'Results', parentId: null, order: 4, isExpanded: true },
+  { id: 'discussion', title: 'Discussion', parentId: null, order: 5, isExpanded: true },
+  { id: 'conclusion', title: 'Conclusion', parentId: null, order: 6, isExpanded: true },
+];
+
 export function Compose() {
   const navigate = useNavigate();
   const { currentProject, isLoading: isProjectLoading } = useProject();
-  const canvasRef = useRef<HTMLDivElement>(null);
   
   // Data state
   const [highlights, setHighlights] = useState<HighlightWithPaper[]>([]);
   const [papers, setPapers] = useState<Paper[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Canvas state
-  const [elements, setElements] = useState<CanvasElement[]>([]);
-  const [connections, setConnections] = useState<Connection[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
-  const [lastPanPos, setLastPanPos] = useState({ x: 0, y: 0 });
-  const [snapLines, setSnapLines] = useState<{ x?: number; y?: number }>({});
+  // Structure state
+  const [sections, setSections] = useState<Section[]>(DEFAULT_SECTIONS);
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>('intro');
+  const [modules, setModules] = useState<ParagraphModule[]>([]);
   
   // UI state
-  const [showHighlightPanel, setShowHighlightPanel] = useState(true);
-  const [showOutlinePanel, setShowOutlinePanel] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [compositionTitle, setCompositionTitle] = useState('Untitled Paper');
-  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
-  const [generatedDraft, setGeneratedDraft] = useState<string | null>(null);
-  const [showDraftModal, setShowDraftModal] = useState(false);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  
-  // Floating action menu
-  const [showActionMenu, setShowActionMenu] = useState(false);
-  const [actionMenuPos, setActionMenuPos] = useState({ x: 0, y: 0 });
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
-  
-  // AI suggestions
-  const [isFindingRelevant, setIsFindingRelevant] = useState(false);
-  const [suggestedHighlights, setSuggestedHighlights] = useState<string[]>([]);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [showDraftPanel, setShowDraftPanel] = useState(true);
+  const [showNotesPicker, setShowNotesPicker] = useState<string | null>(null);
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [isGeneratingModules, setIsGeneratingModules] = useState(false);
 
   // Load saved composition
   useEffect(() => {
@@ -164,12 +125,10 @@ export function Compose() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setElements(parsed.elements || []);
-        setConnections(parsed.connections || []);
-        setCompositionTitle(parsed.title || 'Untitled Paper');
+        if (parsed.sections?.length > 0) setSections(parsed.sections);
+        if (parsed.modules?.length > 0) setModules(parsed.modules);
+        if (parsed.title) setCompositionTitle(parsed.title);
         setLastSaved(parsed.savedAt ? new Date(parsed.savedAt) : null);
-        if (parsed.zoom) setZoom(parsed.zoom);
-        if (parsed.pan) setPan(parsed.pan);
       } catch (e) {
         console.error('Failed to load saved composition:', e);
       }
@@ -183,10 +142,8 @@ export function Compose() {
     const saveTimeout = setTimeout(() => {
       const data = {
         title: compositionTitle,
-        elements,
-        connections,
-        zoom,
-        pan,
+        sections,
+        modules,
         savedAt: new Date().toISOString(),
       };
       localStorage.setItem(`${COMPOSITION_STORAGE_KEY}-${currentProject.id}`, JSON.stringify(data));
@@ -194,7 +151,7 @@ export function Compose() {
     }, 1000);
 
     return () => clearTimeout(saveTimeout);
-  }, [elements, connections, compositionTitle, zoom, pan, currentProject]);
+  }, [sections, modules, compositionTitle, currentProject]);
 
   // Load data
   useEffect(() => {
@@ -227,317 +184,232 @@ export function Compose() {
     loadData();
   }, [currentProject, isProjectLoading]);
 
-  // Group highlights by theme
-  const themeGroups = useMemo(() => {
-    return THEMES.map(theme => ({
-      theme,
-      highlights: highlights.filter(h => h.color === theme.color),
-    }));
-  }, [highlights]);
+  // Get modules for selected section
+  const currentModules = useMemo(() => {
+    if (!selectedSectionId) return [];
+    return modules
+      .filter(m => m.sectionId === selectedSectionId)
+      .sort((a, b) => a.order - b.order);
+  }, [modules, selectedSectionId]);
 
-  // Get thesis elements for outline
-  const thesisElements = useMemo(() => {
-    return elements
-      .filter(e => e.type === 'thesis')
-      .sort((a, b) => (a.order ?? a.y) - (b.order ?? b.y));
-  }, [elements]);
-
-  // Calculate snap position
-  const calculateSnap = useCallback((draggedElement: CanvasElement, newX: number, newY: number) => {
-    const otherElements = elements.filter(e => e.id !== draggedElement.id);
-    let snapX: number | undefined;
-    let snapY: number | undefined;
-    let resultX = newX;
-    let resultY = newY;
+  // Get section hierarchy
+  const sectionTree = useMemo(() => {
+    const rootSections = sections
+      .filter(s => s.parentId === null)
+      .sort((a, b) => a.order - b.order);
     
-    const draggedRight = newX + draggedElement.width;
-    const draggedBottom = newY + draggedElement.height;
-    const draggedCenterX = newX + draggedElement.width / 2;
-    const draggedCenterY = newY + draggedElement.height / 2;
-
-    for (const other of otherElements) {
-      const otherRight = other.x + other.width;
-      const otherBottom = other.y + other.height;
-      const otherCenterX = other.x + other.width / 2;
-      const otherCenterY = other.y + other.height / 2;
-
-      // Snap left edge to left edge
-      if (Math.abs(newX - other.x) < SNAP_DISTANCE) {
-        resultX = other.x;
-        snapX = other.x;
-      }
-      // Snap left edge to right edge (with margin)
-      if (Math.abs(newX - otherRight - SNAP_MARGIN) < SNAP_DISTANCE) {
-        resultX = otherRight + SNAP_MARGIN;
-        snapX = otherRight + SNAP_MARGIN;
-      }
-      // Snap right edge to right edge
-      if (Math.abs(draggedRight - otherRight) < SNAP_DISTANCE) {
-        resultX = otherRight - draggedElement.width;
-        snapX = otherRight;
-      }
-      // Snap right edge to left edge (with margin)
-      if (Math.abs(draggedRight - other.x + SNAP_MARGIN) < SNAP_DISTANCE) {
-        resultX = other.x - SNAP_MARGIN - draggedElement.width;
-        snapX = other.x - SNAP_MARGIN;
-      }
-      // Snap center X
-      if (Math.abs(draggedCenterX - otherCenterX) < SNAP_DISTANCE) {
-        resultX = otherCenterX - draggedElement.width / 2;
-        snapX = otherCenterX;
-      }
-
-      // Snap top edge to top edge
-      if (Math.abs(newY - other.y) < SNAP_DISTANCE) {
-        resultY = other.y;
-        snapY = other.y;
-      }
-      // Snap top edge to bottom edge (with margin)
-      if (Math.abs(newY - otherBottom - SNAP_MARGIN) < SNAP_DISTANCE) {
-        resultY = otherBottom + SNAP_MARGIN;
-        snapY = otherBottom + SNAP_MARGIN;
-      }
-      // Snap bottom edge to bottom edge
-      if (Math.abs(draggedBottom - otherBottom) < SNAP_DISTANCE) {
-        resultY = otherBottom - draggedElement.height;
-        snapY = otherBottom;
-      }
-      // Snap bottom edge to top edge (with margin)
-      if (Math.abs(draggedBottom - other.y + SNAP_MARGIN) < SNAP_DISTANCE) {
-        resultY = other.y - SNAP_MARGIN - draggedElement.height;
-        snapY = other.y - SNAP_MARGIN;
-      }
-      // Snap center Y
-      if (Math.abs(draggedCenterY - otherCenterY) < SNAP_DISTANCE) {
-        resultY = otherCenterY - draggedElement.height / 2;
-        snapY = otherCenterY;
-      }
-    }
-
-    return { x: resultX, y: resultY, snapX, snapY };
-  }, [elements]);
-
-  // Add element to canvas
-  const addElement = useCallback((type: ElementType, highlight?: HighlightWithPaper, position?: { x: number; y: number }) => {
-    const canvasRect = canvasRef.current?.getBoundingClientRect();
-    const centerX = position?.x ?? (canvasRect ? (canvasRect.width / 2 - pan.x) / zoom : 300);
-    const centerY = position?.y ?? (canvasRect ? (canvasRect.height / 2 - pan.y) / zoom : 300);
-    
-    const offsetX = position ? 0 : (Math.random() - 0.5) * 100;
-    const offsetY = position ? 0 : (Math.random() - 0.5) * 100;
-    
-    const newElement: CanvasElement = {
-      id: crypto.randomUUID(),
-      type,
-      x: centerX + offsetX,
-      y: centerY + offsetY,
-      width: type === 'section' ? 300 : type === 'thesis' ? 280 : type === 'highlight' ? 260 : 200,
-      height: type === 'section' ? 200 : type === 'thesis' ? 100 : type === 'highlight' ? 120 : 80,
-      content: type === 'thesis' ? 'Write your thesis statement...' : 
-               type === 'section' ? 'Section Title' :
-               type === 'text' ? 'Add your notes...' :
-               highlight?.text || '',
-      highlightId: highlight?.id,
-      highlightColor: highlight?.color,
-      paperTitle: highlight?.paperTitle,
-      paperAuthors: highlight?.paperAuthors,
-      color: type === 'section' ? SECTION_COLORS[elements.filter(e => e.type === 'section').length % SECTION_COLORS.length].value : undefined,
-      order: type === 'thesis' ? thesisElements.length : undefined,
-      connectedTo: [],
+    const getChildren = (parentId: string): Section[] => {
+      return sections
+        .filter(s => s.parentId === parentId)
+        .sort((a, b) => a.order - b.order);
     };
     
-    setElements(prev => [...prev, newElement]);
-    setSelectedId(newElement.id);
+    return { rootSections, getChildren };
+  }, [sections]);
+
+  // Generate full draft from all modules
+  const fullDraft = useMemo(() => {
+    const orderedSections = sections
+      .filter(s => s.parentId === null)
+      .sort((a, b) => a.order - b.order);
     
-    return newElement;
-  }, [pan, zoom, elements, thesisElements.length]);
-
-  // Add connection between elements
-  const addConnection = useCallback((fromId: string, toId: string) => {
-    if (fromId === toId) return;
-    const exists = connections.some(c => 
-      (c.from === fromId && c.to === toId) || (c.from === toId && c.to === fromId)
-    );
-    if (!exists) {
-      setConnections(prev => [...prev, { from: fromId, to: toId }]);
+    const parts: string[] = [];
+    
+    for (const section of orderedSections) {
+      const sectionModules = modules
+        .filter(m => m.sectionId === section.id)
+        .sort((a, b) => a.order - b.order);
+      
+      if (sectionModules.length > 0) {
+        parts.push(`## ${section.title}\n`);
+        for (const mod of sectionModules) {
+          const content = mod.aiDraft || mod.userWriting;
+          if (content) {
+            parts.push(content + '\n');
+          }
+        }
+        parts.push('');
+      }
+      
+      // Add subsections
+      const subsections = sections
+        .filter(s => s.parentId === section.id)
+        .sort((a, b) => a.order - b.order);
+      
+      for (const sub of subsections) {
+        const subModules = modules
+          .filter(m => m.sectionId === sub.id)
+          .sort((a, b) => a.order - b.order);
+        
+        if (subModules.length > 0) {
+          parts.push(`### ${sub.title}\n`);
+          for (const mod of subModules) {
+            const content = mod.aiDraft || mod.userWriting;
+            if (content) {
+              parts.push(content + '\n');
+            }
+          }
+          parts.push('');
+        }
+      }
     }
-  }, [connections]);
+    
+    return parts.join('\n').trim();
+  }, [sections, modules]);
 
-  // Remove connection
-  const removeConnection = useCallback((fromId: string, toId: string) => {
-    setConnections(prev => prev.filter(c => 
-      !((c.from === fromId && c.to === toId) || (c.from === toId && c.to === fromId))
-    ));
+  // Add new section
+  const addSection = useCallback((parentId: string | null = null) => {
+    const siblings = sections.filter(s => s.parentId === parentId);
+    const newSection: Section = {
+      id: crypto.randomUUID(),
+      title: parentId ? 'New Subsection' : 'New Section',
+      parentId,
+      order: siblings.length,
+      isExpanded: true,
+    };
+    setSections(prev => [...prev, newSection]);
+    setEditingSectionId(newSection.id);
+  }, [sections]);
+
+  // Update section
+  const updateSection = useCallback((id: string, updates: Partial<Section>) => {
+    setSections(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
   }, []);
 
-  // Update element
-  const updateElement = useCallback((id: string, updates: Partial<CanvasElement>) => {
-    setElements(prev => prev.map(el => el.id === id ? { ...el, ...updates } : el));
+  // Delete section
+  const deleteSection = useCallback((id: string) => {
+    // Also delete subsections and their modules
+    const toDelete = new Set<string>([id]);
+    sections.filter(s => s.parentId === id).forEach(s => toDelete.add(s.id));
+    
+    setSections(prev => prev.filter(s => !toDelete.has(s.id)));
+    setModules(prev => prev.filter(m => !toDelete.has(m.sectionId)));
+    
+    if (selectedSectionId && toDelete.has(selectedSectionId)) {
+      setSelectedSectionId(sections.find(s => !toDelete.has(s.id))?.id || null);
+    }
+  }, [sections, selectedSectionId]);
+
+  // Add new module
+  const addModule = useCallback((sectionId: string) => {
+    const sectionModules = modules.filter(m => m.sectionId === sectionId);
+    const newModule: ParagraphModule = {
+      id: crypto.randomUUID(),
+      sectionId,
+      order: sectionModules.length,
+      userWriting: '',
+      attachedNotes: [],
+      aiDraft: '',
+      draftVersions: [],
+      isGeneratingDraft: false,
+    };
+    setModules(prev => [...prev, newModule]);
+  }, [modules]);
+
+  // Update module
+  const updateModule = useCallback((id: string, updates: Partial<ParagraphModule>) => {
+    setModules(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
   }, []);
 
-  // Delete element
-  const deleteElement = useCallback((id: string) => {
-    setElements(prev => prev.filter(el => el.id !== id));
-    setConnections(prev => prev.filter(c => c.from !== id && c.to !== id));
-    if (selectedId === id) {
-      setSelectedId(null);
-      setShowActionMenu(false);
-    }
-  }, [selectedId]);
+  // Delete module
+  const deleteModule = useCallback((id: string) => {
+    setModules(prev => {
+      const toDelete = prev.find(m => m.id === id);
+      if (!toDelete) return prev;
+      
+      // Reorder remaining modules
+      return prev
+        .filter(m => m.id !== id)
+        .map(m => {
+          if (m.sectionId === toDelete.sectionId && m.order > toDelete.order) {
+            return { ...m, order: m.order - 1 };
+          }
+          return m;
+        });
+    });
+  }, []);
 
-  // Move thesis in outline
-  const moveThesis = useCallback((id: string, direction: 'up' | 'down') => {
-    const thesisList = [...thesisElements];
-    const index = thesisList.findIndex(t => t.id === id);
-    if (index === -1) return;
-    
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= thesisList.length) return;
-    
-    [thesisList[index], thesisList[newIndex]] = [thesisList[newIndex], thesisList[index]];
-    
-    // Update order values
-    const updates = thesisList.map((t, i) => ({ id: t.id, order: i }));
-    setElements(prev => prev.map(el => {
-      const update = updates.find(u => u.id === el.id);
-      return update ? { ...el, order: update.order } : el;
-    }));
-  }, [thesisElements]);
-
-  // Handle mouse down on element
-  const handleElementMouseDown = useCallback((e: React.MouseEvent, element: CanvasElement) => {
-    e.stopPropagation();
-    
-    if (isConnecting && connectingFrom) {
-      // Complete connection
-      addConnection(connectingFrom, element.id);
-      setIsConnecting(false);
-      setConnectingFrom(null);
-      return;
-    }
-    
-    setSelectedId(element.id);
-    setIsDragging(true);
-    setShowActionMenu(false);
-    
-    const rect = (e.target as HTMLElement).closest('.canvas-element')?.getBoundingClientRect();
-    if (rect) {
-      setDragOffset({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
+  // Move module up/down
+  const moveModule = useCallback((id: string, direction: 'up' | 'down') => {
+    setModules(prev => {
+      const module = prev.find(m => m.id === id);
+      if (!module) return prev;
+      
+      const sectionModules = prev
+        .filter(m => m.sectionId === module.sectionId)
+        .sort((a, b) => a.order - b.order);
+      
+      const index = sectionModules.findIndex(m => m.id === id);
+      const newIndex = direction === 'up' ? index - 1 : index + 1;
+      
+      if (newIndex < 0 || newIndex >= sectionModules.length) return prev;
+      
+      const swapWith = sectionModules[newIndex];
+      
+      return prev.map(m => {
+        if (m.id === id) return { ...m, order: swapWith.order };
+        if (m.id === swapWith.id) return { ...m, order: module.order };
+        return m;
       });
-    }
-  }, [isConnecting, connectingFrom, addConnection]);
-
-  // Handle element click (for action menu)
-  const handleElementClick = useCallback((e: React.MouseEvent, element: CanvasElement) => {
-    if (element.type === 'thesis' && selectedId === element.id && !isDragging) {
-      const rect = (e.target as HTMLElement).closest('.canvas-element')?.getBoundingClientRect();
-      if (rect) {
-        setActionMenuPos({ x: rect.right + 8, y: rect.top });
-        setShowActionMenu(true);
-      }
-    }
-  }, [selectedId, isDragging]);
-
-  // Handle mouse move
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isDragging && selectedId) {
-      const canvasRect = canvasRef.current?.getBoundingClientRect();
-      if (canvasRect) {
-        const element = elements.find(el => el.id === selectedId);
-        if (element) {
-          const rawX = (e.clientX - canvasRect.left - dragOffset.x - pan.x) / zoom;
-          const rawY = (e.clientY - canvasRect.top - dragOffset.y - pan.y) / zoom;
-          
-          const { x, y, snapX, snapY } = calculateSnap(element, rawX, rawY);
-          
-          updateElement(selectedId, { x, y });
-          setSnapLines({ x: snapX, y: snapY });
-        }
-      }
-    } else if (isPanning) {
-      const dx = e.clientX - lastPanPos.x;
-      const dy = e.clientY - lastPanPos.y;
-      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-      setLastPanPos({ x: e.clientX, y: e.clientY });
-    }
-  }, [isDragging, selectedId, elements, dragOffset, pan, zoom, isPanning, lastPanPos, updateElement, calculateSnap]);
-
-  // Handle mouse up
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-    setIsPanning(false);
-    setSnapLines({});
+    });
   }, []);
 
-  // Handle canvas mouse down
-  const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button === 1 || (e.button === 0 && e.altKey)) {
-      setIsPanning(true);
-      setLastPanPos({ x: e.clientX, y: e.clientY });
-    } else {
-      setSelectedId(null);
-      setShowActionMenu(false);
-      if (isConnecting) {
-        setIsConnecting(false);
-        setConnectingFrom(null);
-      }
-    }
-  }, [isConnecting]);
-
-  // Handle zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      setZoom(prev => Math.min(Math.max(prev * delta, 0.25), 2));
-    }
+  // Attach note to module
+  const attachNote = useCallback((moduleId: string, highlight: HighlightWithPaper) => {
+    setModules(prev => prev.map(m => {
+      if (m.id !== moduleId) return m;
+      if (m.attachedNotes.some(n => n.highlightId === highlight.id)) return m;
+      
+      return {
+        ...m,
+        attachedNotes: [...m.attachedNotes, {
+          highlightId: highlight.id,
+          highlightText: highlight.text,
+          highlightColor: highlight.color,
+          paperTitle: highlight.paperTitle,
+          userComment: '',
+        }],
+      };
+    }));
+    setShowNotesPicker(null);
   }, []);
 
-  // Reset view
-  const resetView = useCallback(() => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
+  // Remove attached note
+  const removeAttachedNote = useCallback((moduleId: string, highlightId: string) => {
+    setModules(prev => prev.map(m => {
+      if (m.id !== moduleId) return m;
+      return {
+        ...m,
+        attachedNotes: m.attachedNotes.filter(n => n.highlightId !== highlightId),
+      };
+    }));
   }, []);
 
-  // Drop highlight onto canvas
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const highlightId = e.dataTransfer.getData('highlightId');
-    if (highlightId) {
-      const highlight = highlights.find(h => h.id === highlightId);
-      if (highlight) {
-        const canvasRect = canvasRef.current?.getBoundingClientRect();
-        if (canvasRect) {
-          const x = (e.clientX - canvasRect.left - pan.x) / zoom - 130;
-          const y = (e.clientY - canvasRect.top - pan.y) / zoom - 60;
-          addElement('highlight', highlight, { x, y });
-        }
-      }
-    }
-  }, [highlights, pan, zoom, addElement]);
+  // Update note comment
+  const updateNoteComment = useCallback((moduleId: string, highlightId: string, comment: string) => {
+    setModules(prev => prev.map(m => {
+      if (m.id !== moduleId) return m;
+      return {
+        ...m,
+        attachedNotes: m.attachedNotes.map(n => 
+          n.highlightId === highlightId ? { ...n, userComment: comment } : n
+        ),
+      };
+    }));
+  }, []);
 
-  // Find relevant highlights for selected thesis
-  const findRelevantHighlights = useCallback(async () => {
-    const selectedElement = elements.find(e => e.id === selectedId);
-    if (!selectedElement || selectedElement.type !== 'thesis') return;
+  // Generate AI draft for module
+  const generateModuleDraft = useCallback(async (moduleId: string) => {
+    const module = modules.find(m => m.id === moduleId);
+    if (!module) return;
     
-    setIsFindingRelevant(true);
-    setSuggestedHighlights([]);
+    const section = sections.find(s => s.id === module.sectionId);
+    
+    updateModule(moduleId, { isGeneratingDraft: true });
     
     try {
-      // Get highlights not already on canvas
-      const canvasHighlightIds = elements.filter(e => e.highlightId).map(e => e.highlightId);
-      const availableHighlights = highlights.filter(h => !canvasHighlightIds.includes(h.id));
-      
-      if (availableHighlights.length === 0) {
-        setIsFindingRelevant(false);
-        return;
-      }
-
-      const highlightSummaries = availableHighlights.map((h, i) => 
-        `[${i}] Color: ${h.color}, Text: "${h.text.slice(0, 150)}...", Paper: ${h.paperTitle}`
+      const notesContext = module.attachedNotes.map(n => 
+        `"${n.highlightText}" (${n.paperTitle})${n.userComment ? ` [Comment: ${n.userComment}]` : ''}`
       ).join('\n');
       
       const response = await fetch('/api/openai', {
@@ -547,111 +419,61 @@ export function Compose() {
           messages: [
             {
               role: 'system',
-              content: `Find highlights that support this thesis statement. Return ONLY a JSON array of indices (max 5).`
+              content: `You are helping write a paragraph for an academic paper. Generate polished academic prose based on the user's rough writing and supporting notes. Keep the user's voice but improve clarity and flow. Include citations where appropriate (e.g., "According to [Author]..."). Write 100-200 words.`
             },
             {
               role: 'user',
-              content: `Thesis: "${selectedElement.content}"\n\nAvailable highlights:\n${highlightSummaries}\n\nReturn JSON array:`
+              content: `Section: ${section?.title || 'Unknown'}
+              
+User's rough draft:
+${module.userWriting || '(No user writing yet - generate based on notes)'}
+
+Supporting notes/quotes:
+${notesContext || '(No notes attached)'}
+
+Generate a polished paragraph:`
             }
           ],
           model: 'gpt-4o-mini',
-          max_tokens: 100,
+          max_tokens: 500,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        const content = data.choices?.[0]?.message?.content?.trim();
-        try {
-          const indices = JSON.parse(content);
-          if (Array.isArray(indices)) {
-            const suggestedIds = indices
-              .filter((i: number) => i >= 0 && i < availableHighlights.length)
-              .map((i: number) => availableHighlights[i].id);
-            setSuggestedHighlights(suggestedIds);
-          }
-        } catch {
-          console.error('Failed to parse:', content);
+        const draft = data.choices?.[0]?.message?.content?.trim();
+        if (draft) {
+          const newVersion: DraftVersion = {
+            id: crypto.randomUUID(),
+            content: draft,
+            createdAt: new Date(),
+          };
+          updateModule(moduleId, {
+            aiDraft: draft,
+            draftVersions: [...module.draftVersions, newVersion],
+            isGeneratingDraft: false,
+          });
         }
       }
     } catch (error) {
-      console.error('Failed to find relevant highlights:', error);
-    } finally {
-      setIsFindingRelevant(false);
+      console.error('Failed to generate draft:', error);
+      updateModule(moduleId, { isGeneratingDraft: false });
     }
-  }, [selectedId, elements, highlights]);
+  }, [modules, sections, updateModule]);
 
-  // Add suggested highlight near thesis
-  const addSuggestedHighlight = useCallback((highlightId: string) => {
-    const highlight = highlights.find(h => h.id === highlightId);
-    const selectedElement = elements.find(e => e.id === selectedId);
-    if (!highlight || !selectedElement) return;
+  // Generate modules for section with AI
+  const generateModulesForSection = useCallback(async (sectionId: string) => {
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) return;
     
-    // Position below and slightly to the right of the thesis
-    const newElement = addElement('highlight', highlight, {
-      x: selectedElement.x + 20,
-      y: selectedElement.y + selectedElement.height + 20,
-    });
-    
-    // Auto-connect
-    addConnection(selectedId!, newElement.id);
-    
-    // Remove from suggestions
-    setSuggestedHighlights(prev => prev.filter(id => id !== highlightId));
-  }, [highlights, elements, selectedId, addElement, addConnection]);
-
-  // Apply paper template
-  const applyTemplate = useCallback((templateKey: keyof typeof PAPER_TEMPLATES) => {
-    const template = PAPER_TEMPLATES[templateKey];
-    const startX = 100;
-    let currentY = 100;
-    
-    template.forEach((section, index) => {
-      const thesisElement: CanvasElement = {
-        id: crypto.randomUUID(),
-        type: 'thesis',
-        x: startX,
-        y: currentY,
-        width: 320,
-        height: 100,
-        content: section.title,
-        order: index,
-        connectedTo: [],
-      };
-      setElements(prev => [...prev, thesisElement]);
-      currentY += 140;
-    });
-    
-    setShowTemplateModal(false);
-  }, []);
-
-  // Generate draft from canvas
-  const generateDraft = useCallback(async () => {
-    setIsGeneratingDraft(true);
+    setIsGeneratingModules(true);
     
     try {
-      // Use thesis order for structure
-      const orderedTheses = [...thesisElements];
-      
-      // For each thesis, find connected highlights
-      const sections = orderedTheses.map(thesis => {
-        const connectedIds = connections
-          .filter(c => c.from === thesis.id || c.to === thesis.id)
-          .map(c => c.from === thesis.id ? c.to : c.from);
-        
-        const connectedHighlights = elements
-          .filter(e => connectedIds.includes(e.id) && e.type === 'highlight')
-          .map(e => ({
-            text: e.content,
-            paper: e.paperTitle,
-            authors: e.paperAuthors,
-          }));
-        
-        return {
-          thesis: thesis.content,
-          highlights: connectedHighlights,
-        };
-      });
+      // Get available highlights
+      const availableHighlights = highlights.slice(0, 20);
+      const highlightsList = availableHighlights.map((h, i) => 
+        `[${i}] "${h.text.slice(0, 100)}..." (${h.paperTitle})`
+      ).join('\n');
       
       const response = await fetch('/api/openai', {
         method: 'POST',
@@ -660,245 +482,135 @@ export function Compose() {
           messages: [
             {
               role: 'system',
-              content: `You are helping write an academic paper. Generate prose based on the structured outline provided. Each section has a thesis/main point and supporting evidence. Use academic tone, proper citations, and smooth transitions.`
+              content: `You are helping structure an academic paper section. Based on the section name and available research highlights, suggest 2-4 paragraph topics with key points. Return as JSON array:
+[{"topic": "Main point of paragraph", "relevantHighlightIndices": [0, 2]}]`
             },
             {
               role: 'user',
-              content: `Paper Title: ${compositionTitle}\n\nSections:\n${sections.map((s, i) => 
-                `${i + 1}. ${s.thesis}\nSupporting evidence:\n${s.highlights.length > 0 ? s.highlights.map(h => 
-                  `- "${h.text}" (${h.paper})`
-                ).join('\n') : '(No evidence linked yet)'}`
-              ).join('\n\n')}\n\nGenerate an academic draft (~500-800 words):`
+              content: `Section: ${section.title}
+
+Available highlights:
+${highlightsList || '(No highlights available)'}
+
+Suggest paragraph structure (JSON):`
             }
           ],
           model: 'gpt-4o-mini',
-          max_tokens: 1500,
+          max_tokens: 500,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        const draft = data.choices?.[0]?.message?.content?.trim();
-        if (draft) {
-          setGeneratedDraft(draft);
-          setShowDraftModal(true);
+        const content = data.choices?.[0]?.message?.content?.trim();
+        try {
+          const suggestions = JSON.parse(content);
+          if (Array.isArray(suggestions)) {
+            const existingCount = modules.filter(m => m.sectionId === sectionId).length;
+            const newModules: ParagraphModule[] = suggestions.map((s: { topic: string; relevantHighlightIndices?: number[] }, i: number) => ({
+              id: crypto.randomUUID(),
+              sectionId,
+              order: existingCount + i,
+              userWriting: s.topic,
+              attachedNotes: (s.relevantHighlightIndices || [])
+                .filter((idx: number) => idx >= 0 && idx < availableHighlights.length)
+                .map((idx: number) => ({
+                  highlightId: availableHighlights[idx].id,
+                  highlightText: availableHighlights[idx].text,
+                  highlightColor: availableHighlights[idx].color,
+                  paperTitle: availableHighlights[idx].paperTitle,
+                  userComment: '',
+                })),
+              aiDraft: '',
+              draftVersions: [],
+              isGeneratingDraft: false,
+            }));
+            setModules(prev => [...prev, ...newModules]);
+          }
+        } catch {
+          console.error('Failed to parse suggestions');
         }
       }
     } catch (error) {
-      console.error('Failed to generate draft:', error);
+      console.error('Failed to generate modules:', error);
     } finally {
-      setIsGeneratingDraft(false);
+      setIsGeneratingModules(false);
     }
-  }, [thesisElements, connections, elements, compositionTitle]);
+  }, [sections, highlights, modules]);
 
-  // Render connection lines
-  const renderConnections = () => {
-    return connections.map(conn => {
-      const fromEl = elements.find(e => e.id === conn.from);
-      const toEl = elements.find(e => e.id === conn.to);
-      if (!fromEl || !toEl) return null;
-      
-      const fromX = (fromEl.x + fromEl.width / 2) * zoom + pan.x;
-      const fromY = (fromEl.y + fromEl.height / 2) * zoom + pan.y;
-      const toX = (toEl.x + toEl.width / 2) * zoom + pan.x;
-      const toY = (toEl.y + toEl.height / 2) * zoom + pan.y;
-      
-      return (
-        <line
-          key={`${conn.from}-${conn.to}`}
-          x1={fromX}
-          y1={fromY}
-          x2={toX}
-          y2={toY}
-          stroke="var(--accent-primary)"
-          strokeWidth={2}
-          strokeDasharray="4 4"
-          opacity={0.5}
-        />
-      );
-    });
-  };
-
-  // Render element based on type
-  const renderElement = (element: CanvasElement) => {
-    const isSelected = selectedId === element.id;
+  // Render section in tree
+  const renderSection = (section: Section, depth: number = 0) => {
+    const children = sectionTree.getChildren(section.id);
+    const isSelected = selectedSectionId === section.id;
+    const moduleCount = modules.filter(m => m.sectionId === section.id).length;
     
-    const baseStyle: React.CSSProperties = {
-      position: 'absolute',
-      left: element.x * zoom + pan.x,
-      top: element.y * zoom + pan.y,
-      width: element.width * zoom,
-      minHeight: element.height * zoom,
-      cursor: isDragging && isSelected ? 'grabbing' : 'grab',
-      transition: isDragging ? 'none' : 'box-shadow 0.2s',
-      zIndex: isSelected ? 10 : 1,
-    };
-
-    switch (element.type) {
-      case 'thesis':
-        return (
-          <div
-            key={element.id}
-            className={`canvas-element group ${isSelected ? 'ring-2 ring-[var(--accent-primary)]' : ''}`}
-            style={{
-              ...baseStyle,
-              background: 'linear-gradient(135deg, var(--bg-card) 0%, var(--bg-secondary) 100%)',
-              borderRadius: 16,
-              border: '2px solid var(--accent-primary)',
-              boxShadow: isSelected ? '0 8px 32px rgba(0,0,0,0.15)' : '0 4px 16px rgba(0,0,0,0.1)',
-              padding: 16 * zoom,
-            }}
-            onMouseDown={(e) => handleElementMouseDown(e, element)}
-            onClick={(e) => handleElementClick(e, element)}
-          >
-            <div className="flex items-center gap-2 mb-2" style={{ fontSize: 12 * zoom }}>
-              <Lightbulb className="text-[var(--accent-primary)]" style={{ width: 14 * zoom, height: 14 * zoom }} />
-              <span className="font-semibold text-[var(--accent-primary)]">Thesis</span>
-              {element.order !== undefined && (
-                <span className="text-[var(--text-muted)] text-xs">#{element.order + 1}</span>
-              )}
-              <button
-                onClick={(e) => { e.stopPropagation(); deleteElement(element.id); }}
-                className="ml-auto opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--accent-red)]/10 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-all"
-              >
-                <Trash2 style={{ width: 12 * zoom, height: 12 * zoom }} />
-              </button>
-            </div>
-            <textarea
-              value={element.content}
-              onChange={(e) => updateElement(element.id, { content: e.target.value })}
-              className="w-full bg-transparent text-[var(--text-primary)] resize-none focus:outline-none"
-              style={{ fontSize: 14 * zoom, lineHeight: 1.5 }}
-              placeholder="Write your thesis statement..."
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        );
-
-      case 'highlight':
-        const highlightColor = element.highlightColor ? HIGHLIGHT_COLOR_MAP[element.highlightColor] : '#fbbf24';
-        const isConnected = connections.some(c => c.from === element.id || c.to === element.id);
-        return (
-          <div
-            key={element.id}
-            className={`canvas-element group ${isSelected ? 'ring-2 ring-[var(--accent-primary)]' : ''}`}
-            style={{
-              ...baseStyle,
-              background: 'var(--bg-card)',
-              borderRadius: 12,
-              borderLeft: `4px solid ${highlightColor}`,
-              boxShadow: isSelected ? '0 8px 32px rgba(0,0,0,0.15)' : '0 2px 12px rgba(0,0,0,0.08)',
-              padding: 12 * zoom,
-            }}
-            onMouseDown={(e) => handleElementMouseDown(e, element)}
-          >
-            {isConnected && (
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--accent-primary)] rounded-full flex items-center justify-center">
-                <Link2 className="w-2.5 h-2.5 text-white" />
-              </div>
-            )}
-            <div className="flex items-start gap-2">
-              <div
-                className="rounded-full flex-shrink-0"
-                style={{
-                  width: 8 * zoom,
-                  height: 8 * zoom,
-                  marginTop: 6 * zoom,
-                  backgroundColor: highlightColor,
-                }}
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-[var(--text-primary)]" style={{ fontSize: 13 * zoom, lineHeight: 1.5 }}>
-                  "{element.content}"
-                </p>
-                <p className="text-[var(--text-muted)] mt-1 truncate" style={{ fontSize: 10 * zoom }}>
-                  — {element.paperTitle}
-                </p>
-              </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); deleteElement(element.id); }}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--accent-red)]/10 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-all flex-shrink-0"
-              >
-                <Trash2 style={{ width: 12 * zoom, height: 12 * zoom }} />
-              </button>
-            </div>
-          </div>
-        );
-
-      case 'text':
-        return (
-          <div
-            key={element.id}
-            className={`canvas-element group ${isSelected ? 'ring-2 ring-[var(--accent-primary)]' : ''}`}
-            style={{
-              ...baseStyle,
-              background: '#fffef0',
-              borderRadius: 4,
-              boxShadow: isSelected ? '0 8px 32px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.1)',
-              padding: 12 * zoom,
-              transform: 'rotate(-1deg)',
-            }}
-            onMouseDown={(e) => handleElementMouseDown(e, element)}
-          >
+    return (
+      <div key={section.id}>
+        <div
+          className={`group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
+            isSelected ? 'bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]' : 'hover:bg-[var(--bg-secondary)] text-[var(--text-primary)]'
+          }`}
+          style={{ paddingLeft: 8 + depth * 16 }}
+          onClick={() => setSelectedSectionId(section.id)}
+        >
+          {children.length > 0 ? (
             <button
-              onClick={(e) => { e.stopPropagation(); deleteElement(element.id); }}
-              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--accent-red)]/10 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-all"
+              onClick={(e) => { e.stopPropagation(); updateSection(section.id, { isExpanded: !section.isExpanded }); }}
+              className="p-0.5 hover:bg-[var(--bg-tertiary)] rounded"
             >
-              <Trash2 style={{ width: 12 * zoom, height: 12 * zoom }} />
+              {section.isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
             </button>
-            <textarea
-              value={element.content}
-              onChange={(e) => updateElement(element.id, { content: e.target.value })}
-              className="w-full bg-transparent text-gray-800 resize-none focus:outline-none"
-              style={{ fontSize: 14 * zoom, lineHeight: 1.5 }}
-              placeholder="Add your notes..."
+          ) : (
+            <span className="w-4" />
+          )}
+          
+          {editingSectionId === section.id ? (
+            <input
+              type="text"
+              value={section.title}
+              onChange={(e) => updateSection(section.id, { title: e.target.value })}
+              onBlur={() => setEditingSectionId(null)}
+              onKeyDown={(e) => e.key === 'Enter' && setEditingSectionId(null)}
+              className="flex-1 text-sm bg-transparent focus:outline-none"
+              autoFocus
               onClick={(e) => e.stopPropagation()}
             />
+          ) : (
+            <span className="flex-1 text-sm font-medium truncate">{section.title}</span>
+          )}
+          
+          {moduleCount > 0 && (
+            <span className="text-[10px] text-[var(--text-muted)] px-1.5 py-0.5 bg-[var(--bg-tertiary)] rounded-full">
+              {moduleCount}
+            </span>
+          )}
+          
+          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity">
+            <button
+              onClick={(e) => { e.stopPropagation(); setEditingSectionId(section.id); }}
+              className="p-1 hover:bg-[var(--bg-tertiary)] rounded text-[var(--text-muted)]"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); addSection(section.id); }}
+              className="p-1 hover:bg-[var(--bg-tertiary)] rounded text-[var(--text-muted)]"
+              title="Add subsection"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); deleteSection(section.id); }}
+              className="p-1 hover:bg-[var(--accent-red)]/10 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)]"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
           </div>
-        );
-
-      case 'section':
-        const sectionColor = SECTION_COLORS.find(c => c.value === element.color) || SECTION_COLORS[0];
-        return (
-          <div
-            key={element.id}
-            className={`canvas-element group ${isSelected ? 'ring-2 ring-[var(--accent-primary)]' : ''}`}
-            style={{
-              ...baseStyle,
-              background: sectionColor.bg,
-              borderRadius: 20,
-              border: `2px dashed ${sectionColor.border}`,
-              padding: 16 * zoom,
-            }}
-            onMouseDown={(e) => handleElementMouseDown(e, element)}
-          >
-            <div className="flex items-center gap-2">
-              <div className="rounded-full" style={{ width: 12 * zoom, height: 12 * zoom, backgroundColor: sectionColor.value }} />
-              <input
-                type="text"
-                value={element.content}
-                onChange={(e) => updateElement(element.id, { content: e.target.value })}
-                className="flex-1 bg-transparent font-semibold focus:outline-none"
-                style={{ fontSize: 16 * zoom, color: sectionColor.value }}
-                placeholder="Section Title"
-                onClick={(e) => e.stopPropagation()}
-              />
-              <button
-                onClick={(e) => { e.stopPropagation(); deleteElement(element.id); }}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--accent-red)]/10 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-all"
-              >
-                <Trash2 style={{ width: 14 * zoom, height: 14 * zoom }} />
-              </button>
-            </div>
-            <p className="text-[var(--text-muted)] mt-2" style={{ fontSize: 11 * zoom }}>
-              Drop highlights and notes here
-            </p>
-          </div>
-        );
-
-      default:
-        return null;
-    }
+        </div>
+        
+        {section.isExpanded && children.map(child => renderSection(child, depth + 1))}
+      </div>
+    );
   };
 
   if (isLoading || isProjectLoading) {
@@ -911,6 +623,8 @@ export function Compose() {
       </div>
     );
   }
+
+  const selectedSection = sections.find(s => s.id === selectedSectionId);
 
   return (
     <div className="h-screen bg-[var(--bg-secondary)] flex flex-col overflow-hidden">
@@ -928,419 +642,357 @@ export function Compose() {
             type="text"
             value={compositionTitle}
             onChange={(e) => setCompositionTitle(e.target.value)}
-            className="text-sm font-medium text-[var(--text-primary)] bg-transparent focus:outline-none focus:bg-[var(--bg-secondary)] px-2 py-1 rounded -ml-2 max-w-[200px]"
+            className="text-sm font-medium text-[var(--text-primary)] bg-transparent focus:outline-none focus:bg-[var(--bg-secondary)] px-2 py-1 rounded -ml-2"
             placeholder="Paper Title"
           />
         </div>
 
-        {/* Center Toolbar */}
-        <div className="flex items-center gap-1 bg-[var(--bg-secondary)] rounded-lg p-1">
-          <button
-            onClick={() => addElement('thesis')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-card)] rounded-md transition-colors"
-          >
-            <Lightbulb className="w-3.5 h-3.5" />
-            Thesis
-          </button>
-          <button
-            onClick={() => addElement('text')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-card)] rounded-md transition-colors"
-          >
-            <StickyNote className="w-3.5 h-3.5" />
-            Note
-          </button>
-          <button
-            onClick={() => setShowTemplateModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-card)] rounded-md transition-colors"
-          >
-            <Layers className="w-3.5 h-3.5" />
-            Template
-          </button>
-          <div className="w-px h-4 bg-[var(--border-default)] mx-1" />
-          <button
-            onClick={generateDraft}
-            disabled={isGeneratingDraft || thesisElements.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--bg-primary)] bg-[var(--accent-primary)] hover:opacity-90 rounded-md transition-opacity disabled:opacity-50"
-          >
-            <Wand2 className="w-3.5 h-3.5" />
-            {isGeneratingDraft ? 'Writing...' : 'Generate Draft'}
-          </button>
-        </div>
-
-        {/* Right controls */}
         <div className="flex items-center gap-2">
           {lastSaved && (
             <span className="text-[10px] text-[var(--text-muted)] flex items-center gap-1">
               <Save className="w-3 h-3" />
-              Saved
+              Saved {lastSaved.toLocaleTimeString()}
             </span>
           )}
           <button
-            onClick={() => setShowOutlinePanel(!showOutlinePanel)}
-            className={`p-1.5 rounded-lg transition-colors ${showOutlinePanel ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}
-            title="Toggle Outline"
+            onClick={() => setShowDraftPanel(!showDraftPanel)}
+            className={`p-1.5 rounded-lg transition-colors ${
+              showDraftPanel ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+            }`}
+            title="Toggle Draft Panel"
           >
-            <List className="w-4 h-4" />
+            {showDraftPanel ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
           </button>
-          <div className="flex items-center gap-0.5 bg-[var(--bg-secondary)] rounded-lg p-0.5">
-            <button onClick={() => setZoom(z => Math.max(z * 0.9, 0.25))} className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded transition-colors">
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <span className="text-xs text-[var(--text-muted)] w-10 text-center">{Math.round(zoom * 100)}%</span>
-            <button onClick={() => setZoom(z => Math.min(z * 1.1, 2))} className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded transition-colors">
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={resetView} className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded transition-colors">
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Highlights */}
-        <aside className={`${showHighlightPanel ? 'w-72' : 'w-0'} border-r border-[var(--border-default)] bg-[var(--bg-card)] flex flex-col overflow-hidden transition-all duration-200`}>
-          <div className="p-3 border-b border-[var(--border-default)]">
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Research Highlights</h2>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">Drag onto canvas</p>
+        {/* Left Panel - Structure */}
+        <aside className="w-64 border-r border-[var(--border-default)] bg-[var(--bg-card)] flex flex-col">
+          <div className="p-3 border-b border-[var(--border-default)] flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Structure</h2>
+            <button
+              onClick={() => addSection(null)}
+              className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-secondary)] rounded transition-colors"
+              title="Add section"
+            >
+              <FolderPlus className="w-4 h-4" />
+            </button>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-3 space-y-4">
-            {themeGroups.map(group => (
-              <div key={group.theme.color}>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: HIGHLIGHT_COLOR_MAP[group.theme.color] }} />
-                  <span className="text-xs font-medium text-[var(--text-secondary)]">{group.theme.name}</span>
-                  <span className="text-[10px] text-[var(--text-muted)]">({group.highlights.length})</span>
-                </div>
-                
-                <div className="space-y-1.5 ml-4">
-                  {group.highlights.slice(0, 8).map(highlight => {
-                    const isSuggested = suggestedHighlights.includes(highlight.id);
-                    return (
-                      <div
-                        key={highlight.id}
-                        draggable
-                        onDragStart={(e) => e.dataTransfer.setData('highlightId', highlight.id)}
-                        className={`p-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all hover:shadow-sm ${
-                          isSuggested 
-                            ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30' 
-                            : 'bg-[var(--bg-secondary)] border-transparent hover:border-[var(--accent-primary)]/30'
-                        }`}
-                      >
-                        {isSuggested && (
-                          <div className="flex items-center gap-1 mb-1">
-                            <Sparkles className="w-3 h-3 text-[var(--accent-primary)]" />
-                            <span className="text-[9px] text-[var(--accent-primary)] font-medium">Suggested</span>
-                            <button
-                              onClick={() => addSuggestedHighlight(highlight.id)}
-                              className="ml-auto p-0.5 hover:bg-[var(--accent-primary)]/20 rounded"
-                            >
-                              <Plus className="w-3 h-3 text-[var(--accent-primary)]" />
-                            </button>
-                          </div>
-                        )}
-                        <p className="text-[11px] text-[var(--text-primary)] line-clamp-2 leading-relaxed">
-                          {highlight.text}
-                        </p>
-                        <p className="text-[9px] text-[var(--text-muted)] mt-1 truncate">
-                          {highlight.paperTitle}
-                        </p>
-                      </div>
-                    );
-                  })}
-                  {group.highlights.length === 0 && (
-                    <p className="text-[10px] text-[var(--text-muted)] italic">No highlights</p>
-                  )}
-                </div>
-              </div>
-            ))}
+          <div className="flex-1 overflow-y-auto py-2">
+            {sectionTree.rootSections.map(section => renderSection(section))}
           </div>
         </aside>
 
-        {/* Canvas */}
-        <main
-          ref={canvasRef}
-          className="flex-1 relative overflow-hidden h-full"
-          style={{
-            background: 'var(--bg-secondary)',
-          }}
-          onMouseDown={handleCanvasMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onWheel={handleWheel}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={handleDrop}
-        >
-          {/* Dot pattern */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-20"
-            style={{
-              backgroundImage: `radial-gradient(circle, var(--text-muted) 1px, transparent 1px)`,
-              backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
-              backgroundPosition: `${pan.x}px ${pan.y}px`,
-            }}
-          />
-
-          {/* Snap lines */}
-          {snapLines.x !== undefined && (
-            <div
-              className="absolute top-0 bottom-0 w-px bg-[var(--accent-primary)] pointer-events-none z-50"
-              style={{ left: snapLines.x * zoom + pan.x }}
-            />
-          )}
-          {snapLines.y !== undefined && (
-            <div
-              className="absolute left-0 right-0 h-px bg-[var(--accent-primary)] pointer-events-none z-50"
-              style={{ top: snapLines.y * zoom + pan.y }}
-            />
-          )}
-
-          {/* Connection lines */}
-          <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-            {renderConnections()}
-          </svg>
-
-          {/* Elements */}
-          {elements.map(renderElement)}
-
-          {/* Empty state */}
-          {elements.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-center max-w-md p-8 bg-[var(--bg-card)]/80 backdrop-blur-sm rounded-2xl border border-[var(--border-default)]">
-                <FileText className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-4" />
-                <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-                  Start Building Your Paper
-                </h2>
-                <p className="text-sm text-[var(--text-muted)] mb-4">
-                  Add thesis statements, drag highlights, and connect ideas to build your paper structure.
-                </p>
-                <div className="flex gap-2 justify-center pointer-events-auto">
-                  <button
-                    onClick={() => setShowTemplateModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 rounded-lg hover:bg-[var(--accent-primary)]/20 transition-colors"
-                  >
-                    <Layers className="w-4 h-4" />
-                    Use Template
-                  </button>
-                  <button
-                    onClick={() => addElement('thesis')}
-                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-secondary)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
-                  >
-                    <Lightbulb className="w-4 h-4" />
-                    Add Thesis
-                  </button>
+        {/* Center Panel - Modules */}
+        <main className="flex-1 flex flex-col overflow-hidden bg-[var(--bg-primary)]">
+          {selectedSection ? (
+            <>
+              {/* Section Header */}
+              <div className="flex-shrink-0 px-6 py-4 border-b border-[var(--border-default)] bg-[var(--bg-card)]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-lg font-semibold text-[var(--text-primary)]">{selectedSection.title}</h1>
+                    <p className="text-sm text-[var(--text-muted)]">{currentModules.length} paragraphs</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => generateModulesForSection(selectedSection.id)}
+                      disabled={isGeneratingModules}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <Wand2 className="w-4 h-4" />
+                      {isGeneratingModules ? 'Generating...' : 'AI Suggest Paragraphs'}
+                    </button>
+                    <button
+                      onClick={() => addModule(selectedSection.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--bg-primary)] bg-[var(--accent-primary)] rounded-lg hover:opacity-90 transition-opacity"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Paragraph
+                    </button>
+                  </div>
                 </div>
+              </div>
+
+              {/* Modules List */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {currentModules.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FileText className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">No paragraphs yet</h3>
+                    <p className="text-sm text-[var(--text-muted)] mb-4">
+                      Start writing or let AI suggest paragraph structure
+                    </p>
+                    <div className="flex gap-2 justify-center">
+                      <button
+                        onClick={() => generateModulesForSection(selectedSection.id)}
+                        disabled={isGeneratingModules}
+                        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 rounded-lg hover:bg-[var(--accent-primary)]/20 transition-colors"
+                      >
+                        <Wand2 className="w-4 h-4" />
+                        AI Suggest
+                      </button>
+                      <button
+                        onClick={() => addModule(selectedSection.id)}
+                        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-secondary)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Manually
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  currentModules.map((module, index) => (
+                    <div
+                      key={module.id}
+                      className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-default)] overflow-hidden"
+                    >
+                      {/* Module Header */}
+                      <div className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-default)]">
+                        <GripVertical className="w-4 h-4 text-[var(--text-muted)] cursor-grab" />
+                        <span className="text-xs font-medium text-[var(--text-muted)]">Paragraph {index + 1}</span>
+                        <div className="flex-1" />
+                        <button
+                          onClick={() => moveModule(module.id, 'up')}
+                          disabled={index === 0}
+                          className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30"
+                        >
+                          <ChevronDown className="w-4 h-4 rotate-180" />
+                        </button>
+                        <button
+                          onClick={() => moveModule(module.id, 'down')}
+                          disabled={index === currentModules.length - 1}
+                          className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteModule(module.id)}
+                          className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-red)]"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="p-4 space-y-4">
+                        {/* User Writing */}
+                        <div>
+                          <label className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] mb-2">
+                            <Pencil className="w-3.5 h-3.5" />
+                            Your Writing
+                          </label>
+                          <textarea
+                            value={module.userWriting}
+                            onChange={(e) => updateModule(module.id, { userWriting: e.target.value })}
+                            placeholder="Write your rough draft or key points here..."
+                            className="w-full px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50"
+                            rows={3}
+                          />
+                        </div>
+
+                        {/* Attached Notes */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]">
+                              <StickyNote className="w-3.5 h-3.5" />
+                              Supporting Notes ({module.attachedNotes.length})
+                            </label>
+                            <button
+                              onClick={() => setShowNotesPicker(showNotesPicker === module.id ? null : module.id)}
+                              className="flex items-center gap-1 text-xs text-[var(--accent-primary)] hover:underline"
+                            >
+                              <Plus className="w-3 h-3" />
+                              Add Note
+                            </button>
+                          </div>
+                          
+                          {/* Notes Picker */}
+                          {showNotesPicker === module.id && (
+                            <div className="mb-3 p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-medium text-[var(--text-primary)]">Select a highlight</span>
+                                <button onClick={() => setShowNotesPicker(null)} className="text-[var(--text-muted)]">
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                              <div className="max-h-48 overflow-y-auto space-y-1.5">
+                                {highlights.slice(0, 20).map(h => (
+                                  <button
+                                    key={h.id}
+                                    onClick={() => attachNote(module.id, h)}
+                                    disabled={module.attachedNotes.some(n => n.highlightId === h.id)}
+                                    className="w-full text-left p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      <div
+                                        className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
+                                        style={{ backgroundColor: HIGHLIGHT_COLOR_MAP[h.color] }}
+                                      />
+                                      <div>
+                                        <p className="text-xs text-[var(--text-primary)] line-clamp-2">{h.text}</p>
+                                        <p className="text-[10px] text-[var(--text-muted)]">{h.paperTitle}</p>
+                                      </div>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Attached Notes List */}
+                          {module.attachedNotes.length > 0 && (
+                            <div className="space-y-2">
+                              {module.attachedNotes.map(note => (
+                                <div
+                                  key={note.highlightId}
+                                  className="p-3 bg-[var(--bg-secondary)] rounded-lg border-l-4"
+                                  style={{ borderColor: HIGHLIGHT_COLOR_MAP[note.highlightColor] }}
+                                >
+                                  <div className="flex items-start justify-between gap-2 mb-2">
+                                    <p className="text-xs text-[var(--text-primary)] flex-1">"{note.highlightText}"</p>
+                                    <button
+                                      onClick={() => removeAttachedNote(module.id, note.highlightId)}
+                                      className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-red)]"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                  <p className="text-[10px] text-[var(--text-muted)] mb-2">— {note.paperTitle}</p>
+                                  <input
+                                    type="text"
+                                    value={note.userComment}
+                                    onChange={(e) => updateNoteComment(module.id, note.highlightId, e.target.value)}
+                                    placeholder="Add your comment..."
+                                    className="w-full px-2 py-1 text-xs bg-[var(--bg-primary)] border border-[var(--border-default)] rounded text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/50"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* AI Draft */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]">
+                              <Sparkles className="w-3.5 h-3.5" />
+                              AI Draft
+                              {module.draftVersions.length > 0 && (
+                                <span className="text-[10px] text-[var(--text-muted)]">
+                                  (v{module.draftVersions.length})
+                                </span>
+                              )}
+                            </label>
+                            <button
+                              onClick={() => generateModuleDraft(module.id)}
+                              disabled={module.isGeneratingDraft}
+                              className="flex items-center gap-1 text-xs text-[var(--accent-primary)] hover:underline disabled:opacity-50"
+                            >
+                              {module.isGeneratingDraft ? (
+                                <>Generating...</>
+                              ) : module.aiDraft ? (
+                                <>
+                                  <RotateCcw className="w-3 h-3" />
+                                  Regenerate
+                                </>
+                              ) : (
+                                <>
+                                  <Wand2 className="w-3 h-3" />
+                                  Generate
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          
+                          {module.aiDraft ? (
+                            <div className="p-3 bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/20 rounded-lg">
+                              <p className="text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">
+                                {module.aiDraft}
+                              </p>
+                              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[var(--accent-primary)]/20">
+                                <button
+                                  onClick={() => {
+                                    updateModule(module.id, { userWriting: module.aiDraft });
+                                  }}
+                                  className="text-xs text-[var(--accent-primary)] hover:underline flex items-center gap-1"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  Use as my writing
+                                </button>
+                                <button
+                                  onClick={() => navigator.clipboard.writeText(module.aiDraft)}
+                                  className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                  Copy
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-[var(--text-muted)] italic">
+                              Add your writing and notes, then generate an AI draft
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <Layers className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">Select a Section</h3>
+                <p className="text-sm text-[var(--text-muted)]">Choose a section from the structure panel to start writing</p>
               </div>
             </div>
           )}
         </main>
 
-        {/* Right Panel - Outline */}
-        {showOutlinePanel && (
-          <aside className="w-72 border-l border-[var(--border-default)] bg-[var(--bg-card)] flex flex-col">
-            <div className="p-3 border-b border-[var(--border-default)]">
-              <h2 className="text-sm font-semibold text-[var(--text-primary)]">Paper Outline</h2>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">Drag to reorder sections</p>
+        {/* Right Panel - Full Draft */}
+        {showDraftPanel && (
+          <aside className="w-80 border-l border-[var(--border-default)] bg-[var(--bg-card)] flex flex-col">
+            <div className="p-3 border-b border-[var(--border-default)] flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">Full Draft</h2>
+              <button
+                onClick={() => navigator.clipboard.writeText(fullDraft)}
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded transition-colors"
+                title="Copy draft"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-3">
-              {thesisElements.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)] text-center py-8">
-                  Add thesis statements to build your outline
-                </p>
+            <div className="flex-1 overflow-y-auto p-4">
+              {fullDraft ? (
+                <div className="prose prose-sm max-w-none text-[var(--text-primary)]">
+                  {fullDraft.split('\n').map((line, i) => {
+                    if (line.startsWith('## ')) {
+                      return <h2 key={i} className="text-base font-semibold mt-4 mb-2">{line.slice(3)}</h2>;
+                    }
+                    if (line.startsWith('### ')) {
+                      return <h3 key={i} className="text-sm font-semibold mt-3 mb-1">{line.slice(4)}</h3>;
+                    }
+                    if (line.trim()) {
+                      return <p key={i} className="text-sm mb-3 leading-relaxed">{line}</p>;
+                    }
+                    return null;
+                  })}
+                </div>
               ) : (
-                <div className="space-y-2">
-                  {thesisElements.map((thesis, index) => (
-                    <div
-                      key={thesis.id}
-                      className={`p-3 rounded-lg border transition-colors cursor-pointer ${
-                        selectedId === thesis.id
-                          ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30'
-                          : 'bg-[var(--bg-secondary)] border-transparent hover:border-[var(--border-default)]'
-                      }`}
-                      onClick={() => {
-                        setSelectedId(thesis.id);
-                        // Center on element
-                        const canvasRect = canvasRef.current?.getBoundingClientRect();
-                        if (canvasRect) {
-                          setPan({
-                            x: canvasRect.width / 2 - (thesis.x + thesis.width / 2) * zoom,
-                            y: canvasRect.height / 2 - (thesis.y + thesis.height / 2) * zoom,
-                          });
-                        }
-                      }}
-                    >
-                      <div className="flex items-start gap-2">
-                        <span className="text-xs font-bold text-[var(--accent-primary)] mt-0.5">
-                          {index + 1}.
-                        </span>
-                        <p className="flex-1 text-sm text-[var(--text-primary)] line-clamp-2">
-                          {thesis.content}
-                        </p>
-                        <div className="flex flex-col gap-0.5">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); moveThesis(thesis.id, 'up'); }}
-                            disabled={index === 0}
-                            className="p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30"
-                          >
-                            <MoveUp className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); moveThesis(thesis.id, 'down'); }}
-                            disabled={index === thesisElements.length - 1}
-                            className="p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30"
-                          >
-                            <MoveDown className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                      {/* Show connected highlights count */}
-                      {connections.filter(c => c.from === thesis.id || c.to === thesis.id).length > 0 && (
-                        <div className="flex items-center gap-1 mt-2 text-[10px] text-[var(--text-muted)]">
-                          <Link2 className="w-3 h-3" />
-                          {connections.filter(c => c.from === thesis.id || c.to === thesis.id).length} sources linked
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                <div className="text-center py-8">
+                  <FileText className="w-8 h-8 text-[var(--text-muted)] mx-auto mb-2" />
+                  <p className="text-sm text-[var(--text-muted)]">Your draft will appear here as you write</p>
                 </div>
               )}
             </div>
           </aside>
         )}
       </div>
-
-      {/* Floating Action Menu */}
-      {showActionMenu && selectedId && (
-        <div
-          className="fixed bg-[var(--bg-card)] rounded-xl shadow-xl border border-[var(--border-default)] py-1 z-50 animate-scale-in"
-          style={{ left: actionMenuPos.x, top: actionMenuPos.y }}
-        >
-          <button
-            onClick={() => {
-              findRelevantHighlights();
-              setShowActionMenu(false);
-            }}
-            disabled={isFindingRelevant}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
-          >
-            <Search className="w-4 h-4 text-[var(--accent-primary)]" />
-            {isFindingRelevant ? 'Finding...' : 'Find Relevant Notes'}
-          </button>
-          <button
-            onClick={() => {
-              setIsConnecting(true);
-              setConnectingFrom(selectedId);
-              setShowActionMenu(false);
-            }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
-          >
-            <Link2 className="w-4 h-4 text-[var(--text-muted)]" />
-            Connect to Card
-          </button>
-        </div>
-      )}
-
-      {/* Connecting indicator */}
-      {isConnecting && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-[var(--accent-primary)] text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 z-50">
-          <Link2 className="w-4 h-4" />
-          Click another card to connect
-          <button
-            onClick={() => { setIsConnecting(false); setConnectingFrom(null); }}
-            className="ml-2 p-1 hover:bg-white/20 rounded-full"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        </div>
-      )}
-
-      {/* Template Modal */}
-      {showTemplateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-8 animate-fade-in">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowTemplateModal(false)} />
-          <div className="relative bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-[var(--border-default)] w-full max-w-lg overflow-hidden animate-scale-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)]">
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Choose a Template</h2>
-              <button onClick={() => setShowTemplateModal(false)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              {Object.entries(PAPER_TEMPLATES).map(([key, sections]) => (
-                <button
-                  key={key}
-                  onClick={() => applyTemplate(key as keyof typeof PAPER_TEMPLATES)}
-                  className="w-full p-4 text-left bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-default)] transition-colors"
-                >
-                  <h3 className="font-semibold text-[var(--text-primary)] capitalize mb-2">
-                    {key.replace('_', ' ')} Paper
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {sections.map((s, i) => (
-                      <span key={i} className="text-xs px-2 py-1 bg-[var(--bg-card)] rounded-full text-[var(--text-muted)]">
-                        {s.title}
-                      </span>
-                    ))}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Draft Modal */}
-      {showDraftModal && generatedDraft && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-8 animate-fade-in">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDraftModal(false)} />
-          <div className="relative bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-[var(--border-default)] w-full max-w-3xl max-h-[80vh] overflow-hidden animate-scale-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)]">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[var(--accent-primary)]/15 flex items-center justify-center">
-                  <Wand2 className="w-4 h-4 text-[var(--accent-primary)]" />
-                </div>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Generated Draft</h2>
-              </div>
-              <button onClick={() => setShowDraftModal(false)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
-              <div className="prose prose-sm max-w-none text-[var(--text-primary)]">
-                {generatedDraft.split('\n').map((paragraph, i) => (
-                  <p key={i} className="mb-4 leading-relaxed">{paragraph}</p>
-                ))}
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-[var(--border-default)] bg-[var(--bg-secondary)]/50">
-              <button
-                onClick={() => navigator.clipboard.writeText(generatedDraft)}
-                className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              >
-                Copy to Clipboard
-              </button>
-              <button
-                onClick={() => setShowDraftModal(false)}
-                className="px-4 py-2 text-sm font-medium text-[var(--bg-primary)] bg-[var(--accent-primary)] rounded-lg hover:opacity-90"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Toggle sidebar button */}
-      <button
-        onClick={() => setShowHighlightPanel(!showHighlightPanel)}
-        className="fixed top-1/2 -translate-y-1/2 p-1.5 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-r-lg shadow-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors z-10"
-        style={{ left: showHighlightPanel ? '286px' : '0' }}
-      >
-        <ChevronDown className={`w-4 h-4 transition-transform ${showHighlightPanel ? '-rotate-90' : 'rotate-90'}`} />
-      </button>
     </div>
   );
 }
