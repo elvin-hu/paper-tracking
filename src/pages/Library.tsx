@@ -125,6 +125,7 @@ export function Library() {
   }, [selectedTags, searchQuery, showStarredOnly, showUnreadOnly, showArchivedOnly]);
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [isUploadModalClosing, setIsUploadModalClosing] = useState(false);
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadAuthors, setUploadAuthors] = useState('');
   const [uploadTags, setUploadTags] = useState<string[]>([]);
@@ -152,10 +153,30 @@ export function Library() {
 
   // Batch edit state
   const [showBatchEditModal, setShowBatchEditModal] = useState(false);
+  const [isBatchEditModalClosing, setIsBatchEditModalClosing] = useState(false);
   const [batchAddTags, setBatchAddTags] = useState<string[]>([]);
   const [batchRemoveTags, setBatchRemoveTags] = useState<string[]>([]);
   const [batchNewTagInput, setBatchNewTagInput] = useState('');
 
+  // Modal close handlers with exit animations
+  const handleCloseUploadModal = () => {
+    setIsUploadModalClosing(true);
+  };
+  const handleUploadModalAnimationEnd = () => {
+    if (isUploadModalClosing) {
+      setIsUploadModalClosing(false);
+      setShowUploadModal(false);
+    }
+  };
+  const handleCloseBatchEditModal = () => {
+    setIsBatchEditModalClosing(true);
+  };
+  const handleBatchEditModalAnimationEnd = () => {
+    if (isBatchEditModalClosing) {
+      setIsBatchEditModalClosing(false);
+      setShowBatchEditModal(false);
+    }
+  };
 
   const loadData = useCallback(async () => {
     if (isProjectLoading || !currentProject) return;
@@ -1519,16 +1540,19 @@ export function Library() {
         showUploadModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              onClick={() => setShowUploadModal(false)}
+              className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${isUploadModalClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
+              onClick={handleCloseUploadModal}
             />
-            <div className="relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-md animate-scale-in shadow-xl">
+            <div 
+              className={`relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-md shadow-xl ${isUploadModalClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
+              onAnimationEnd={handleUploadModalAnimationEnd}
+            >
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-base font-semibold text-[var(--text-primary)]">
                   Add Paper
                 </h2>
                 <button
-                  onClick={() => setShowUploadModal(false)}
+                  onClick={handleCloseUploadModal}
                   className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
                 >
                   <X className="w-4 h-4" />
@@ -1657,7 +1681,7 @@ export function Library() {
 
               <div className="flex gap-2 mt-6">
                 <button
-                  onClick={() => setShowUploadModal(false)}
+                  onClick={handleCloseUploadModal}
                   className="btn-secondary flex-1 text-sm"
                 >
                   Cancel
@@ -1836,16 +1860,19 @@ export function Library() {
         showBatchEditModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              onClick={() => setShowBatchEditModal(false)}
+              className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${isBatchEditModalClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
+              onClick={handleCloseBatchEditModal}
             />
-            <div className="relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-md animate-scale-in shadow-xl">
+            <div 
+              className={`relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-md shadow-xl ${isBatchEditModalClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
+              onAnimationEnd={handleBatchEditModalAnimationEnd}
+            >
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-base font-semibold text-[var(--text-primary)]">
                   Edit Tags for {selectedPapers.size} Paper{selectedPapers.size > 1 ? 's' : ''}
                 </h2>
                 <button
-                  onClick={() => setShowBatchEditModal(false)}
+                  onClick={handleCloseBatchEditModal}
                   className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
                 >
                   <X className="w-4 h-4" />
@@ -1912,7 +1939,7 @@ export function Library() {
 
               <div className="flex gap-2 mt-6">
                 <button
-                  onClick={() => setShowBatchEditModal(false)}
+                  onClick={handleCloseBatchEditModal}
                   className="btn-secondary flex-1 text-sm"
                 >
                   Cancel

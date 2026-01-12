@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Plus } from 'lucide-react';
 import type { Paper } from '../types';
 import { updatePaper, getAllTags } from '../lib/database';
@@ -31,6 +32,7 @@ export function EditPaperModal({
   const [newTagInput, setNewTagInput] = useState('');
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
 
   const tagInputRef = useRef<HTMLInputElement>(null);
   const tagSuggestionsRef = useRef<HTMLDivElement>(null);
@@ -74,6 +76,16 @@ export function EditPaperModal({
     }
   };
 
+  const handleClose = () => {
+    setIsClosing(true);
+  };
+
+  const handleCloseAnimationEnd = () => {
+    if (isClosing) {
+      onClose();
+    }
+  };
+
   const addTag = (tagToAdd?: string) => {
     const tag = tagToAdd || newTagInput.trim().toLowerCase();
     if (tag && !tags.includes(tag)) {
@@ -97,7 +109,7 @@ export function EditPaperModal({
 
     await updatePaper(updatedPaper);
     onSave(updatedPaper);
-    onClose();
+    handleClose();
   };
 
   const filteredTags = availableTags
@@ -107,23 +119,26 @@ export function EditPaperModal({
     )
     .slice(0, 8);
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
+        className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
+        onClick={handleClose}
       />
 
       {/* Modal */}
-      <div className="relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl w-full max-w-md animate-scale-in shadow-2xl overflow-hidden">
+      <div 
+        className={`relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden ${isClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
+        onAnimationEnd={handleCloseAnimationEnd}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-muted)]">
           <h2 className="text-base font-semibold text-[var(--text-primary)]">
             Edit Paper
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
           >
             <X className="w-4 h-4" />
@@ -267,7 +282,7 @@ export function EditPaperModal({
         {/* Footer */}
         <div className="flex gap-3 px-5 py-4 border-t border-[var(--border-muted)] bg-[var(--bg-secondary)]/50">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] border border-[var(--border-default)] transition-colors"
           >
             Cancel
@@ -306,7 +321,7 @@ export function EditPaperModal({
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
-

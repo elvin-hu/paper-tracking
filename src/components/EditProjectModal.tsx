@@ -16,13 +16,46 @@ export function EditProjectModal({ isOpen, project, onClose, onSave, onDelete, c
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isClosing, setIsClosing] = useState(false);
+    const [isDeleteClosing, setIsDeleteClosing] = useState(false);
 
     useEffect(() => {
         if (project) {
             setName(project.name);
             setShowDeleteConfirm(false);
+            setIsClosing(false);
+            setIsDeleteClosing(false);
         }
     }, [project]);
+
+    // Reset closing state when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            setIsClosing(false);
+        }
+    }, [isOpen]);
+
+    const handleClose = () => {
+        setIsClosing(true);
+    };
+
+    const handleCloseAnimationEnd = () => {
+        if (isClosing) {
+            setIsClosing(false);
+            onClose();
+        }
+    };
+
+    const handleDeleteClose = () => {
+        setIsDeleteClosing(true);
+    };
+
+    const handleDeleteCloseAnimationEnd = () => {
+        if (isDeleteClosing) {
+            setIsDeleteClosing(false);
+            setShowDeleteConfirm(false);
+        }
+    };
 
     const handleSave = async (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -31,7 +64,7 @@ export function EditProjectModal({ isOpen, project, onClose, onSave, onDelete, c
         setIsSaving(true);
         try {
             await onSave(project.id, name.trim());
-            onClose();
+            handleClose();
         } catch (error) {
             console.error('Failed to update project:', error);
             alert('Failed to update project');
@@ -47,7 +80,7 @@ export function EditProjectModal({ isOpen, project, onClose, onSave, onDelete, c
         try {
             await onDelete(project.id);
             setShowDeleteConfirm(false);
-            onClose();
+            handleClose();
         } catch (error) {
             console.error('Failed to delete project:', error);
             alert('Failed to delete project. Please try again.');
@@ -63,12 +96,15 @@ export function EditProjectModal({ isOpen, project, onClose, onSave, onDelete, c
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
-                onClick={() => setShowDeleteConfirm(false)}
+                className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${isDeleteClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
+                onClick={handleDeleteClose}
             />
 
             {/* Modal */}
-            <div className="relative bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-[var(--border-default)] w-full max-w-sm mx-4 animate-scale-in overflow-hidden">
+            <div 
+                className={`relative bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-[var(--border-default)] w-full max-w-sm mx-4 overflow-hidden ${isDeleteClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
+                onAnimationEnd={handleDeleteCloseAnimationEnd}
+            >
                 {/* Header with warning icon */}
                 <div className="flex items-center gap-3 px-6 py-5 bg-[var(--accent-red)]/10 border-b border-[var(--accent-red)]/20">
                     <div className="p-2 bg-[var(--accent-red)]/20 rounded-full">
@@ -91,7 +127,7 @@ export function EditProjectModal({ isOpen, project, onClose, onSave, onDelete, c
                 <div className="flex justify-end gap-3 px-6 py-4 border-t border-[var(--border-default)] bg-[var(--bg-secondary)]/50">
                     <button
                         type="button"
-                        onClick={() => setShowDeleteConfirm(false)}
+                        onClick={handleDeleteClose}
                         className="px-4 py-2 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
                     >
                         Cancel
@@ -114,17 +150,20 @@ export function EditProjectModal({ isOpen, project, onClose, onSave, onDelete, c
         <div className="fixed inset-0 z-50 flex items-center justify-center">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
-                onClick={onClose}
+                className={`absolute inset-0 bg-black/50 backdrop-blur-sm ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
+                onClick={handleClose}
             />
 
             {/* Modal */}
-            <div className="relative bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-[var(--border-default)] w-full max-w-md mx-4 animate-scale-in">
+            <div 
+                className={`relative bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-[var(--border-default)] w-full max-w-md mx-4 ${isClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
+                onAnimationEnd={handleCloseAnimationEnd}
+            >
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)]">
                     <h2 className="text-lg font-semibold text-[var(--text-primary)]">Edit Project</h2>
                     <button
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
                     >
                         <X className="w-5 h-5" />
@@ -170,7 +209,7 @@ export function EditProjectModal({ isOpen, project, onClose, onSave, onDelete, c
                 <div className="flex justify-end gap-3 px-6 py-4 border-t border-[var(--border-default)] bg-[var(--bg-secondary)]/50 rounded-b-2xl">
                     <button
                         type="button"
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="px-4 py-2 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
                     >
                         Cancel
