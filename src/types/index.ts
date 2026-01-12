@@ -161,6 +161,7 @@ export interface CompositionSection {
   title: string;
   thesisStatement?: string;
   aiSuggestedThesis?: string;
+  draft?: string; // AI-generated draft prose
   parentId?: string; // For subsections
   order: number;
   // Highlight IDs that support this section
