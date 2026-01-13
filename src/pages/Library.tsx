@@ -1384,7 +1384,7 @@ export function Library() {
                   <table className="w-full table-fixed">
                     <thead>
                       <tr className="border-b border-[var(--border-default)]">
-                        <th className="w-10 pl-3"></th>
+                        <th className="w-8 pl-4"></th>
                         <th
                           className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-3 py-3 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
                           style={{ width: '42%' }}
@@ -1401,7 +1401,7 @@ export function Library() {
                         </th>
                         <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-3 py-3" style={{ width: '20%' }}>Tags</th>
                         <th
-                          className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-3 py-3 w-16 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
+                          className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-3 py-3 w-14 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
                           onClick={() => toggleSort('notes')}
                         >
                           <div className="flex items-center gap-1">
@@ -1413,8 +1413,11 @@ export function Library() {
                             )}
                           </div>
                         </th>
+                        <th className="text-center text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-2 py-3 w-12">
+                          Read
+                        </th>
                         <th
-                          className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-3 py-3 w-20 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
+                          className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-3 py-3 w-24 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
                           onClick={() => toggleSort('date')}
                         >
                           <div className="flex items-center gap-1">
@@ -1449,109 +1452,29 @@ export function Library() {
                               }`}
                             style={shouldAnimate ? { animationDelay: `${delay}ms` } : undefined}
                           >
-                            {/* Progress/Unread indicator - combined */}
-                            <td className="pl-3 py-3 w-10">
-                              {(() => {
-                                const progress = paper.readingProgress || 0;
-                                const size = 18;
-                                const strokeWidth = 2;
-                                const radius = (size - strokeWidth) / 2;
-                                const circumference = 2 * Math.PI * radius;
-                                const offset = circumference - (progress / 100) * circumference;
-                                
-                                // Unread (never opened) - blue dot
-                                if (isUnread) {
-                                  return (
-                                    <button
-                                      onClick={(e) => togglePaperReadStatus(e, paper)}
-                                      className="relative flex items-center justify-center group/button"
-                                      style={{ width: size, height: size }}
-                                      title="Mark as read"
-                                    >
-                                      <div className="absolute inset-0 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
-                                      <div className="w-2 h-2 rounded-full bg-blue-500" />
-                                    </button>
-                                  );
-                                }
-                                
-                                // Complete (100%) - filled green ring
-                                if (progress === 100) {
-                                  return (
-                                    <button
-                                      onClick={(e) => togglePaperReadStatus(e, paper)}
-                                      className="transition-transform hover:scale-110"
-                                      title="Mark as unread"
-                                    >
-                                      <svg width={size} height={size} className="-rotate-90">
-                                        <circle
-                                          cx={size / 2}
-                                          cy={size / 2}
-                                          r={radius}
-                                          fill="none"
-                                          stroke="#22c55e"
-                                          strokeWidth={strokeWidth}
-                                        />
-                                      </svg>
-                                    </button>
-                                  );
-                                }
-                                
-                                // In progress - show ring
-                                if (progress > 0) {
-                                  return (
-                                    <button
-                                      onClick={(e) => togglePaperReadStatus(e, paper)}
-                                      className="transition-transform hover:scale-110"
-                                      title={`${progress}% read - Click to mark as unread`}
-                                    >
-                                      <svg width={size} height={size} className="-rotate-90">
-                                        <circle
-                                          cx={size / 2}
-                                          cy={size / 2}
-                                          r={radius}
-                                          fill="none"
-                                          stroke="currentColor"
-                                          strokeWidth={strokeWidth}
-                                          className="text-[var(--border-default)]"
-                                        />
-                                        <circle
-                                          cx={size / 2}
-                                          cy={size / 2}
-                                          r={radius}
-                                          fill="none"
-                                          stroke="currentColor"
-                                          strokeWidth={strokeWidth}
-                                          strokeDasharray={circumference}
-                                          strokeDashoffset={offset}
-                                          strokeLinecap="round"
-                                          className="text-[var(--accent-primary)]"
-                                        />
-                                      </svg>
-                                    </button>
-                                  );
-                                }
-                                
-                                // Read but 0% progress - empty ring (hover to mark unread)
-                                return (
+                            {/* Unread indicator */}
+                            <td className="pl-4 py-3 w-8">
+                              <div className="relative flex items-center justify-center w-4 h-4">
+                                {isUnread ? (
                                   <button
                                     onClick={(e) => togglePaperReadStatus(e, paper)}
-                                    className="opacity-30 group-hover:opacity-60 transition-opacity hover:scale-110"
+                                    className="relative w-4 h-4 flex items-center justify-center group/button"
+                                    title="Mark as read"
+                                  >
+                                    <div className="absolute inset-0 w-4 h-4 rounded-full bg-blue-500/20 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-500" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={(e) => togglePaperReadStatus(e, paper)}
+                                    className="relative w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center group/button"
                                     title="Mark as unread"
                                   >
-                                    <svg width={size} height={size}>
-                                      <circle
-                                        cx={size / 2}
-                                        cy={size / 2}
-                                        r={radius}
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth={strokeWidth}
-                                        className="text-[var(--text-muted)]"
-                                      />
-                                    </svg>
+                                    <div className="absolute inset-0 w-4 h-4 rounded-full bg-[var(--text-muted)]/15 opacity-0 group-hover/button:opacity-100 transition-opacity" />
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[var(--text-muted)]/40 group-hover/button:bg-[var(--text-muted)]/60 transition-colors" />
                                   </button>
-                                );
-                              })()}
+                                )}
+                              </div>
                             </td>
                             <td className="px-3 py-3 overflow-hidden">
                               <div className="flex items-center gap-2.5 min-w-0">
@@ -1595,9 +1518,79 @@ export function Library() {
                                 {getNoteCountForPaper(paper.id)}
                               </span>
                             </td>
+                            {/* Progress column */}
+                            <td className="px-2 py-3">
+                              <div className="flex items-center justify-center">
+                                {(() => {
+                                  const progress = paper.readingProgress || 0;
+                                  const size = 16;
+                                  const strokeWidth = 2;
+                                  const radius = (size - strokeWidth) / 2;
+                                  const circumference = 2 * Math.PI * radius;
+                                  const offset = circumference - (progress / 100) * circumference;
+                                  
+                                  if (progress === 0) {
+                                    return (
+                                      <svg width={size} height={size} className="opacity-25">
+                                        <circle
+                                          cx={size / 2}
+                                          cy={size / 2}
+                                          r={radius}
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth={strokeWidth}
+                                          className="text-[var(--text-muted)]"
+                                        />
+                                      </svg>
+                                    );
+                                  }
+                                  
+                                  if (progress === 100) {
+                                    return (
+                                      <svg width={size} height={size} className="-rotate-90">
+                                        <circle
+                                          cx={size / 2}
+                                          cy={size / 2}
+                                          r={radius}
+                                          fill="none"
+                                          stroke="#22c55e"
+                                          strokeWidth={strokeWidth}
+                                        />
+                                      </svg>
+                                    );
+                                  }
+                                  
+                                  return (
+                                    <svg width={size} height={size} className="-rotate-90">
+                                      <circle
+                                        cx={size / 2}
+                                        cy={size / 2}
+                                        r={radius}
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth={strokeWidth}
+                                        className="text-[var(--border-default)]"
+                                      />
+                                      <circle
+                                        cx={size / 2}
+                                        cy={size / 2}
+                                        r={radius}
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth={strokeWidth}
+                                        strokeDasharray={circumference}
+                                        strokeDashoffset={offset}
+                                        strokeLinecap="round"
+                                        className="text-[var(--accent-primary)]"
+                                      />
+                                    </svg>
+                                  );
+                                })()}
+                              </div>
+                            </td>
                             {/* Updated column */}
                             <td className="px-3 py-3">
-                              <span className="text-xs text-[var(--text-muted)]">{formatDate(getLastUpdatedDate(paper))}</span>
+                              <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">{formatDate(getLastUpdatedDate(paper))}</span>
                             </td>
                             {/* Actions column - star, archive, edit, delete */}
                             <td className="px-3 py-3 pr-4">
