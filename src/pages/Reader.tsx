@@ -1044,7 +1044,9 @@ export function Reader() {
   const onDocumentLoadSuccess = ({ numPages: pages }: { numPages: number }) => {
     setNumPages(pages);
     // Small delay to ensure the document is fully ready before rendering pages
-    setTimeout(() => setDocumentReady(true), 50);
+    setTimeout(() => {
+      setDocumentReady(true);
+    }, 50);
   };
 
   const onDocumentLoadError = (error: Error) => {
@@ -2284,7 +2286,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               <Loader2 className="w-8 h-8 text-[var(--text-muted)] animate-spin" />
             )}
           </div>
-          <div className="flex flex-col items-center py-6 gap-4 px-8">
+          <div className="flex flex-col py-6 gap-4 px-8 w-full">
             {pdfData && paperId && (
               <Document
                 key={`${paperId}-${documentKey}`} // Force recreation when paperId or documentKey changes
@@ -2313,7 +2315,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     <div
                       key={pageNum}
                       data-page={pageNum}
-                      className="relative mb-4"
+                      className="relative mb-4 overflow-hidden mx-auto"
                       onClick={(e) => {
                         // Dismiss floating editor when clicking on page background (only if no text entered)
                         if (editingHighlight && !noteInput.trim() && e.target === e.currentTarget) {
