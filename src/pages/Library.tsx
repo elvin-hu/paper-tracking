@@ -1419,7 +1419,7 @@ export function Library() {
                         </th>
                         <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-3 py-3" style={{ width: '20%' }}>Tags</th>
                         <th
-                          className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-3 py-3 w-14 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
+                          className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-3 py-3 w-20 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
                           onClick={() => toggleSort('notes')}
                         >
                           <div className="flex items-center gap-1">
@@ -1432,7 +1432,7 @@ export function Library() {
                           </div>
                         </th>
                         <th
-                          className="text-center text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-2 py-3 w-16 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
+                          className="text-center text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-3 py-3 w-24 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
                           onClick={() => toggleSort('progress')}
                         >
                           <div className="flex items-center justify-center gap-1">
@@ -1556,14 +1556,14 @@ export function Library() {
                               </div>
                             </td>
                             {/* Notes column */}
-                            <td className="px-3 py-3">
+                            <td className="px-3 py-3 w-20">
                               <span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
                                 <MessageSquare className="w-3 h-3" />
                                 {getNoteCountForPaper(paper.id)}
                               </span>
                             </td>
                             {/* Progress column */}
-                            <td className="px-2 py-3 w-16">
+                            <td className="px-3 py-3 w-24">
                               <div className="flex items-center justify-center">
                                 {(() => {
                                   const progress = paper.readingProgress || 0;
