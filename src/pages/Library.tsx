@@ -161,6 +161,10 @@ export function Library() {
   const [batchRemoveTags, setBatchRemoveTags] = useState<string[]>([]);
   const [batchNewTagInput, setBatchNewTagInput] = useState('');
 
+  // Inline title editing state
+  const [editingTitlePaperId, setEditingTitlePaperId] = useState<string | null>(null);
+  const [editingTitleValue, setEditingTitleValue] = useState('');
+
   // Modal close handlers with exit animations
   const handleCloseUploadModal = () => {
     setIsUploadModalClosing(true);
@@ -984,6 +988,41 @@ export function Library() {
     }
   };
 
+  // Handle inline title editing
+  const handleTitleDoubleClick = (e: React.MouseEvent, paper: Paper) => {
+    e.stopPropagation();
+    setEditingTitlePaperId(paper.id);
+    setEditingTitleValue(paper.title);
+  };
+
+  const handleTitleSave = async (paper: Paper) => {
+    const trimmedTitle = editingTitleValue.trim();
+    if (trimmedTitle && trimmedTitle !== paper.title) {
+      const updatedPaper = { ...paper, title: trimmedTitle };
+      // Optimistically update
+      setPapers(prev => prev.map(p => p.id === paper.id ? updatedPaper : p));
+      try {
+        await updatePaper(updatedPaper);
+      } catch (error) {
+        console.error('Failed to update paper title:', error);
+        // Revert on error
+        setPapers(prev => prev.map(p => p.id === paper.id ? paper : p));
+      }
+    }
+    setEditingTitlePaperId(null);
+    setEditingTitleValue('');
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent, paper: Paper) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleTitleSave(paper);
+    } else if (e.key === 'Escape') {
+      setEditingTitlePaperId(null);
+      setEditingTitleValue('');
+    }
+  };
+
   const togglePaperStarred = async (e: React.MouseEvent, paper: Paper) => {
     e.stopPropagation();
     const updatedPaper = { ...paper, isStarred: !paper.isStarred };
@@ -1482,9 +1521,25 @@ export function Library() {
                                     {isSelected ? <Check className="w-3.5 h-3.5" style={{ color: '#ffffff' }} /> : <FileText className="w-3.5 h-3.5" />}
                                   </button>
                                 </div>
-                                <span className={`text-sm line-clamp-2 ${isUnread ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-primary)]'}`}>
-                                  {paper.title}
-                                </span>
+                                {editingTitlePaperId === paper.id ? (
+                                  <input
+                                    type="text"
+                                    value={editingTitleValue}
+                                    onChange={(e) => setEditingTitleValue(e.target.value)}
+                                    onBlur={() => handleTitleSave(paper)}
+                                    onKeyDown={(e) => handleTitleKeyDown(e, paper)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    autoFocus
+                                    className="text-sm w-full bg-transparent border border-[var(--accent-primary)] rounded px-1.5 py-0.5 outline-none text-[var(--text-primary)]"
+                                  />
+                                ) : (
+                                  <span
+                                    className={`text-sm line-clamp-2 cursor-text hover:bg-[var(--bg-tertiary)] rounded px-1 -mx-1 transition-colors ${isUnread ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-primary)]'}`}
+                                    onDoubleClick={(e) => handleTitleDoubleClick(e, paper)}
+                                  >
+                                    {paper.title}
+                                  </span>
+                                )}
                               </div>
                             </td>
                             {/* Tags column */}
