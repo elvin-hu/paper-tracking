@@ -49,6 +49,7 @@ function rowToPaper(row: Record<string, unknown>): Paper {
     isRead: Boolean(row.is_read),
     isStarred: Boolean(row.is_starred),
     isArchived: Boolean(row.is_archived),
+    readingProgress: typeof row.reading_progress === 'number' ? row.reading_progress : 0,
     metadata: row.metadata as Paper['metadata'] || {},
     fileName: (metadata?.fileName as string) || `${row.id}.pdf`,
     fileSize: (metadata?.fileSize as number) || 0,
@@ -145,6 +146,7 @@ export async function addPaper(paper: Paper): Promise<void> {
     is_read: paper.isRead ?? false,
     is_starred: paper.isStarred ?? false,
     is_archived: paper.isArchived ?? false,
+    reading_progress: paper.readingProgress ?? 0,
     metadata: {
       ...paper.metadata,
       fileName: paper.fileName,
@@ -169,6 +171,7 @@ export async function updatePaper(paper: Paper): Promise<void> {
       is_read: paper.isRead ?? false,
       is_starred: paper.isStarred ?? false,
       is_archived: paper.isArchived ?? false,
+      reading_progress: paper.readingProgress ?? 0,
       metadata: paper.metadata || {},
     })
     .eq('id', paper.id);
@@ -195,6 +198,7 @@ export async function updatePapersBatch(papers: Paper[]): Promise<void> {
       is_read: paper.isRead ?? false,
       is_starred: paper.isStarred ?? false,
       is_archived: paper.isArchived ?? false,
+      reading_progress: paper.readingProgress ?? 0,
       metadata: paper.metadata || {},
     };
   });
