@@ -15,20 +15,17 @@ import {
   RotateCcw,
   Copy,
   Check,
-  MessageSquare,
   StickyNote,
   PanelRightOpen,
   PanelRightClose,
   Layers,
   FolderPlus,
-  MoreHorizontal,
   Pencil,
 } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import { getAllHighlightsByProject, getAllPapers } from '../lib/database';
 import { callOpenAI } from '../lib/openai';
 import type { Highlight, Paper, HighlightColor } from '../types';
-import { DEFAULT_HIGHLIGHT_THEMES as THEMES } from '../types';
 
 // LocalStorage key
 const COMPOSITION_STORAGE_KEY = 'paper-lab-structured-composition';
@@ -106,7 +103,7 @@ export function Compose() {
   
   // Data state
   const [highlights, setHighlights] = useState<HighlightWithPaper[]>([]);
-  const [papers, setPapers] = useState<Paper[]>([]);
+  const [_papers, setPapers] = useState<Paper[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Structure state

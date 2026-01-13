@@ -22,12 +22,9 @@ import {
   PanelRight,
   FileText,
   Star,
-  Trash2,
   Info,
   Search,
   ArrowUpDown,
-  Pencil,
-  Ban,
 } from 'lucide-react';
 import type { Paper, Highlight, Note, HighlightColor, SortOption } from '../types';
 import {
@@ -436,10 +433,10 @@ export function Reader() {
   const [editingHighlightPosition, setEditingHighlightPosition] = useState<{ x: number; y: number } | null>(null); // Position for floating editor
   const [hoveredNoteHighlightId, setHoveredNoteHighlightId] = useState<string | null>(null); // Highlight ID being hovered in sidebar
   const [noteInput, setNoteInput] = useState('');
-  const [currentNoteIndex, setCurrentNoteIndex] = useState(0); // Index of note being viewed
+  const [_currentNoteIndex, setCurrentNoteIndex] = useState(0); // Index of note being viewed
   const [isAddingNewNote, setIsAddingNewNote] = useState(false); // Whether user is adding a new note
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null); // ID of note being edited
-  const [isEditingNote, setIsEditingNote] = useState(false); // Whether currently editing an existing note (vs viewing)
+  const [_isEditingNote, setIsEditingNote] = useState(false); // Whether currently editing an existing note (vs viewing)
   const [citationNoteInput, setCitationNoteInput] = useState('');
   const [references, setReferences] = useState<Map<string, string>>(new Map());
   const [referencesLoaded, setReferencesLoaded] = useState(false);
