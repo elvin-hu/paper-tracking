@@ -521,7 +521,8 @@ export function Reader() {
       setPaper(loadedPaper);
       paperRef.current = loadedPaper;
       
-      // Initialize reading progress tracking (will be updated by scroll tracking)
+      // Reading progress tracking is handled by scroll handler
+      // highestPageViewed will be set properly when numPages is available
       setHighestPageViewed(0);
 
       // Mark paper as read if not already
@@ -716,9 +717,14 @@ export function Reader() {
       });
     };
 
+    // Initialize highestPageViewed from existing progress to avoid overwriting
+    if (paperRef.current?.readingProgress) {
+      const existingHighestPage = Math.ceil((paperRef.current.readingProgress / 100) * numPages);
+      setHighestPageViewed(existingHighestPage);
+    }
+
     container.addEventListener('scroll', handleScroll, { passive: true });
-    // Initial check
-    handleScroll();
+    // Don't call handleScroll() initially - only track progress on actual scroll
 
     return () => {
       container.removeEventListener('scroll', handleScroll);
