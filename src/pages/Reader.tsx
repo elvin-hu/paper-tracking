@@ -1210,16 +1210,24 @@ export function Reader() {
     // Find which page the selection is in
     let selectedPage = 1;
     const anchorNode = selection.anchorNode;
+    // Check if selection is within the PDF area (has a data-page ancestor)
+    let foundDataPage = false;
     if (anchorNode) {
       let element = anchorNode.parentElement;
       while (element) {
         const pageAttr = element.getAttribute('data-page');
         if (pageAttr) {
           selectedPage = parseInt(pageAttr);
+          foundDataPage = true;
           break;
         }
         element = element.parentElement;
       }
+    }
+
+    // If selection is not within PDF area, don't show popup
+    if (!foundDataPage) {
+      return;
     }
 
     setSelectedText(text);
@@ -1834,7 +1842,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
   };
 
   // Handle inline title editing
-  const handleTitleDoubleClick = () => {
+  const handleTitleClick = () => {
     if (paper) {
       setIsEditingTitle(true);
       setEditingTitleValue(paper.title);
@@ -1936,7 +1944,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             >
               <ArrowLeft className="w-[18px] h-[18px]" />
             </button>
-            <div className="min-w-0 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               {isEditingTitle ? (
                 <input
                   type="text"
@@ -1945,13 +1953,16 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                   onBlur={handleTitleSave}
                   onKeyDown={handleTitleKeyDown}
                   autoFocus
-                  className="text-sm font-semibold bg-transparent border border-[var(--accent-primary)] rounded px-2 py-0.5 outline-none text-[var(--text-primary)] max-w-[500px] w-full"
+                  onFocus={(e) => e.target.select()}
+                  className="text-sm font-semibold bg-[var(--bg-secondary)] border border-[var(--accent-primary)] rounded px-2 py-0.5 outline-none text-[var(--text-primary)]"
+                  style={{ width: Math.max(300, Math.min(500, editingTitleValue.length * 8 + 40)) }}
                 />
               ) : (
                 <h1
-                  className="text-sm font-semibold text-[var(--text-primary)] truncate max-w-[500px] cursor-text hover:bg-[var(--bg-tertiary)] rounded px-2 py-0.5 -mx-2 transition-colors"
-                  onDoubleClick={handleTitleDoubleClick}
-                  title="Double-click to edit title"
+                  className="text-sm font-semibold text-[var(--text-primary)] truncate cursor-pointer hover:bg-[var(--bg-tertiary)] rounded px-2 py-0.5 -mx-2 transition-colors"
+                  style={{ maxWidth: 500 }}
+                  onClick={handleTitleClick}
+                  title="Click to edit title"
                 >
                 {displayTitle}
               </h1>
