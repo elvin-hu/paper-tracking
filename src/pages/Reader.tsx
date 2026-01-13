@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, Fragment, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { v4 as uuidv4 } from 'uuid';
@@ -25,6 +26,8 @@ import {
   Info,
   Search,
   ArrowUpDown,
+  Pencil,
+  Ban,
 } from 'lucide-react';
 import type { Paper, Highlight, Note, HighlightColor, SortOption } from '../types';
 import {
@@ -36,6 +39,7 @@ import {
   deleteHighlight,
   getNotesByPaper,
   addNote,
+  updateNote,
   deleteNote,
   getAllPapers,
   updatePaper,
@@ -432,6 +436,10 @@ export function Reader() {
   const [editingHighlightPosition, setEditingHighlightPosition] = useState<{ x: number; y: number } | null>(null); // Position for floating editor
   const [hoveredNoteHighlightId, setHoveredNoteHighlightId] = useState<string | null>(null); // Highlight ID being hovered in sidebar
   const [noteInput, setNoteInput] = useState('');
+  const [currentNoteIndex, setCurrentNoteIndex] = useState(0); // Index of note being viewed
+  const [isAddingNewNote, setIsAddingNewNote] = useState(false); // Whether user is adding a new note
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null); // ID of note being edited
+  const [isEditingNote, setIsEditingNote] = useState(false); // Whether currently editing an existing note (vs viewing)
   const [citationNoteInput, setCitationNoteInput] = useState('');
   const [references, setReferences] = useState<Map<string, string>>(new Map());
   const [referencesLoaded, setReferencesLoaded] = useState(false);
@@ -1365,8 +1373,25 @@ export function Reader() {
     await addNote(note);
     setNotes((prev) => [...prev, note]);
     setNoteInput('');
-    setEditingHighlight(null);
-    setEditingHighlightPosition(null);
+    setIsAddingNewNote(false);
+    setEditingNoteId(note.id);
+    setCurrentNoteIndex(notes.filter(n => n.highlightId === editingHighlight.id).length); // Point to new note
+  };
+
+  const handleUpdateNote = async () => {
+    if (!editingNoteId || !noteInput.trim()) return;
+    
+    const existingNote = notes.find(n => n.id === editingNoteId);
+    if (!existingNote) return;
+
+    const updatedNote: Note = {
+      ...existingNote,
+      content: noteInput.trim(),
+      updatedAt: new Date(),
+    };
+
+    await updateNote(updatedNote);
+    setNotes((prev) => prev.map((n) => (n.id === editingNoteId ? updatedNote : n)));
   };
 
   const handleDeleteNote = async (noteId: string) => {
@@ -1388,6 +1413,10 @@ export function Reader() {
     setNotes((prev) => prev.filter((n) => n.highlightId !== highlightId));
     setEditingHighlight(null);
     setEditingHighlightPosition(null);
+    setCurrentNoteIndex(0);
+    setIsAddingNewNote(false);
+    setEditingNoteId(null);
+    setIsEditingNote(false);
   };
 
   const handleChangeHighlightColor = async (highlight: Highlight, newColor: HighlightColor) => {
@@ -2081,6 +2110,10 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               setEditingHighlight(null);
               setEditingHighlightPosition(null);
               setNoteInput('');
+              setCurrentNoteIndex(0);
+              setIsAddingNewNote(false);
+              setEditingNoteId(null);
+              setIsEditingNote(false);
             }
           }}
         >
@@ -2130,6 +2163,10 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                           setEditingHighlight(null);
                           setEditingHighlightPosition(null);
                           setNoteInput('');
+                          setCurrentNoteIndex(0);
+                          setIsAddingNewNote(false);
+                          setEditingNoteId(null);
+                          setIsEditingNote(false);
                         }
                       }}
                     >
@@ -2218,7 +2255,12 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                     const popupY = closestRect.y * effectiveScale - 10;
                                     setEditingHighlightPosition({ x: popupX, y: popupY });
                                     setEditingHighlight(highlight);
+                                    // Initialize note state - never default to edit/add mode
+                                    setCurrentNoteIndex(0);
+                                    setIsAddingNewNote(false);
+                                    setEditingNoteId(null);
                                     setNoteInput('');
+                                    setIsEditingNote(false);
                                   }}
                                 />
                               ))}
@@ -2226,135 +2268,332 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                           );
                         })}
 
-                        {/* Floating Highlight Editor - shown when a highlight on this page is clicked */}
+                        {/* Floating Highlight Editor - rendered via portal to avoid overflow clipping */}
                         {editingHighlight && editingHighlightPosition && editingHighlight.pageNumber === pageNum && (() => {
                           const editColorInfo = HIGHLIGHT_COLORS.find(c => c.color === getHighlightColor(editingHighlight));
                           const highlightHasNotes = notes.some(n => n.highlightId === editingHighlight.id);
 
-                          // Get page width to constrain popup position
+                          // Get page element to calculate viewport position
                           const pageEl = pageRefs.current.get(pageNum);
-                          const pageWidth = pageEl?.getBoundingClientRect().width || 600;
-                          const popupWidth = 300; // approximate popup width
+                          const pageRect = pageEl?.getBoundingClientRect();
+                          
+                          if (!pageRect) return null;
+                          
+                          const popupWidth = 320;
                           const halfPopup = popupWidth / 2;
+                          
+                          // Calculate position in viewport coordinates
+                          let viewportX = pageRect.left + editingHighlightPosition.x;
+                          const viewportY = pageRect.top + editingHighlightPosition.y;
+                          
+                          // Clamp to viewport bounds
+                          const viewportWidth = window.innerWidth;
+                          const margin = 16;
+                          
+                          // Ensure popup right edge doesn't exceed viewport
+                          if (viewportX + halfPopup > viewportWidth - margin) {
+                            viewportX = viewportWidth - margin - halfPopup;
+                          }
+                          // Ensure popup left edge doesn't go below margin
+                          if (viewportX - halfPopup < margin) {
+                            viewportX = margin + halfPopup;
+                          }
+                          
 
-                          // Clamp x position so popup stays within page bounds
-                          const clampedX = Math.max(halfPopup, Math.min(editingHighlightPosition.x, pageWidth - halfPopup));
-
-                          return (
+                          return createPortal(
                             <div
-                              className="absolute z-50 animate-scale-in"
+                              className="fixed z-[9999] animate-scale-in"
                               style={{
-                                left: clampedX,
-                                top: editingHighlightPosition.y,
+                                left: viewportX,
+                                top: viewportY,
                                 transform: 'translate(-50%, -100%)',
                               }}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <div
-                                className="rounded-xl overflow-hidden shadow-xl"
-                                style={{
-                                  backgroundColor: isDarkMode
-                                    ? (editColorInfo?.bgDark || '#3d3522')
-                                    : (editColorInfo?.bg || '#fef9c3'),
-                                  minWidth: '280px',
-                                  maxWidth: '320px',
-                                }}
-                              >
-                                {/* Color picker bar */}
-                                <div
-                                  className="px-3 py-2 flex items-center justify-between border-b"
-                                  style={{ borderColor: `${editColorInfo?.border}30` }}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    {HIGHLIGHT_COLORS.map(({ color, border }) => (
-                                      <button
-                                        key={color}
-                                        onClick={() => handleChangeHighlightColor(editingHighlight, color)}
-                                        className="w-6 h-6 rounded-full transition-all hover:scale-110"
-                                        style={{
-                                          backgroundColor: border,
-                                          border: editingHighlight.color === color ? `2px solid ${isDarkMode ? 'white' : border}` : '2px solid transparent',
-                                          boxShadow: editingHighlight.color === color ? `0 0 0 2px ${isDarkMode ? 'rgba(255,255,255,0.3)' : 'white'}` : 'none',
-                                        }}
-                                        title={color.charAt(0).toUpperCase() + color.slice(1)}
-                                      />
-                                    ))}
-                                  </div>
-                                  <button
-                                    onClick={() => handleDeleteHighlight(editingHighlight.id)}
-                                    className="p-1.5 rounded-full transition-colors"
+                              {(() => {
+                                const highlightNotes = notes.filter(n => n.highlightId === editingHighlight.id);
+                                const totalNotes = highlightNotes.length;
+                                const isInEditMode = isAddingNewNote || editingNoteId !== null;
+                                
+                                return (
+                                  <div
+                                    className="rounded-xl overflow-hidden shadow-xl"
                                     style={{
-                                      color: isDarkMode ? (editColorInfo?.textDark || '#fef3c7') : 'var(--text-muted)',
-                                      backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'transparent',
+                                      backgroundColor: isDarkMode
+                                        ? (editColorInfo?.bgDark || '#3d3522')
+                                        : (editColorInfo?.bg || '#fef9c3'),
+                                      // Narrower when no notes, wider when notes exist
+                                      minWidth: totalNotes > 0 ? '280px' : 'auto',
+                                      maxWidth: '320px',
+                                      transition: 'all 0.2s ease-out',
                                     }}
-                                    title="Delete highlight"
                                   >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-
-                                {/* Note input */}
-                                <div className="p-3">
-                                  <textarea
-                                    value={noteInput}
-                                    onChange={(e) => setNoteInput(e.target.value)}
-                                    placeholder="Add a note..."
-                                    rows={2}
-                                    autoFocus
-                                    className="w-full text-xs py-2 px-3 mb-2 resize-none border-0"
-                                    style={{
-                                      borderRadius: '8px',
-                                      backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.8)',
-                                      color: isDarkMode
-                                        ? (editColorInfo?.textDark || '#fef3c7')
-                                        : (editColorInfo?.dark || '#78350f'),
-                                      outline: 'none',
-                                    }}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                                        e.preventDefault();
-                                        if (noteInput.trim()) {
-                                          handleAddNote();
-                                        }
-                                      } else if (e.key === 'Escape') {
-                                        setEditingHighlight(null);
-                                        setEditingHighlightPosition(null);
-                                        setNoteInput('');
-                                      }
-                                    }}
-                                  />
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() => {
-                                        setEditingHighlight(null);
-                                        setEditingHighlightPosition(null);
-                                        setNoteInput('');
-                                      }}
-                                      className="flex-1 text-xs py-1.5 px-3 rounded-full transition-colors"
+                                    {/* Color picker bar - hidden during edit mode */}
+                                    <div
+                                      className="overflow-hidden transition-all duration-200 ease-out"
                                       style={{
-                                        backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)',
-                                        color: isDarkMode
-                                          ? (editColorInfo?.textDark || '#fef3c7')
-                                          : (editColorInfo?.dark || '#78350f'),
+                                        maxHeight: isInEditMode ? 0 : '44px',
+                                        opacity: isInEditMode ? 0 : 1,
+                                        borderBottom: (isInEditMode || totalNotes === 0) ? 'none' : `1px solid ${editColorInfo?.border}30`,
                                       }}
                                     >
-                                      {highlightHasNotes ? 'Close' : 'Cancel'}
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        if (noteInput.trim()) {
-                                          handleAddNote();
-                                        }
+                                      <div className={`px-3 py-2 flex items-center gap-2 ${totalNotes > 0 ? 'justify-center' : ''}`}>
+                                        {HIGHLIGHT_COLORS.map(({ color, border }) => (
+                                          <button
+                                            key={color}
+                                            onClick={() => handleChangeHighlightColor(editingHighlight, color)}
+                                            className="w-6 h-6 rounded-full transition-all duration-150 hover:scale-110"
+                                            style={{
+                                              backgroundColor: border,
+                                              border: editingHighlight.color === color ? `2px solid ${isDarkMode ? 'white' : border}` : '2px solid transparent',
+                                              boxShadow: editingHighlight.color === color ? `0 0 0 2px ${isDarkMode ? 'rgba(255,255,255,0.3)' : 'white'}` : 'none',
+                                            }}
+                                            title={color.charAt(0).toUpperCase() + color.slice(1)}
+                                          />
+                                        ))}
+                                        {/* Remove highlight button - circle with red slash */}
+                                        {!highlightHasNotes && (
+                                          <button
+                                            onClick={() => handleDeleteHighlight(editingHighlight.id)}
+                                            className="w-6 h-6 rounded-full transition-all duration-150 hover:scale-110 relative flex items-center justify-center"
+                                            style={{
+                                              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
+                                              border: '2px solid transparent',
+                                            }}
+                                            title="Remove highlight"
+                                          >
+                                            {/* Red diagonal slash */}
+                                            <div
+                                              className="absolute w-5 h-0.5 rounded-full"
+                                              style={{
+                                                backgroundColor: '#ef4444',
+                                                transform: 'rotate(-45deg)',
+                                              }}
+                                            />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Notes section - hidden when no notes and not editing */}
+                                    <div 
+                                      className="overflow-hidden transition-all duration-200 ease-out"
+                                      style={{
+                                        maxHeight: (totalNotes === 0 && !isInEditMode) ? 0 : '500px',
+                                        opacity: (totalNotes === 0 && !isInEditMode) ? 0 : 1,
+                                        padding: (totalNotes === 0 && !isInEditMode) ? 0 : '12px',
                                       }}
-                                      disabled={!noteInput.trim()}
-                                      className="flex-1 btn-primary text-xs py-1.5 px-3 disabled:opacity-50"
                                     >
-                                      Save
-                                    </button>
+                                      {/* List all existing notes */}
+                                      {highlightNotes.length > 0 && (
+                                        <div className="space-y-2">
+                                          {highlightNotes.map((note) => (
+                                            <div
+                                              key={note.id}
+                                              className="group relative transition-all duration-200 ease-out"
+                                            >
+                                              {/* View mode for this note - click to edit */}
+                                              {editingNoteId !== note.id && (
+                                                <div
+                                                  className="relative text-xs py-2 px-3 pr-8 leading-relaxed transition-all duration-200 ease-out cursor-pointer hover:opacity-80"
+                                                  style={{
+                                                    borderRadius: '8px',
+                                                    backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.6)',
+                                                    color: isDarkMode
+                                                      ? (editColorInfo?.textDark || '#fef3c7')
+                                                      : (editColorInfo?.dark || '#78350f'),
+                                                  }}
+                                                >
+                                                  <div
+                                                    onClick={() => {
+                                                      if (!isInEditMode) {
+                                                        setEditingNoteId(note.id);
+                                                        setNoteInput(note.content);
+                                                        setIsAddingNewNote(false);
+                                                      }
+                                                    }}
+                                                  >
+                                                    {note.content}
+                                                  </div>
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleDeleteNote(note.id);
+                                                    }}
+                                                    className="absolute top-1.5 right-1.5 p-0.5 rounded-full transition-all opacity-40 hover:opacity-100 hover:scale-110"
+                                                    style={{
+                                                      color: isDarkMode ? 'rgba(239, 68, 68, 0.9)' : 'var(--accent-red)',
+                                                    }}
+                                                    title="Delete note"
+                                                  >
+                                                    <X className="w-3 h-3" />
+                                                  </button>
+                                                </div>
+                                              )}
+                                              
+                                              {/* Edit mode for this note */}
+                                              {editingNoteId === note.id && !isAddingNewNote && (
+                                                <div className="animate-in fade-in duration-200">
+                                                  <textarea
+                                                    value={noteInput}
+                                                    onChange={(e) => setNoteInput(e.target.value)}
+                                                    placeholder="Edit note..."
+                                                    rows={2}
+                                                    autoFocus
+                                                    className="w-full text-xs py-2 px-3 mb-2 resize-none border-0"
+                                                    style={{
+                                                      borderRadius: '8px',
+                                                      backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.8)',
+                                                      color: isDarkMode
+                                                        ? (editColorInfo?.textDark || '#fef3c7')
+                                                        : (editColorInfo?.dark || '#78350f'),
+                                                      outline: 'none',
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                                        e.preventDefault();
+                                                        if (noteInput.trim()) {
+                                                          handleUpdateNote();
+                                                          setEditingNoteId(null);
+                                                        }
+                                                      } else if (e.key === 'Escape') {
+                                                        setEditingNoteId(null);
+                                                        setNoteInput('');
+                                                      }
+                                                    }}
+                                                  />
+                                                  <div className="flex gap-2">
+                                                    <button
+                                                      onClick={() => {
+                                                        setEditingNoteId(null);
+                                                        setNoteInput('');
+                                                      }}
+                                                      className="flex-1 text-xs py-1 px-2 rounded-full transition-colors"
+                                                      style={{
+                                                        backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)',
+                                                        color: isDarkMode
+                                                          ? (editColorInfo?.textDark || '#fef3c7')
+                                                          : (editColorInfo?.dark || '#78350f'),
+                                                      }}
+                                                    >
+                                                      Cancel
+                                                    </button>
+                                                    <button
+                                                      onClick={() => {
+                                                        if (noteInput.trim()) {
+                                                          handleUpdateNote();
+                                                          setEditingNoteId(null);
+                                                        }
+                                                      }}
+                                                      disabled={!noteInput.trim()}
+                                                      className="flex-1 btn-primary text-xs py-1 px-2 disabled:opacity-50"
+                                                    >
+                                                      Save
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                      
+                                      {/* Add new note input - shown when adding */}
+                                      {isAddingNewNote && (
+                                        <div className="animate-in fade-in duration-200">
+                                          <textarea
+                                            value={noteInput}
+                                            onChange={(e) => setNoteInput(e.target.value)}
+                                            placeholder="Add a note..."
+                                            rows={2}
+                                            autoFocus
+                                            className="w-full text-xs py-2 px-3 mb-2 resize-none border-0"
+                                            style={{
+                                              borderRadius: '8px',
+                                              backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.8)',
+                                              color: isDarkMode
+                                                ? (editColorInfo?.textDark || '#fef3c7')
+                                                : (editColorInfo?.dark || '#78350f'),
+                                              outline: 'none',
+                                            }}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                                e.preventDefault();
+                                                if (noteInput.trim()) {
+                                                  handleAddNote();
+                                                  setIsAddingNewNote(false);
+                                                }
+                                              } else if (e.key === 'Escape') {
+                                                setIsAddingNewNote(false);
+                                                setNoteInput('');
+                                              }
+                                            }}
+                                          />
+                                          <div className="flex gap-2">
+                                            <button
+                                              onClick={() => {
+                                                setIsAddingNewNote(false);
+                                                setNoteInput('');
+                                              }}
+                                              className="flex-1 text-xs py-1 px-2 rounded-full transition-colors"
+                                              style={{
+                                                backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)',
+                                                color: isDarkMode
+                                                  ? (editColorInfo?.textDark || '#fef3c7')
+                                                  : (editColorInfo?.dark || '#78350f'),
+                                              }}
+                                            >
+                                              Cancel
+                                            </button>
+                                            <button
+                                              onClick={() => {
+                                                if (noteInput.trim()) {
+                                                  handleAddNote();
+                                                  setIsAddingNewNote(false);
+                                                }
+                                              }}
+                                              disabled={!noteInput.trim()}
+                                              className="flex-1 btn-primary text-xs py-1 px-2 disabled:opacity-50"
+                                            >
+                                              Save
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
+                                      
+                                      {/* Add note pill button - hidden during any edit mode */}
+                                      <div
+                                        className="overflow-hidden transition-all duration-200 ease-out"
+                                        style={{
+                                          maxHeight: isInEditMode ? 0 : '40px',
+                                          opacity: isInEditMode ? 0 : 1,
+                                          marginTop: isInEditMode ? 0 : (totalNotes > 0 ? '8px' : '0'),
+                                        }}
+                                      >
+                                        <button
+                                          onClick={() => {
+                                            setIsAddingNewNote(true);
+                                            setEditingNoteId(null);
+                                            setNoteInput('');
+                                          }}
+                                          className="w-full flex items-center justify-center gap-1.5 text-xs py-2 px-3 rounded-full transition-all duration-150 hover:opacity-80"
+                                          style={{
+                                            backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)',
+                                            color: isDarkMode
+                                              ? (editColorInfo?.textDark || '#fef3c7')
+                                              : (editColorInfo?.dark || '#78350f'),
+                                          }}
+                                        >
+                                          <Plus className="w-3.5 h-3.5" />
+                                          {totalNotes > 0 ? 'Add another note' : 'Add a note'}
+                                        </button>
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
-                              </div>
-                            </div>
+                                );
+                              })()}
+                            </div>,
+                            document.body
                           );
                         })()}
                       </div>{/* Close the inner wrapper for highlights */}
@@ -2634,7 +2873,12 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                             setEditingHighlightPosition({ x: popupX, y: popupY });
                                           }
                                           setEditingHighlight(highlight);
+                                          // Initialize note state - never default to edit/add mode
+                                          setCurrentNoteIndex(0);
+                                          setIsAddingNewNote(false);
+                                          setEditingNoteId(null);
                                           setNoteInput('');
+                                          setIsEditingNote(false);
                                         }}
                                       >
                                         {/* Delete button - top right */}
