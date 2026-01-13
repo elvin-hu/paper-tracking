@@ -1058,11 +1058,13 @@ export function Library() {
   }, [allNotes]);
 
   // Toggle sort direction for a column
-  const toggleSort = (column: 'title' | 'date' | 'notes') => {
+  const toggleSort = (column: 'title' | 'date' | 'notes' | 'progress') => {
     if (column === 'title') {
       setSortOption(prev => prev === 'title-asc' ? 'title-desc' : 'title-asc');
     } else if (column === 'notes') {
       setSortOption(prev => prev === 'notes-desc' ? 'notes-asc' : 'notes-desc');
+    } else if (column === 'progress') {
+      setSortOption(prev => prev === 'progress-desc' ? 'progress-asc' : 'progress-desc');
     } else {
       setSortOption(prev => prev === 'date-desc' ? 'date-asc' : 'date-desc');
     }
@@ -1096,6 +1098,10 @@ export function Library() {
           return getNoteCountForPaper(a.id) - getNoteCountForPaper(b.id);
         case 'notes-desc':
           return getNoteCountForPaper(b.id) - getNoteCountForPaper(a.id);
+        case 'progress-asc':
+          return (a.readingProgress || 0) - (b.readingProgress || 0);
+        case 'progress-desc':
+          return (b.readingProgress || 0) - (a.readingProgress || 0);
         case 'date-asc':
           return getLastUpdatedDate(a).getTime() - getLastUpdatedDate(b).getTime();
         case 'date-desc':
@@ -1123,7 +1129,7 @@ export function Library() {
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border-default)]">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-2 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="text-base font-semibold text-[var(--text-primary)]">
               Paper Lab
@@ -1173,7 +1179,7 @@ export function Library() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-2 py-8">
         <div className="flex gap-8 items-start">
           {/* Left Sidebar - Filters */}
           <aside className="w-52 flex-shrink-0">
@@ -1386,8 +1392,18 @@ export function Library() {
                             )}
                           </div>
                         </th>
-                        <th className="text-center text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-2 py-3 w-12">
-                          Read
+                        <th
+                          className="text-center text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-2 py-3 w-16 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
+                          onClick={() => toggleSort('progress')}
+                        >
+                          <div className="flex items-center justify-center gap-1">
+                            Progress
+                            {(sortOption === 'progress-asc' || sortOption === 'progress-desc') && (
+                              sortOption === 'progress-asc'
+                                ? <ArrowUp className="w-3 h-3" />
+                                : <ArrowDown className="w-3 h-3" />
+                            )}
+                          </div>
                         </th>
                         <th
                           className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-3 py-3 w-24 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
@@ -1492,7 +1508,7 @@ export function Library() {
                               </span>
                             </td>
                             {/* Progress column */}
-                            <td className="px-2 py-3">
+                            <td className="px-2 py-3 w-16">
                               <div className="flex items-center justify-center">
                                 {(() => {
                                   const progress = paper.readingProgress || 0;

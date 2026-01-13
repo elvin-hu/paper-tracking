@@ -82,7 +82,7 @@ export interface FurtherReading {
   createdAt: Date;
 }
 
-export type SortOption = 'title-asc' | 'title-desc' | 'date-asc' | 'date-desc' | 'notes-asc' | 'notes-desc';
+export type SortOption = 'title-asc' | 'title-desc' | 'date-asc' | 'date-desc' | 'notes-asc' | 'notes-desc' | 'progress-asc' | 'progress-desc';
 
 export interface KeyInsight {
   id: string;
