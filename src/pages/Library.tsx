@@ -1218,7 +1218,9 @@ export function Library() {
                       : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
                       }`}
                   >
-                    <Star className={`w-3.5 h-3.5 ${showStarredOnly ? 'fill-current' : ''}`} />
+                    <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                      <Star className={`w-3.5 h-3.5 ${showStarredOnly ? 'fill-current' : ''}`} />
+                    </div>
                     Starred
                   </button>
                   <button
@@ -1228,7 +1230,9 @@ export function Library() {
                       : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
                       }`}
                   >
-                    <div className={`w-2 h-2 rounded-full ${showUnreadOnly ? 'bg-[var(--bg-primary)]' : 'bg-blue-500'}`} />
+                    <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                      <div className={`w-2 h-2 rounded-full ${showUnreadOnly ? 'bg-[var(--bg-primary)]' : 'bg-blue-500'}`} />
+                    </div>
                     Unread
                   </button>
                   <button
@@ -1241,7 +1245,18 @@ export function Library() {
                       : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
                       }`}
                   >
-                    <div className={`w-3.5 h-3.5 rounded-full border-2 ${showFinishedOnly ? 'border-[var(--bg-primary)] bg-[var(--bg-primary)]' : 'border-green-500 bg-green-500'}`} />
+                    <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                      <svg width="16" height="16" viewBox="0 0 16 16" className="-rotate-90">
+                        <circle
+                          cx="8"
+                          cy="8"
+                          r="7"
+                          fill="none"
+                          stroke={showFinishedOnly ? 'currentColor' : '#22c55e'}
+                          strokeWidth="2"
+                        />
+                      </svg>
+                    </div>
                     Finished
                   </button>
                   <button
@@ -1254,27 +1269,30 @@ export function Library() {
                       : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
                       }`}
                   >
-                    <svg width="14" height="14" viewBox="0 0 16 16" className="-rotate-90">
-                      <circle
-                        cx="8"
-                        cy="8"
-                        r="6"
-                        fill="none"
-                        stroke={showUnfinishedOnly ? 'var(--bg-primary)' : 'var(--text-muted)'}
-                        strokeWidth="2"
-                      />
-                      <circle
-                        cx="8"
-                        cy="8"
-                        r="6"
-                        fill="none"
-                        stroke={showUnfinishedOnly ? 'var(--bg-primary)' : 'var(--accent-primary)'}
-                        strokeWidth="2"
-                        strokeDasharray={2 * Math.PI * 6}
-                        strokeDashoffset={2 * Math.PI * 6 * 0.5}
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                    <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                      <svg width="16" height="16" viewBox="0 0 16 16" className="-rotate-90">
+                        <circle
+                          cx="8"
+                          cy="8"
+                          r="7"
+                          fill="none"
+                          stroke={showUnfinishedOnly ? 'currentColor' : 'var(--text-muted)'}
+                          strokeWidth="2"
+                          opacity={showUnfinishedOnly ? 1 : 0.4}
+                        />
+                        <circle
+                          cx="8"
+                          cy="8"
+                          r="7"
+                          fill="none"
+                          stroke={showUnfinishedOnly ? 'currentColor' : 'var(--accent-primary)'}
+                          strokeWidth="2"
+                          strokeDasharray={2 * Math.PI * 7}
+                          strokeDashoffset={2 * Math.PI * 7 * 0.5}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </div>
                     Unfinished
                   </button>
                   <button
@@ -1284,7 +1302,9 @@ export function Library() {
                       : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
                       }`}
                   >
-                    <Archive className={`w-3.5 h-3.5`} />
+                    <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                      <Archive className="w-3.5 h-3.5" />
+                    </div>
                     Archived
                   </button>
                 </div>
