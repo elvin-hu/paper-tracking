@@ -667,8 +667,20 @@ export function Reader() {
     if (!container || numPages === 0) return;
 
     let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+    const initialScrollTop = container.scrollTop;
+    let hasPassedMinThreshold = false;
+    const MIN_SCROLL_THRESHOLD = 100; // Minimum pixels scrolled before tracking progress
 
     const handleScroll = () => {
+      // Check if user has scrolled at least MIN_SCROLL_THRESHOLD pixels
+      const scrollDistance = Math.abs(container.scrollTop - initialScrollTop);
+      if (!hasPassedMinThreshold) {
+        if (scrollDistance < MIN_SCROLL_THRESHOLD) {
+          return; // Don't track progress until minimum scroll threshold is reached
+        }
+        hasPassedMinThreshold = true;
+      }
+
       // Find which page is most visible
       let maxVisiblePage = 1;
       let maxVisibility = 0;
@@ -721,6 +733,8 @@ export function Reader() {
     if (paperRef.current?.readingProgress) {
       const existingHighestPage = Math.ceil((paperRef.current.readingProgress / 100) * numPages);
       setHighestPageViewed(existingHighestPage);
+      // If already has progress, skip the threshold check
+      hasPassedMinThreshold = true;
     }
 
     container.addEventListener('scroll', handleScroll, { passive: true });
@@ -806,6 +820,13 @@ export function Reader() {
       paperScrollPositions.current.set(paperId, containerRef.current.scrollTop);
     }
 
+    // Immediately update paper state from allPapers so title shows right away
+    const targetPaper = allPapers.get(targetPaperId);
+    if (targetPaper) {
+      setPaper(targetPaper);
+      paperRef.current = targetPaper;
+    }
+
     // Clear PDF state before switching to prevent ArrayBuffer detachment errors
     setPdfData(null);
     setDocumentReady(false);
@@ -817,7 +838,7 @@ export function Reader() {
 
     // Navigate to the new paper, preserving the source route
     navigate(`/reader/${targetPaperId}`, { state: { from: sourceRoute }, replace: true });
-  }, [paperId, navigate, sourceRoute]);
+  }, [paperId, navigate, sourceRoute, allPapers]);
 
   // Toggle paper read status
   const togglePaperReadStatus = useCallback(async (e: React.MouseEvent<HTMLButtonElement>, paper: Paper) => {
@@ -1857,6 +1878,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
     if (trimmedTitle && trimmedTitle !== paper.title) {
       const updatedPaper = { ...paper, title: trimmedTitle };
       setPaper(updatedPaper);
+      paperRef.current = updatedPaper; // Keep ref in sync to prevent scroll handler from overwriting
       // Also update the paper in allPapers map so sidebar shows updated title
       setAllPapers(prev => {
         const newMap = new Map(prev);
@@ -1868,6 +1890,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
       } catch (error) {
         console.error('Failed to update paper title:', error);
         setPaper(paper); // Revert on error
+        paperRef.current = paper; // Revert ref too
         // Revert sidebar as well
         setAllPapers(prev => {
           const newMap = new Map(prev);
