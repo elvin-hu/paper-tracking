@@ -1123,7 +1123,7 @@ export function Library() {
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border-default)]">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="text-base font-semibold text-[var(--text-primary)]">
               Paper Lab
@@ -1173,7 +1173,7 @@ export function Library() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex gap-8 items-start">
           {/* Left Sidebar - Filters */}
           <aside className="w-52 flex-shrink-0">
@@ -1374,7 +1374,7 @@ export function Library() {
                         </th>
                         <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3" style={{ width: '20%' }}>Tags</th>
                         <th
-                          className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-20 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
+                          className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-3 py-3 w-16 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
                           onClick={() => toggleSort('notes')}
                         >
                           <div className="flex items-center gap-1">
@@ -1386,8 +1386,11 @@ export function Library() {
                             )}
                           </div>
                         </th>
+                        <th className="text-center text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-2 py-3 w-14">
+                          Read
+                        </th>
                         <th
-                          className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 w-24 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
+                          className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-3 py-3 w-20 cursor-pointer hover:text-[var(--text-primary)] transition-colors select-none"
                           onClick={() => toggleSort('date')}
                         >
                           <div className="flex items-center gap-1">
@@ -1486,14 +1489,86 @@ export function Library() {
                               </div>
                             </td>
                             {/* Notes column */}
-                            <td className="px-4 py-3">
+                            <td className="px-3 py-3">
                               <span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
                                 <MessageSquare className="w-3 h-3" />
                                 {getNoteCountForPaper(paper.id)}
                               </span>
                             </td>
+                            {/* Progress column - circular indicator */}
+                            <td className="px-2 py-3">
+                              <div className="flex items-center justify-center">
+                                {(() => {
+                                  const progress = paper.readingProgress || 0;
+                                  const size = 20;
+                                  const strokeWidth = 2.5;
+                                  const radius = (size - strokeWidth) / 2;
+                                  const circumference = 2 * Math.PI * radius;
+                                  const offset = circumference - (progress / 100) * circumference;
+                                  
+                                  if (progress === 0) {
+                                    // Empty state - just show empty ring
+                                    return (
+                                      <svg width={size} height={size} className="opacity-30">
+                                        <circle
+                                          cx={size / 2}
+                                          cy={size / 2}
+                                          r={radius}
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth={strokeWidth}
+                                          className="text-[var(--text-muted)]"
+                                        />
+                                      </svg>
+                                    );
+                                  }
+                                  
+                                  if (progress === 100) {
+                                    // Complete - show filled circle with checkmark
+                                    return (
+                                      <div 
+                                        className="flex items-center justify-center rounded-full"
+                                        style={{ width: size, height: size, backgroundColor: 'var(--accent-green, #22c55e)' }}
+                                      >
+                                        <Check className="w-3 h-3 text-white" />
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  // In progress - show ring with progress
+                                  return (
+                                    <svg width={size} height={size} className="-rotate-90">
+                                      {/* Background ring */}
+                                      <circle
+                                        cx={size / 2}
+                                        cy={size / 2}
+                                        r={radius}
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth={strokeWidth}
+                                        className="text-[var(--border-default)]"
+                                      />
+                                      {/* Progress ring */}
+                                      <circle
+                                        cx={size / 2}
+                                        cy={size / 2}
+                                        r={radius}
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth={strokeWidth}
+                                        strokeDasharray={circumference}
+                                        strokeDashoffset={offset}
+                                        strokeLinecap="round"
+                                        className="text-[var(--accent-primary)]"
+                                        style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+                                      />
+                                    </svg>
+                                  );
+                                })()}
+                              </div>
+                            </td>
                             {/* Updated column */}
-                            <td className="px-4 py-3">
+                            <td className="px-3 py-3">
                               <span className="text-xs text-[var(--text-muted)]">{formatDate(getLastUpdatedDate(paper))}</span>
                             </td>
                             {/* Actions column - star, archive, edit, delete */}

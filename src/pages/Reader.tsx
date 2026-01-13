@@ -446,6 +446,7 @@ export function Reader() {
   const [allPapers, setAllPapers] = useState<Map<string, Paper>>(new Map());
   const [documentReady, setDocumentReady] = useState(false);
   const [documentKey, setDocumentKey] = useState(0); // Used to force Document recreation
+  const [_highestPageViewed, setHighestPageViewed] = useState(0); // Track reading progress
 
   // Paper list sidebar state - load from localStorage
   const [showPaperList, setShowPaperList] = useState(() => {
@@ -515,6 +516,9 @@ export function Reader() {
     if (loadedPaper) {
       setPaper(loadedPaper);
       paperRef.current = loadedPaper;
+      
+      // Initialize reading progress tracking (will be updated by scroll tracking)
+      setHighestPageViewed(0);
 
       // Mark paper as read if not already
       if (!loadedPaper.isRead) {
@@ -651,6 +655,72 @@ export function Reader() {
       loadAllPapers();
     }
   }, [loadAllPapers, isProjectLoading, currentProject]);
+
+  // Track reading progress based on scroll position
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || numPages === 0) return;
+
+    let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const handleScroll = () => {
+      // Find which page is most visible
+      let maxVisiblePage = 1;
+      let maxVisibility = 0;
+      
+      const containerRect = container.getBoundingClientRect();
+      const containerTop = containerRect.top;
+      const containerBottom = containerRect.bottom;
+      
+      pageRefs.current.forEach((pageEl, pageNum) => {
+        const pageRect = pageEl.getBoundingClientRect();
+        const visibleTop = Math.max(pageRect.top, containerTop);
+        const visibleBottom = Math.min(pageRect.bottom, containerBottom);
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+        
+        if (visibleHeight > maxVisibility) {
+          maxVisibility = visibleHeight;
+          maxVisiblePage = pageNum;
+        }
+      });
+
+      // Update highest page viewed if this page is higher
+      setHighestPageViewed(prev => {
+        const newHighest = Math.max(prev, maxVisiblePage);
+        if (newHighest > prev && paperRef.current) {
+          // Calculate progress percentage
+          const progress = Math.round((newHighest / numPages) * 100);
+          
+          // Debounce saving to database
+          if (saveTimeout) clearTimeout(saveTimeout);
+          saveTimeout = setTimeout(async () => {
+            if (paperRef.current && paperRef.current.readingProgress !== progress) {
+              const updatedPaper = { ...paperRef.current, readingProgress: progress };
+              await updatePaper(updatedPaper);
+              setPaper(updatedPaper);
+              paperRef.current = updatedPaper;
+              // Update in allPapers map for sidebar
+              setAllPapers(prev => {
+                const newMap = new Map(prev);
+                newMap.set(updatedPaper.id, updatedPaper);
+                return newMap;
+              });
+            }
+          }, 1000); // Save after 1 second of no scrolling
+        }
+        return newHighest;
+      });
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    // Initial check
+    handleScroll();
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      if (saveTimeout) clearTimeout(saveTimeout);
+    };
+  }, [numPages]);
 
   // Load all reading list items for deduplication
   useEffect(() => {
