@@ -198,34 +198,7 @@ export function Library() {
         getAllNotes(currentProject.id)
       ]);
       console.log(`[Library] Loaded ${loadedPapers.length} papers, ${notes.length} notes`);
-      
-      // Mark papers with AI insight data as 100% read if they don't have progress data
-      const papersToUpdate: Paper[] = [];
-      const updatedPapers = loadedPapers.map(paper => {
-        // Check if paper has AI insight data (methodology, conclusion, or notes from AI)
-        const hasAIInsight = paper.metadata && (
-          paper.metadata.methodology?.trim() ||
-          paper.metadata.conclusion?.trim() ||
-          paper.metadata.limitation?.trim() ||
-          (paper.metadata.notes?.trim() && paper.metadata.notes !== 'N/A')
-        );
-        
-        // If has AI insight but no reading progress, mark as 100% read
-        if (hasAIInsight && !paper.readingProgress) {
-          const updated = { ...paper, readingProgress: 100 };
-          papersToUpdate.push(updated);
-          return updated;
-        }
-        return paper;
-      });
-      
-      // Batch update papers that need progress set
-      if (papersToUpdate.length > 0) {
-        console.log(`[Library] Marking ${papersToUpdate.length} papers with AI insights as 100% read`);
-        await updatePapersBatch(papersToUpdate);
-      }
-      
-      setPapers(updatedPapers);
+      setPapers(loadedPapers);
       setAllTags(tags);
       setAllNotes(notes);
       // Load saved sort option
