@@ -448,6 +448,10 @@ export function Reader() {
   const [documentKey, setDocumentKey] = useState(0); // Used to force Document recreation
   const [_highestPageViewed, setHighestPageViewed] = useState(0); // Track reading progress
 
+  // Inline title editing state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitleValue, setEditingTitleValue] = useState('');
+
   // Paper list sidebar state - load from localStorage
   const [showPaperList, setShowPaperList] = useState(() => {
     const saved = localStorage.getItem('reader-showPaperList');
@@ -1684,19 +1688,19 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
       // Call OpenAI API via helper (handles dev/prod API key automatically)
       const data = await callOpenAI({
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a seasoned CHI paper author helping extract metadata from academic papers. For methodology, conclusion, and limitation fields: summarize from the paper. For the "notes" field: synthesize and paraphrase the user\'s sticky notes into coherent learnings - don\'t just repeat them literally. If no sticky notes exist, return "N/A". Be direct and concise. Always respond with valid JSON only.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a seasoned CHI paper author helping extract metadata from academic papers. For methodology, conclusion, and limitation fields: summarize from the paper. For the "notes" field: synthesize and paraphrase the user\'s sticky notes into coherent learnings - don\'t just repeat them literally. If no sticky notes exist, return "N/A". Be direct and concise. Always respond with valid JSON only.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
         model: 'gpt-4o-mini',
-        temperature: 0.3,
-        max_tokens: 1500,
+          temperature: 0.3,
+          max_tokens: 1500,
       });
 
       const content = data.choices[0]?.message?.content?.trim() || '';
@@ -1724,26 +1728,26 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
       // Update the paper immediately with title, metadata and authors (if firstAuthor is available)
       // This ensures metadata.firstAuthor is saved and matches the extracted author
       // Use targetPaper (captured at start) to ensure we update the correct paper
-      const extractedTitle = extractedMetadata.title || '';
-      const updatedPaper: Paper = {
+        const extractedTitle = extractedMetadata.title || '';
+        const updatedPaper: Paper = {
         ...targetPaper,
         title: extractedTitle || targetPaper.title, // Update title if extracted, otherwise keep existing
         authors: extractedMetadata.firstAuthor ? extractedMetadata.firstAuthor : targetPaper.authors, // Update main authors field with firstAuthor
-        metadata: {
+          metadata: {
           ...targetPaper.metadata,
-          ...newMetadata,
-        },
-      };
+            ...newMetadata,
+          },
+        };
 
       // Save immediately to database
-      await updatePaper(updatedPaper);
-      
-      // Also update in allPapers map for sidebar
-      setAllPapers(prev => {
-        const newMap = new Map(prev);
-        newMap.set(updatedPaper.id, updatedPaper);
-        return newMap;
-      });
+        await updatePaper(updatedPaper);
+
+        // Also update in allPapers map for sidebar
+        setAllPapers(prev => {
+          const newMap = new Map(prev);
+          newMap.set(updatedPaper.id, updatedPaper);
+          return newMap;
+        });
 
       // Only update local state if we're still viewing the same paper
       if (paper?.id === targetPaperId) {
@@ -1823,6 +1827,41 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
     });
   };
 
+  // Handle inline title editing
+  const handleTitleDoubleClick = () => {
+    if (paper) {
+      setIsEditingTitle(true);
+      setEditingTitleValue(paper.title);
+    }
+  };
+
+  const handleTitleSave = async () => {
+    if (!paper) return;
+    const trimmedTitle = editingTitleValue.trim();
+    if (trimmedTitle && trimmedTitle !== paper.title) {
+      const updatedPaper = { ...paper, title: trimmedTitle };
+      setPaper(updatedPaper);
+      try {
+        await updatePaper(updatedPaper);
+      } catch (error) {
+        console.error('Failed to update paper title:', error);
+        setPaper(paper); // Revert on error
+      }
+    }
+    setIsEditingTitle(false);
+    setEditingTitleValue('');
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleTitleSave();
+    } else if (e.key === 'Escape') {
+      setIsEditingTitle(false);
+      setEditingTitleValue('');
+    }
+  };
+
   const handleDownloadPDF = async () => {
     if (!pdfData || !paper) return;
 
@@ -1879,12 +1918,28 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             >
               <ArrowLeft className="w-[18px] h-[18px]" />
             </button>
-            <div className="min-w-0 flex items-center gap-2">
-              <h1 className="text-sm font-semibold text-[var(--text-primary)] truncate max-w-[500px]">
+            <div className="min-w-0 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              {isEditingTitle ? (
+                <input
+                  type="text"
+                  value={editingTitleValue}
+                  onChange={(e) => setEditingTitleValue(e.target.value)}
+                  onBlur={handleTitleSave}
+                  onKeyDown={handleTitleKeyDown}
+                  autoFocus
+                  className="text-sm font-semibold bg-transparent border border-[var(--accent-primary)] rounded px-2 py-0.5 outline-none text-[var(--text-primary)] max-w-[500px] w-full"
+                />
+              ) : (
+                <h1
+                  className="text-sm font-semibold text-[var(--text-primary)] truncate max-w-[500px] cursor-text hover:bg-[var(--bg-tertiary)] rounded px-2 py-0.5 -mx-2 transition-colors"
+                  onDoubleClick={handleTitleDoubleClick}
+                  title="Double-click to edit title"
+                >
                 {displayTitle}
               </h1>
+              )}
               {/* Info Button */}
-              {paper && (
+              {paper && !isEditingTitle && (
                 <button
                   onClick={() => setShowEditModal(true)}
                   className="toolbar-btn flex-shrink-0"
@@ -2354,7 +2409,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                           
                           const popupWidth = 320;
                           const halfPopup = popupWidth / 2;
-                          
+
                           // Calculate position in viewport coordinates
                           let viewportX = pageRect.left + editingHighlightPosition.x;
                           const viewportY = pageRect.top + editingHighlightPosition.y;
@@ -2389,15 +2444,15 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                 const isInEditMode = isAddingNewNote || editingNoteId !== null;
                                 
                                 return (
-                                  <div
-                                    className="rounded-xl overflow-hidden shadow-xl"
-                                    style={{
-                                      backgroundColor: isDarkMode
-                                        ? (editColorInfo?.bgDark || '#3d3522')
-                                        : (editColorInfo?.bg || '#fef9c3'),
+                              <div
+                                className="rounded-xl overflow-hidden shadow-xl"
+                                style={{
+                                  backgroundColor: isDarkMode
+                                    ? (editColorInfo?.bgDark || '#3d3522')
+                                    : (editColorInfo?.bg || '#fef9c3'),
                                       // Narrower when no notes, wider when notes exist
                                       minWidth: totalNotes > 0 ? '280px' : 'auto',
-                                      maxWidth: '320px',
+                                  maxWidth: '320px',
                                       transition: 'all 0.2s ease-out',
                                     }}
                                   >
@@ -2411,25 +2466,25 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                       }}
                                     >
                                       <div className={`px-3 py-2 flex items-center gap-2 ${totalNotes > 0 ? 'justify-center' : ''}`}>
-                                        {HIGHLIGHT_COLORS.map(({ color, border }) => (
-                                          <button
-                                            key={color}
-                                            onClick={() => handleChangeHighlightColor(editingHighlight, color)}
+                                    {HIGHLIGHT_COLORS.map(({ color, border }) => (
+                                      <button
+                                        key={color}
+                                        onClick={() => handleChangeHighlightColor(editingHighlight, color)}
                                             className="w-6 h-6 rounded-full transition-all duration-150 hover:scale-110"
-                                            style={{
-                                              backgroundColor: border,
-                                              border: editingHighlight.color === color ? `2px solid ${isDarkMode ? 'white' : border}` : '2px solid transparent',
-                                              boxShadow: editingHighlight.color === color ? `0 0 0 2px ${isDarkMode ? 'rgba(255,255,255,0.3)' : 'white'}` : 'none',
-                                            }}
-                                            title={color.charAt(0).toUpperCase() + color.slice(1)}
-                                          />
-                                        ))}
+                                        style={{
+                                          backgroundColor: border,
+                                          border: editingHighlight.color === color ? `2px solid ${isDarkMode ? 'white' : border}` : '2px solid transparent',
+                                          boxShadow: editingHighlight.color === color ? `0 0 0 2px ${isDarkMode ? 'rgba(255,255,255,0.3)' : 'white'}` : 'none',
+                                        }}
+                                        title={color.charAt(0).toUpperCase() + color.slice(1)}
+                                      />
+                                    ))}
                                         {/* Remove highlight button - circle with red slash */}
                                         {!highlightHasNotes && (
-                                          <button
-                                            onClick={() => handleDeleteHighlight(editingHighlight.id)}
+                                  <button
+                                    onClick={() => handleDeleteHighlight(editingHighlight.id)}
                                             className="w-6 h-6 rounded-full transition-all duration-150 hover:scale-110 relative flex items-center justify-center"
-                                            style={{
+                                    style={{
                                               backgroundColor: isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
                                               border: '2px solid transparent',
                                             }}
@@ -2443,10 +2498,10 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                                 transform: 'rotate(-45deg)',
                                               }}
                                             />
-                                          </button>
+                                  </button>
                                         )}
                                       </div>
-                                    </div>
+                                </div>
 
                                     {/* Notes section - hidden when no notes and not editing */}
                                     <div 
@@ -2574,63 +2629,63 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                       {/* Add new note input - shown when adding */}
                                       {isAddingNewNote && (
                                         <div className="animate-in fade-in duration-200">
-                                          <textarea
-                                            value={noteInput}
-                                            onChange={(e) => setNoteInput(e.target.value)}
-                                            placeholder="Add a note..."
-                                            rows={2}
-                                            autoFocus
-                                            className="w-full text-xs py-2 px-3 mb-2 resize-none border-0"
-                                            style={{
-                                              borderRadius: '8px',
-                                              backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.8)',
-                                              color: isDarkMode
-                                                ? (editColorInfo?.textDark || '#fef3c7')
-                                                : (editColorInfo?.dark || '#78350f'),
-                                              outline: 'none',
-                                            }}
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                                                e.preventDefault();
-                                                if (noteInput.trim()) {
-                                                  handleAddNote();
+                                  <textarea
+                                    value={noteInput}
+                                    onChange={(e) => setNoteInput(e.target.value)}
+                                    placeholder="Add a note..."
+                                    rows={2}
+                                    autoFocus
+                                    className="w-full text-xs py-2 px-3 mb-2 resize-none border-0"
+                                    style={{
+                                      borderRadius: '8px',
+                                      backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.8)',
+                                      color: isDarkMode
+                                        ? (editColorInfo?.textDark || '#fef3c7')
+                                        : (editColorInfo?.dark || '#78350f'),
+                                      outline: 'none',
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                        e.preventDefault();
+                                        if (noteInput.trim()) {
+                                          handleAddNote();
                                                   setIsAddingNewNote(false);
-                                                }
-                                              } else if (e.key === 'Escape') {
+                                        }
+                                      } else if (e.key === 'Escape') {
                                                 setIsAddingNewNote(false);
-                                                setNoteInput('');
-                                              }
-                                            }}
-                                          />
-                                          <div className="flex gap-2">
-                                            <button
-                                              onClick={() => {
+                                        setNoteInput('');
+                                      }
+                                    }}
+                                  />
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => {
                                                 setIsAddingNewNote(false);
-                                                setNoteInput('');
-                                              }}
+                                        setNoteInput('');
+                                      }}
                                               className="flex-1 text-xs py-1 px-2 rounded-full transition-colors"
-                                              style={{
-                                                backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)',
-                                                color: isDarkMode
-                                                  ? (editColorInfo?.textDark || '#fef3c7')
-                                                  : (editColorInfo?.dark || '#78350f'),
-                                              }}
-                                            >
+                                      style={{
+                                        backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)',
+                                        color: isDarkMode
+                                          ? (editColorInfo?.textDark || '#fef3c7')
+                                          : (editColorInfo?.dark || '#78350f'),
+                                      }}
+                                    >
                                               Cancel
-                                            </button>
-                                            <button
-                                              onClick={() => {
-                                                if (noteInput.trim()) {
-                                                  handleAddNote();
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (noteInput.trim()) {
+                                          handleAddNote();
                                                   setIsAddingNewNote(false);
-                                                }
-                                              }}
-                                              disabled={!noteInput.trim()}
+                                        }
+                                      }}
+                                      disabled={!noteInput.trim()}
                                               className="flex-1 btn-primary text-xs py-1 px-2 disabled:opacity-50"
-                                            >
-                                              Save
-                                            </button>
-                                          </div>
+                                    >
+                                      Save
+                                    </button>
+                                  </div>
                                         </div>
                                       )}
                                       
@@ -2660,9 +2715,9 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                           <Plus className="w-3.5 h-3.5" />
                                           {totalNotes > 0 ? 'Add another note' : 'Add a note'}
                                         </button>
-                                      </div>
-                                    </div>
-                                  </div>
+                                </div>
+                              </div>
+                            </div>
                                 );
                               })()}
                             </div>,

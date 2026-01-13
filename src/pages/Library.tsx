@@ -50,7 +50,7 @@ const SCROLL_POSITION_KEY = 'library-page-scroll';
 const FILTER_STATE_KEY = 'library-filter-state';
 
 // Helper to load filter state from sessionStorage
-function loadFilterState(): { selectedTags: string[]; searchQuery: string; showStarredOnly: boolean; showUnreadOnly: boolean; showArchivedOnly: boolean } {
+function loadFilterState(): { selectedTags: string[]; searchQuery: string; showStarredOnly: boolean; showUnreadOnly: boolean; showArchivedOnly: boolean; showFinishedOnly: boolean; showUnfinishedOnly: boolean } {
   try {
     const saved = sessionStorage.getItem(FILTER_STATE_KEY);
     if (saved) {
@@ -61,12 +61,14 @@ function loadFilterState(): { selectedTags: string[]; searchQuery: string; showS
         showStarredOnly: Boolean(parsed.showStarredOnly),
         showUnreadOnly: Boolean(parsed.showUnreadOnly),
         showArchivedOnly: Boolean(parsed.showArchivedOnly),
+        showFinishedOnly: Boolean(parsed.showFinishedOnly),
+        showUnfinishedOnly: Boolean(parsed.showUnfinishedOnly),
       };
     }
   } catch (e) {
     console.warn('[Library] Failed to load filter state:', e);
   }
-  return { selectedTags: [], searchQuery: '', showStarredOnly: false, showUnreadOnly: false, showArchivedOnly: false };
+  return { selectedTags: [], searchQuery: '', showStarredOnly: false, showUnreadOnly: false, showArchivedOnly: false, showFinishedOnly: false, showUnfinishedOnly: false };
 }
 
 export function Library() {
@@ -94,6 +96,8 @@ export function Library() {
   const [showStarredOnly, setShowStarredOnly] = useState(initialFilterState.showStarredOnly);
   const [showUnreadOnly, setShowUnreadOnly] = useState(initialFilterState.showUnreadOnly);
   const [showArchivedOnly, setShowArchivedOnly] = useState(initialFilterState.showArchivedOnly);
+  const [showFinishedOnly, setShowFinishedOnly] = useState(initialFilterState.showFinishedOnly);
+  const [showUnfinishedOnly, setShowUnfinishedOnly] = useState(initialFilterState.showUnfinishedOnly);
 
   // Restore scroll position on mount and when navigating back
   useEffect(() => {
@@ -124,8 +128,10 @@ export function Library() {
       showStarredOnly,
       showUnreadOnly,
       showArchivedOnly,
+      showFinishedOnly,
+      showUnfinishedOnly,
     }));
-  }, [selectedTags, searchQuery, showStarredOnly, showUnreadOnly, showArchivedOnly]);
+  }, [selectedTags, searchQuery, showStarredOnly, showUnreadOnly, showArchivedOnly, showFinishedOnly, showUnfinishedOnly]);
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isUploadModalClosing, setIsUploadModalClosing] = useState(false);
@@ -160,10 +166,6 @@ export function Library() {
   const [batchAddTags, setBatchAddTags] = useState<string[]>([]);
   const [batchRemoveTags, setBatchRemoveTags] = useState<string[]>([]);
   const [batchNewTagInput, setBatchNewTagInput] = useState('');
-
-  // Inline title editing state
-  const [editingTitlePaperId, setEditingTitlePaperId] = useState<string | null>(null);
-  const [editingTitleValue, setEditingTitleValue] = useState('');
 
   // Modal close handlers with exit animations
   const handleCloseUploadModal = () => {
@@ -988,41 +990,6 @@ export function Library() {
     }
   };
 
-  // Handle inline title editing
-  const handleTitleDoubleClick = (e: React.MouseEvent, paper: Paper) => {
-    e.stopPropagation();
-    setEditingTitlePaperId(paper.id);
-    setEditingTitleValue(paper.title);
-  };
-
-  const handleTitleSave = async (paper: Paper) => {
-    const trimmedTitle = editingTitleValue.trim();
-    if (trimmedTitle && trimmedTitle !== paper.title) {
-      const updatedPaper = { ...paper, title: trimmedTitle };
-      // Optimistically update
-      setPapers(prev => prev.map(p => p.id === paper.id ? updatedPaper : p));
-      try {
-        await updatePaper(updatedPaper);
-      } catch (error) {
-        console.error('Failed to update paper title:', error);
-        // Revert on error
-        setPapers(prev => prev.map(p => p.id === paper.id ? paper : p));
-      }
-    }
-    setEditingTitlePaperId(null);
-    setEditingTitleValue('');
-  };
-
-  const handleTitleKeyDown = (e: React.KeyboardEvent, paper: Paper) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleTitleSave(paper);
-    } else if (e.key === 'Escape') {
-      setEditingTitlePaperId(null);
-      setEditingTitleValue('');
-    }
-  };
-
   const togglePaperStarred = async (e: React.MouseEvent, paper: Paper) => {
     e.stopPropagation();
     const updatedPaper = { ...paper, isStarred: !paper.isStarred };
@@ -1124,8 +1091,10 @@ export function Library() {
       const matchesUnread = !showUnreadOnly || !paper.isRead;
       // If showArchivedOnly is true, show only archived papers; otherwise hide archived papers
       const matchesArchived = showArchivedOnly ? paper.isArchived : !paper.isArchived;
+      const matchesFinished = !showFinishedOnly || (paper.readingProgress === 100);
+      const matchesUnfinished = !showUnfinishedOnly || (paper.readingProgress !== 100);
 
-      return matchesSearch && matchesTags && matchesStarred && matchesUnread && matchesArchived;
+      return matchesSearch && matchesTags && matchesStarred && matchesUnread && matchesArchived && matchesFinished && matchesUnfinished;
     })
     .sort((a, b) => {
       switch (sortOption) {
@@ -1263,6 +1232,52 @@ export function Library() {
                     Unread
                   </button>
                   <button
+                    onClick={() => {
+                      setShowFinishedOnly(!showFinishedOnly);
+                      if (!showFinishedOnly) setShowUnfinishedOnly(false);
+                    }}
+                    className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${showFinishedOnly
+                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
+                      }`}
+                  >
+                    <div className={`w-3.5 h-3.5 rounded-full border-2 ${showFinishedOnly ? 'border-[var(--bg-primary)] bg-[var(--bg-primary)]' : 'border-green-500 bg-green-500'}`} />
+                    Finished
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowUnfinishedOnly(!showUnfinishedOnly);
+                      if (!showUnfinishedOnly) setShowFinishedOnly(false);
+                    }}
+                    className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${showUnfinishedOnly
+                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
+                      }`}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" className="-rotate-90">
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="6"
+                        fill="none"
+                        stroke={showUnfinishedOnly ? 'var(--bg-primary)' : 'var(--text-muted)'}
+                        strokeWidth="2"
+                      />
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="6"
+                        fill="none"
+                        stroke={showUnfinishedOnly ? 'var(--bg-primary)' : 'var(--accent-primary)'}
+                        strokeWidth="2"
+                        strokeDasharray={2 * Math.PI * 6}
+                        strokeDashoffset={2 * Math.PI * 6 * 0.5}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    Unfinished
+                  </button>
+                  <button
                     onClick={() => setShowArchivedOnly(!showArchivedOnly)}
                     className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${showArchivedOnly
                       ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
@@ -1302,8 +1317,10 @@ export function Library() {
                   setSelectedTags([]);
                   setShowStarredOnly(false);
                   setShowUnreadOnly(false);
+                  setShowFinishedOnly(false);
+                  setShowUnfinishedOnly(false);
                 }}
-                className={`text-left px-3 py-1.5 text-xs text-[var(--accent-red)] hover:underline transition-opacity mb-6 ${selectedTags.length > 0 || showStarredOnly || showUnreadOnly ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                className={`text-left px-3 py-1.5 text-xs text-[var(--accent-red)] hover:underline transition-opacity mb-6 ${selectedTags.length > 0 || showStarredOnly || showUnreadOnly || showFinishedOnly || showUnfinishedOnly ? 'opacity-100' : 'opacity-0 pointer-events-none'
                   }`}
               >
                 Clear all filters
@@ -1521,25 +1538,9 @@ export function Library() {
                                     {isSelected ? <Check className="w-3.5 h-3.5" style={{ color: '#ffffff' }} /> : <FileText className="w-3.5 h-3.5" />}
                                   </button>
                                 </div>
-                                {editingTitlePaperId === paper.id ? (
-                                  <input
-                                    type="text"
-                                    value={editingTitleValue}
-                                    onChange={(e) => setEditingTitleValue(e.target.value)}
-                                    onBlur={() => handleTitleSave(paper)}
-                                    onKeyDown={(e) => handleTitleKeyDown(e, paper)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    autoFocus
-                                    className="text-sm w-full bg-transparent border border-[var(--accent-primary)] rounded px-1.5 py-0.5 outline-none text-[var(--text-primary)]"
-                                  />
-                                ) : (
-                                  <span
-                                    className={`text-sm line-clamp-2 cursor-text hover:bg-[var(--bg-tertiary)] rounded px-1 -mx-1 transition-colors ${isUnread ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-primary)]'}`}
-                                    onDoubleClick={(e) => handleTitleDoubleClick(e, paper)}
-                                  >
-                                    {paper.title}
-                                  </span>
-                                )}
+                                <span className={`text-sm line-clamp-2 ${isUnread ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-primary)]'}`}>
+                                  {paper.title}
+                                </span>
                               </div>
                             </td>
                             {/* Tags column */}
