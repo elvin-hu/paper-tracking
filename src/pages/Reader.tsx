@@ -1841,11 +1841,23 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
     if (trimmedTitle && trimmedTitle !== paper.title) {
       const updatedPaper = { ...paper, title: trimmedTitle };
       setPaper(updatedPaper);
+      // Also update the paper in allPapers map so sidebar shows updated title
+      setAllPapers(prev => {
+        const newMap = new Map(prev);
+        newMap.set(updatedPaper.id, updatedPaper);
+        return newMap;
+      });
       try {
         await updatePaper(updatedPaper);
       } catch (error) {
         console.error('Failed to update paper title:', error);
         setPaper(paper); // Revert on error
+        // Revert sidebar as well
+        setAllPapers(prev => {
+          const newMap = new Map(prev);
+          newMap.set(paper.id, paper);
+          return newMap;
+        });
       }
     }
     setIsEditingTitle(false);
