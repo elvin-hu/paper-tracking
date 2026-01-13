@@ -1474,16 +1474,24 @@ export function Library() {
                                   );
                                 }
                                 
-                                // Complete (100%) - green checkmark
+                                // Complete (100%) - filled green ring
                                 if (progress === 100) {
                                   return (
                                     <button
                                       onClick={(e) => togglePaperReadStatus(e, paper)}
-                                      className="flex items-center justify-center rounded-full transition-transform hover:scale-110"
-                                      style={{ width: size, height: size, backgroundColor: '#22c55e' }}
+                                      className="transition-transform hover:scale-110"
                                       title="Mark as unread"
                                     >
-                                      <Check className="w-2.5 h-2.5 text-white" />
+                                      <svg width={size} height={size} className="-rotate-90">
+                                        <circle
+                                          cx={size / 2}
+                                          cy={size / 2}
+                                          r={radius}
+                                          fill="none"
+                                          stroke="#22c55e"
+                                          strokeWidth={strokeWidth}
+                                        />
+                                      </svg>
                                     </button>
                                   );
                                 }
