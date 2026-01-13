@@ -1513,6 +1513,11 @@ export function Reader() {
   const handleAIAutofill = async () => {
     if (!paper) return;
 
+    // Capture the paper at the moment the user clicks - this ensures we update
+    // the correct paper even if the user switches papers during the async operation
+    const targetPaper = paper;
+    const targetPaperId = paper.id;
+
     setIsAIAutofilling(true);
     let extractionPdf: any = null;
     try {
@@ -1521,7 +1526,7 @@ export function Reader() {
       // Extract text from PDF using a separate instance (don't destroy the main one)
       // Reload the file from database to ensure we have a fresh, non-detached ArrayBuffer
       // This is safer than trying to copy a potentially detached buffer
-      const file = await getPaperFile(paper.id);
+      const file = await getPaperFile(targetPaperId);
       if (!file) {
         throw new Error('PDF file not found');
       }
@@ -1648,31 +1653,32 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
       // Update the paper immediately with title, metadata and authors (if firstAuthor is available)
       // This ensures metadata.firstAuthor is saved and matches the extracted author
-      if (paper) {
-        const extractedTitle = extractedMetadata.title || '';
-        const updatedPaper: Paper = {
-          ...paper,
-          title: extractedTitle || paper.title, // Update title if extracted, otherwise keep existing
-          authors: extractedMetadata.firstAuthor ? extractedMetadata.firstAuthor : paper.authors, // Update main authors field with firstAuthor
-          metadata: {
-            ...paper.metadata,
-            ...newMetadata,
-          },
-        };
+      // Use targetPaper (captured at start) to ensure we update the correct paper
+      const extractedTitle = extractedMetadata.title || '';
+      const updatedPaper: Paper = {
+        ...targetPaper,
+        title: extractedTitle || targetPaper.title, // Update title if extracted, otherwise keep existing
+        authors: extractedMetadata.firstAuthor ? extractedMetadata.firstAuthor : targetPaper.authors, // Update main authors field with firstAuthor
+        metadata: {
+          ...targetPaper.metadata,
+          ...newMetadata,
+        },
+      };
 
-        // Save immediately
-        await updatePaper(updatedPaper);
+      // Save immediately to database
+      await updatePaper(updatedPaper);
+      
+      // Also update in allPapers map for sidebar
+      setAllPapers(prev => {
+        const newMap = new Map(prev);
+        newMap.set(updatedPaper.id, updatedPaper);
+        return newMap;
+      });
+
+      // Only update local state if we're still viewing the same paper
+      if (paper?.id === targetPaperId) {
         setPaper(updatedPaper);
         paperRef.current = updatedPaper;
-
-        // Also update in allPapers map for sidebar
-        setAllPapers(prev => {
-          const newMap = new Map(prev);
-          newMap.set(updatedPaper.id, updatedPaper);
-          return newMap;
-        });
-
-        // Update metadata state (this will not trigger autosave since we already saved)
         setMetadata(newMetadata);
       }
 
