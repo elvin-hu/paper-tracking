@@ -23,6 +23,7 @@ import {
   getSettings,
   getAllNotes,
 } from '../lib/database';
+import { callOpenAI } from '../lib/openai';
 
 import { useProject } from '../contexts/ProjectContext';
 
@@ -141,11 +142,6 @@ export default function Journal() {
 
     try {
       const settings = await getSettings();
-      if (!settings.openaiApiKey) {
-        alert('Please add your OpenAI API key in Settings to use AI synthesis.');
-        setGeneratingDate(null);
-        return;
-      }
 
       // Collect paper metadata and notes
       const paperData: Array<{
@@ -217,33 +213,21 @@ Respond in this exact JSON format:
   ]
 }`;
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.openaiApiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Use plain, succinct language—avoid dramatic or filler words like "insightful", "compelling", "profound", "fascinating", "exciting". Just state facts and observations directly. Respond with valid JSON only.',
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          temperature: 0.3,
-        }),
+      const data = await callOpenAI({
+        messages: [
+          {
+            role: 'system',
+            content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Use plain, succinct language—avoid dramatic or filler words like "insightful", "compelling", "profound", "fascinating", "exciting". Just state facts and observations directly. Respond with valid JSON only.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        model: 'gpt-4o-mini',
+        temperature: 0.3,
       });
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
       const content = data.choices[0]?.message?.content;
 
       if (!content) {
@@ -299,11 +283,6 @@ Respond in this exact JSON format:
 
     try {
       const settings = await getSettings();
-      if (!settings.openaiApiKey) {
-        alert('Please add your OpenAI API key in Settings to use AI synthesis.');
-        setRefreshingSynthesisDate(null);
-        return;
-      }
 
       const entry = journalEntries.get(dateStr);
       if (!entry) return;
@@ -378,33 +357,21 @@ Respond in this exact JSON format:
   ]
 }`;
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.openaiApiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Use plain, succinct language—avoid dramatic or filler words like "insightful", "compelling", "profound", "fascinating", "exciting". Just state facts and observations directly. Respond with valid JSON only.',
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          temperature: 0.3,
-        }),
+      const data = await callOpenAI({
+        messages: [
+          {
+            role: 'system',
+            content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Use plain, succinct language—avoid dramatic or filler words like "insightful", "compelling", "profound", "fascinating", "exciting". Just state facts and observations directly. Respond with valid JSON only.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        model: 'gpt-4o-mini',
+        temperature: 0.3,
       });
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
       const content = data.choices[0]?.message?.content;
 
       if (!content) {

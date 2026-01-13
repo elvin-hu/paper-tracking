@@ -42,6 +42,7 @@ import {
   getSettings,
   getAllFurtherReadingHighlights,
 } from '../lib/database';
+import { callOpenAI } from '../lib/openai';
 import { EditPaperModal } from '../components/EditPaperModal';
 import { useProject } from '../contexts/ProjectContext';
 
@@ -1153,11 +1154,14 @@ export function Reader() {
 
     // Calculate x position relative to container, accounting for horizontal scroll
     const relativeX = lastRect.right - containerLeft + scrollLeft + 8;
-    // Ensure popup doesn't go off the right edge
-    const maxX = containerWidth - 250;
+    // Ensure popup doesn't go off the right edge (popup can be up to 400px wide + padding)
+    const popupWidth = 420;
+    const maxX = Math.max(16, containerWidth - popupWidth - 16);
+    // Also ensure popup doesn't go off the left edge
+    const clampedX = Math.max(16, Math.min(relativeX, maxX));
 
     setColorPickerPosition({
-      x: Math.min(relativeX, maxX),
+      x: clampedX,
       y: lastRect.top - containerTop + scrollTop,
     });
     setShowColorPicker(true);
@@ -1487,11 +1491,6 @@ export function Reader() {
     let extractionPdf: any = null;
     try {
       const settings = await getSettings();
-      if (!settings.openaiApiKey) {
-        alert('Please add your OpenAI API key in Settings to use AI autofill.');
-        setIsAIAutofilling(false);
-        return;
-      }
 
       // Extract text from PDF using a separate instance (don't destroy the main one)
       // Reload the file from database to ensure we have a fresh, non-detached ArrayBuffer
@@ -1582,36 +1581,23 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
       // Log for debugging
       console.log('[AI Autofill] Prompt being sent:', prompt);
 
-      // Call OpenAI API
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.openaiApiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a seasoned CHI paper author helping extract metadata from academic papers. For methodology, conclusion, and limitation fields: summarize from the paper. For the "notes" field: synthesize and paraphrase the user\'s sticky notes into coherent learnings - don\'t just repeat them literally. If no sticky notes exist, return "N/A". Be direct and concise. Always respond with valid JSON only.',
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          temperature: 0.3,
-          max_tokens: 1500,
-        }),
+      // Call OpenAI API via helper (handles dev/prod API key automatically)
+      const data = await callOpenAI({
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a seasoned CHI paper author helping extract metadata from academic papers. For methodology, conclusion, and limitation fields: summarize from the paper. For the "notes" field: synthesize and paraphrase the user\'s sticky notes into coherent learnings - don\'t just repeat them literally. If no sticky notes exist, return "N/A". Be direct and concise. Always respond with valid JSON only.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        model: 'gpt-4o-mini',
+        temperature: 0.3,
+        max_tokens: 1500,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error?.message || `API error: ${response.status}`);
-      }
-
-      const data = await response.json();
       const content = data.choices[0]?.message?.content?.trim() || '';
 
       // Parse JSON response (handle markdown code blocks if present)

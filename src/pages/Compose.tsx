@@ -48,6 +48,7 @@ interface AttachedNote {
   highlightText: string;
   highlightColor: HighlightColor;
   paperTitle: string;
+  originalNote?: string; // The note attached to the highlight (if any)
   userComment: string;
   isKept: boolean; // true = user kept it, false = still a suggestion
 }
@@ -379,54 +380,82 @@ export function Compose() {
         return;
       }
 
-      const highlightsList = availableHighlights.slice(0, 30).map((h, i) => 
-        `[${i}] Color: ${h.color}, Text: "${h.text.slice(0, 150)}...", Paper: ${h.paperTitle}`
-      ).join('\n');
+      // Shuffle highlights to avoid position bias, then take first 50
+      const shuffled = [...availableHighlights].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, 50);
+      
+      const highlightsList = selected.map((h, i) => {
+        const noteInfo = h.note ? ` | Your note: "${h.note.slice(0, 150)}"` : '';
+        return `[${i}] (${h.color}) "${h.text.slice(0, 300)}"${noteInfo} — from "${h.paperTitle}"`;
+      }).join('\n\n');
+      
+      // Keep track of original highlight references for mapping back
+      const highlightMap = selected;
       
       const data = await callOpenAI({
         messages: [
           {
             role: 'system',
-            content: `You are helping find relevant research highlights for a paragraph in an academic paper.
-Based on the section name, paragraph topic, and available highlights, identify the most relevant ones.
+            content: `You are an expert academic writing assistant helping find research evidence to support arguments in a paper.
 
-Color meanings:
-- yellow: Research gaps & problems
-- red: Limitations
-- purple: Further reading/references
-- blue: Methodology
-- green: Findings/results
+Your task: Find highlights that SUPPORT or RELATE TO the user's argument/point, not just keyword matches.
 
-Return ONLY a JSON array of indices (e.g., [0, 2, 5]) for relevant highlights (max 5).`
+Think about:
+1. What CLAIM is the user making?
+2. Which highlights provide EVIDENCE, CONTEXT, or SUPPORTING ARGUMENTS for that claim?
+3. Which highlights discuss the SAME CONCEPT even if using different words?
+
+Color meanings (use these to understand the highlight's purpose):
+- yellow: Research gaps & problems (good for motivation/problem statements)
+- red: Limitations (good for discussing gaps or future work)  
+- purple: Further reading/references (good for related work)
+- blue: Methodology/approach (good for describing what was done)
+- green: Findings/results (good for supporting claims with evidence)
+
+Return ONLY a JSON array of indices (e.g., [0, 2, 5]) for the most relevant highlights (max 5).
+
+IMPORTANT: 
+- Prioritize semantic relevance over keyword matching
+- Try to select from DIFFERENT papers when possible to provide diverse perspectives
+- Don't pick highlights just because they contain similar keywords`
           },
           {
             role: 'user',
-            content: `Section: ${section?.title || 'Unknown'}
-Paragraph topic: ${module.userWriting || '(not specified yet)'}
+            content: `Paper section: ${section?.title || 'Unknown'}
 
-Available highlights:
+User's argument/point for this paragraph:
+"${module.userWriting || '(not specified yet)'}"
+
+Available research highlights to choose from:
 ${highlightsList}
 
-Return JSON array of relevant highlight indices:`
+Which highlights best SUPPORT or CONTEXTUALIZE the user's argument? Return JSON array of indices:`
           }
         ],
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         max_tokens: 100,
       });
 
       {
-        const content = data.choices?.[0]?.message?.content?.trim();
+        let content = data.choices?.[0]?.message?.content?.trim();
+        
+        // Strip markdown code blocks if present
+        if (content?.startsWith('```')) {
+          content = content.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+        }
+        
         try {
           const indices = JSON.parse(content);
           if (Array.isArray(indices)) {
             const suggestedNotes: AttachedNote[] = indices
-              .filter((i: number) => i >= 0 && i < availableHighlights.length)
+              .filter((i: number) => i >= 0 && i < highlightMap.length)
               .slice(0, 5)
               .map((i: number) => ({
-                highlightId: availableHighlights[i].id,
-                highlightText: availableHighlights[i].text,
-                highlightColor: availableHighlights[i].color,
-                paperTitle: availableHighlights[i].paperTitle,
+                highlightId: highlightMap[i].id,
+                highlightText: highlightMap[i].text,
+                highlightColor: highlightMap[i].color,
+                paperTitle: highlightMap[i].paperTitle,
+                originalNote: highlightMap[i].note,
                 userComment: '',
                 isKept: false, // These are suggestions
               }));
@@ -520,7 +549,7 @@ ${notesContext || '(No notes attached)'}
 Generate a polished paragraph:`
           }
         ],
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         max_tokens: 500,
       });
 
@@ -576,12 +605,16 @@ ${highlightsList || '(No highlights available)'}
 Suggest paragraph structure (JSON):`
           }
         ],
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         max_tokens: 500,
       });
 
       {
-        const content = data.choices?.[0]?.message?.content?.trim();
+        let content = data.choices?.[0]?.message?.content?.trim();
+        // Strip markdown code blocks if present
+        if (content?.startsWith('```')) {
+          content = content.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+        }
         try {
           const suggestions = JSON.parse(content);
           if (Array.isArray(suggestions)) {
@@ -914,6 +947,9 @@ Suggest paragraph structure (JSON):`
                                   >
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs text-[var(--text-primary)] line-clamp-2">"{note.highlightText}"</p>
+                                      {note.originalNote && (
+                                        <p className="text-[10px] text-[var(--accent-primary)] mt-1 italic">📝 {note.originalNote}</p>
+                                      )}
                                       <p className="text-[10px] text-[var(--text-muted)] mt-1">— {note.paperTitle}</p>
                                     </div>
                                     <div className="flex items-center gap-1 flex-shrink-0">
@@ -956,6 +992,9 @@ Suggest paragraph structure (JSON):`
                                       <X className="w-3 h-3" />
                                     </button>
                                   </div>
+                                  {note.originalNote && (
+                                    <p className="text-[10px] text-[var(--accent-primary)] mb-2 italic">📝 {note.originalNote}</p>
+                                  )}
                                   <p className="text-[10px] text-[var(--text-muted)] mb-2">— {note.paperTitle}</p>
                                   <input
                                     type="text"
