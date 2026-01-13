@@ -1987,10 +1987,13 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               ) : (
                 <>
                   {displayPapers.map((p) => (
-                    <button
+                    <div
                       key={p.id}
                       onClick={() => switchToPaper(p.id)}
-                      className={`group w-full text-left px-3 py-2.5 border-b border-[var(--border-muted)] transition-colors ${p.id === paperId
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && switchToPaper(p.id)}
+                      className={`group w-full text-left px-3 py-2.5 border-b border-[var(--border-muted)] transition-colors cursor-pointer ${p.id === paperId
                         ? 'bg-[var(--bg-tertiary)]'
                         : 'hover:bg-[var(--bg-tertiary)]/50'
                         }`}
@@ -2049,7 +2052,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                           </div>
                         </div>
                       </div>
-                    </button>
+                    </div>
                   ))}
 
                   {/* Expand search button */}
