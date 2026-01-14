@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { pdfjs } from 'react-pdf';
@@ -286,6 +286,26 @@ export function Library() {
       }
     };
   }, [sortOption]);
+
+  // Compute tag counts and sort by count (descending)
+  const tagsWithCounts = useMemo(() => {
+    const countMap = new Map<string, number>();
+    
+    // Count papers for each tag
+    papers.forEach(paper => {
+      paper.tags.forEach(tag => {
+        countMap.set(tag, (countMap.get(tag) || 0) + 1);
+      });
+    });
+    
+    // Convert to array and sort by count (descending), then alphabetically for ties
+    return allTags
+      .map(tag => ({ tag, count: countMap.get(tag) || 0 }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.tag.localeCompare(b.tag);
+      });
+  }, [papers, allTags]);
 
   // Extract title and authors from PDF
   const extractPDFMetadata = async (fileData: ArrayBuffer): Promise<{ title?: string; authors?: string }> => {
@@ -1314,20 +1334,24 @@ export function Library() {
               </div>
 
               {/* Tags Filter */}
-              {allTags.length > 0 && (
+              {tagsWithCounts.length > 0 && (
                 <div className="mb-6">
                   <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">Tags</h3>
                   <div className="flex flex-col gap-1">
-                    {allTags.map((tag) => (
+                    {tagsWithCounts.map(({ tag, count }) => (
                       <button
                         key={tag}
                         onClick={() => toggleTag(tag)}
-                        className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${selectedTags.includes(tag)
+                        className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-sm transition-colors ${selectedTags.includes(tag)
                           ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium'
                           : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] font-medium'
                           }`}
                       >
-                        {tag}
+                        <span>{tag}</span>
+                        <span className={`text-xs tabular-nums ${selectedTags.includes(tag) 
+                          ? 'text-[var(--bg-primary)] opacity-60' 
+                          : 'text-[var(--text-muted)]'
+                        }`}>{count}</span>
                       </button>
                     ))}
                   </div>
