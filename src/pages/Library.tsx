@@ -1226,15 +1226,15 @@ export function Library() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full py-2 text-sm"
-                    style={{ paddingLeft: '2.25rem', paddingRight: searchQuery ? '2rem' : '0.75rem' }}
+                    style={{ paddingLeft: '2.25rem', paddingRight: searchQuery ? '1.75rem' : '0.75rem' }}
                   />
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-5 h-5 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                       aria-label="Clear search"
                     >
-                      <XCircle className="w-4 h-4 fill-current" />
+                      <XCircle className="w-4 h-4" />
                     </button>
                   )}
                 </div>
