@@ -1549,10 +1549,6 @@ export function Reader() {
     setReadingList((prev) => prev.map((h) => (h.id === highlight.id ? updated : h)));
   };
 
-  const searchGoogleScholar = (text: string) => {
-    const query = encodeURIComponent(text.slice(0, 100));
-    window.open(`https://scholar.google.com/scholar?q=${query}`, '_blank');
-  };
 
   // Autosave metadata with debounce
   useEffect(() => {

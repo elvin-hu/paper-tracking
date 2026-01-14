@@ -78,10 +78,6 @@ export function FurtherReadingPage() {
 
   const isResolved = (highlight: Highlight) => highlight.note?.includes('✓');
 
-  const searchGoogleScholar = (text: string) => {
-    const query = encodeURIComponent(text.slice(0, 100));
-    window.open(`https://scholar.google.com/scholar?q=${query}`, '_blank');
-  };
 
   // Normalize text for fuzzy comparison (handles dashes from line breaks, punctuation, whitespace)
   const normalizeForComparison = (text: string): string => {
@@ -146,10 +142,6 @@ export function FurtherReadingPage() {
     }
   };
 
-  const searchSemanticScholar = (text: string) => {
-    const query = encodeURIComponent(text.slice(0, 100));
-    window.open(`https://www.semanticscholar.org/search?q=${query}`, '_blank');
-  };
 
   const filteredHighlights = highlights
     .filter((h) => {

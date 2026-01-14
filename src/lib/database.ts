@@ -398,6 +398,7 @@ export async function updateHighlight(highlight: Highlight): Promise<void> {
       page_number: highlight.pageNumber,
       rects: highlight.rects,
       is_further_reading: highlight.isFurtherReading ?? false,
+      note: highlight.note,
     })
     .eq('id', highlight.id);
 
