@@ -14,6 +14,7 @@ export interface Highlight {
   }[];
   note?: string;
   isFurtherReading: boolean;
+  resolved?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

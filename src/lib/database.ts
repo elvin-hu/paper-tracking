@@ -67,6 +67,7 @@ function rowToHighlight(row: Record<string, unknown>): Highlight {
     pageNumber: row.page_number as number,
     rects: row.rects as Highlight['rects'],
     isFurtherReading: row.is_further_reading as boolean,
+    resolved: row.resolved as boolean ?? false,
     createdAt: createdAt,
     updatedAt: createdAt, // Use createdAt as default for updatedAt
   };
@@ -398,7 +399,7 @@ export async function updateHighlight(highlight: Highlight): Promise<void> {
       page_number: highlight.pageNumber,
       rects: highlight.rects,
       is_further_reading: highlight.isFurtherReading ?? false,
-      note: highlight.note,
+      resolved: highlight.resolved ?? false,
     })
     .eq('id', highlight.id);
 

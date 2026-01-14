@@ -65,9 +65,7 @@ export function FurtherReadingPage() {
   const toggleResolved = async (highlight: Highlight) => {
     const updated = {
       ...highlight,
-      note: highlight.note?.includes('✓')
-        ? highlight.note.replace(' ✓', '')
-        : (highlight.note || 'Reference') + ' ✓',
+      resolved: !highlight.resolved,
       updatedAt: new Date(),
     };
     await updateHighlight(updated);
@@ -76,7 +74,7 @@ export function FurtherReadingPage() {
     );
   };
 
-  const isResolved = (highlight: Highlight) => highlight.note?.includes('✓');
+  const isResolved = (highlight: Highlight) => highlight.resolved ?? false;
 
 
   // Normalize text for fuzzy comparison (handles dashes from line breaks, punctuation, whitespace)
