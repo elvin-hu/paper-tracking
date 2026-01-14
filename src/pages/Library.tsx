@@ -166,6 +166,10 @@ export function Library() {
   const [batchAddTags, setBatchAddTags] = useState<string[]>([]);
   const [batchRemoveTags, setBatchRemoveTags] = useState<string[]>([]);
   const [batchNewTagInput, setBatchNewTagInput] = useState('');
+  const [showBatchTagSuggestions, setShowBatchTagSuggestions] = useState(false);
+  const [batchTagSuggestionPos, setBatchTagSuggestionPos] = useState({ top: 0, left: 0, width: 0 });
+  const batchTagInputRef = useRef<HTMLInputElement>(null);
+  const batchTagSuggestionsRef = useRef<HTMLDivElement>(null);
 
   // Modal close handlers with exit animations
   const handleCloseUploadModal = () => {
@@ -2073,17 +2077,76 @@ export function Library() {
                   </div>
                   <div className="flex gap-2">
                     <input
+                      ref={batchTagInputRef}
                       type="text"
                       value={batchNewTagInput}
-                      onChange={(e) => setBatchNewTagInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addBatchTag())}
+                      onChange={(e) => {
+                        setBatchNewTagInput(e.target.value);
+                        setShowBatchTagSuggestions(true);
+                        if (batchTagInputRef.current) {
+                          const rect = batchTagInputRef.current.getBoundingClientRect();
+                          setBatchTagSuggestionPos({ top: rect.bottom + 4, left: rect.left, width: rect.width + 44 });
+                        }
+                      }}
+                      onFocus={() => {
+                        setShowBatchTagSuggestions(true);
+                        if (batchTagInputRef.current) {
+                          const rect = batchTagInputRef.current.getBoundingClientRect();
+                          setBatchTagSuggestionPos({ top: rect.bottom + 4, left: rect.left, width: rect.width + 44 });
+                        }
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => setShowBatchTagSuggestions(false), 150);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addBatchTag();
+                          setShowBatchTagSuggestions(false);
+                        } else if (e.key === 'Escape') {
+                          setShowBatchTagSuggestions(false);
+                        }
+                      }}
                       placeholder="Add new tag..."
                       className="flex-1 text-sm"
                     />
-                    <button onClick={addBatchTag} className="btn-secondary px-2.5">
+                    <button onClick={() => { addBatchTag(); setShowBatchTagSuggestions(false); }} className="btn-secondary px-2.5">
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
+                  {/* Tag Suggestions */}
+                  {showBatchTagSuggestions && (() => {
+                    const filtered = allTags.filter(tag =>
+                      !batchAddTags.includes(tag) &&
+                      (batchNewTagInput.trim() === '' || tag.toLowerCase().includes(batchNewTagInput.toLowerCase()))
+                    ).slice(0, 8);
+                    return filtered.length > 0 ? (
+                      <div
+                        ref={batchTagSuggestionsRef}
+                        className="fixed bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl shadow-2xl overflow-hidden z-[100]"
+                        style={{ top: batchTagSuggestionPos.top, left: batchTagSuggestionPos.left, width: batchTagSuggestionPos.width }}
+                      >
+                        <div className="py-1 max-h-48 overflow-y-auto">
+                          {filtered.map((tag) => (
+                            <button
+                              key={tag}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                if (!batchAddTags.includes(tag)) {
+                                  setBatchAddTags(prev => [...prev, tag]);
+                                }
+                                setBatchNewTagInput('');
+                                setShowBatchTagSuggestions(false);
+                              }}
+                              className="w-full text-left px-3.5 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
 
                 {/* Remove Tags */}
