@@ -27,6 +27,7 @@ import {
   Archive,
   PenTool,
   XCircle,
+  Download,
 } from 'lucide-react';
 import type { Paper, SortOption, Note } from '../types';
 import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, updatePapersBatch, getSettings, updateSettings, getAllNotes, archivePaper } from '../lib/database';
@@ -912,6 +913,66 @@ export function Library() {
 
     clearSelection();
     loadData();
+  };
+
+  // Export selected papers as BibTeX citations
+  const exportCitations = () => {
+    if (selectedPapers.size === 0) return;
+
+    const selectedPapersList = papers.filter(p => selectedPapers.has(p.id));
+    
+    const bibtexEntries = selectedPapersList.map(paper => {
+      // Generate a citation key: firstAuthorLastName + year + firstWordOfTitle
+      const firstAuthor = paper.authors?.split(/[,&]|and/i)[0]?.trim() || 'Unknown';
+      const lastName = firstAuthor.split(/\s+/).pop()?.replace(/[^a-zA-Z]/g, '') || 'Unknown';
+      const year = paper.metadata?.date || new Date(paper.uploadedAt).getFullYear().toString();
+      const titleFirstWord = paper.title.split(/\s+/)[0]?.replace(/[^a-zA-Z]/g, '').toLowerCase() || 'paper';
+      const citeKey = `${lastName.toLowerCase()}${year}${titleFirstWord}`;
+
+      // Build BibTeX entry
+      const fields: string[] = [];
+      fields.push(`  author = {${paper.authors || 'Unknown'}}`);
+      fields.push(`  title = {${paper.title}}`);
+      
+      if (paper.metadata?.venue) {
+        fields.push(`  booktitle = {${paper.metadata.venue}}`);
+      }
+      fields.push(`  year = {${year}}`);
+      
+      if (paper.metadata?.doi) {
+        fields.push(`  doi = {${paper.metadata.doi}}`);
+      }
+      if (paper.metadata?.pages) {
+        fields.push(`  pages = {${paper.metadata.pages}}`);
+      }
+      if (paper.metadata?.articleNo) {
+        fields.push(`  articleno = {${paper.metadata.articleNo}}`);
+      }
+      if (paper.metadata?.publisher) {
+        fields.push(`  publisher = {${paper.metadata.publisher}}`);
+      }
+      if (paper.metadata?.location) {
+        fields.push(`  address = {${paper.metadata.location}}`);
+      }
+      if (paper.metadata?.keywords) {
+        fields.push(`  keywords = {${paper.metadata.keywords}}`);
+      }
+
+      return `@inproceedings{${citeKey},\n${fields.join(',\n')}\n}`;
+    });
+
+    const bibtexContent = bibtexEntries.join('\n\n');
+
+    // Download as .bib file
+    const blob = new Blob([bibtexContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `citations-${selectedPapers.size}-papers.bib`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   // Get all tags from selected papers for batch removal options
@@ -2038,6 +2099,18 @@ export function Library() {
               <span style={{ color: '#ffffff' }}>Edit Tags</span>
             </button>
             <button
+              onClick={exportCitations}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
+              style={{
+                backgroundColor: '#10b981',
+                color: '#ffffff'
+              }}
+              title="Export as BibTeX"
+            >
+              <Download className="w-3.5 h-3.5" style={{ color: '#ffffff' }} />
+              <span style={{ color: '#ffffff' }}>Export</span>
+            </button>
+            <button
               onClick={deleteSelectedPapers}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--accent-red)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
             >
@@ -2061,6 +2134,7 @@ export function Library() {
             paper={editingPaper}
             onClose={() => setEditingPaper(null)}
             onSave={handleSaveEditedPaper}
+            showCitationFields={true}
           />
         )
       }

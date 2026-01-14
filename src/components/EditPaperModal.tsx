@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Paper } from '../types';
 import { updatePaper, getAllTags } from '../lib/database';
 
@@ -16,6 +16,8 @@ interface EditPaperModalProps {
   };
   onMetadataChange?: (field: string, value: string) => void;
   showMetadataFields?: boolean;
+  // Show full citation fields for Library edit
+  showCitationFields?: boolean;
 }
 
 export function EditPaperModal({
@@ -25,6 +27,7 @@ export function EditPaperModal({
   metadata,
   onMetadataChange,
   showMetadataFields = false,
+  showCitationFields = false,
 }: EditPaperModalProps) {
   const [title, setTitle] = useState(paper.title);
   const [authors, setAuthors] = useState(paper.authors || '');
@@ -33,6 +36,17 @@ export function EditPaperModal({
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [showOptionalFields, setShowOptionalFields] = useState(false);
+
+  // Citation fields state
+  const [venue, setVenue] = useState(paper.metadata?.venue || '');
+  const [year, setYear] = useState(paper.metadata?.date || '');
+  const [doi, setDoi] = useState(paper.metadata?.doi || '');
+  const [pages, setPages] = useState(paper.metadata?.pages || '');
+  const [articleNo, setArticleNo] = useState(paper.metadata?.articleNo || '');
+  const [publisher, setPublisher] = useState(paper.metadata?.publisher || '');
+  const [location, setLocation] = useState(paper.metadata?.location || '');
+  const [keywords, setKeywords] = useState(paper.metadata?.keywords || '');
 
   const tagInputRef = useRef<HTMLInputElement>(null);
   const tagSuggestionsRef = useRef<HTMLDivElement>(null);
@@ -105,6 +119,17 @@ export function EditPaperModal({
       title: title || paper.title,
       authors: authors || undefined,
       tags,
+      metadata: {
+        ...paper.metadata,
+        venue: venue || paper.metadata?.venue,
+        date: year || paper.metadata?.date,
+        doi: doi || paper.metadata?.doi,
+        pages: pages || paper.metadata?.pages,
+        articleNo: articleNo || paper.metadata?.articleNo,
+        publisher: publisher || paper.metadata?.publisher,
+        location: location || paper.metadata?.location,
+        keywords: keywords || paper.metadata?.keywords,
+      },
     };
 
     await updatePaper(updatedPaper);
@@ -175,6 +200,132 @@ export function EditPaperModal({
                 className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
               />
             </div>
+          )}
+
+          {/* Citation Fields (for Library edit with showCitationFields) */}
+          {showCitationFields && (
+            <>
+              {/* Primary citation fields - always visible */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                    Year
+                  </label>
+                  <input
+                    type="text"
+                    value={year}
+                    onChange={(e) => setYear(e.target.value)}
+                    placeholder="2024"
+                    className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                    Venue
+                  </label>
+                  <input
+                    type="text"
+                    value={venue}
+                    onChange={(e) => setVenue(e.target.value)}
+                    placeholder="CHI '24"
+                    className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                  DOI
+                </label>
+                <input
+                  type="text"
+                  value={doi}
+                  onChange={(e) => setDoi(e.target.value)}
+                  placeholder="10.1145/1234567.1234568"
+                  className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+                />
+              </div>
+
+              {/* Optional fields toggle */}
+              <button
+                type="button"
+                onClick={() => setShowOptionalFields(!showOptionalFields)}
+                className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+              >
+                {showOptionalFields ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                {showOptionalFields ? 'Hide optional fields' : 'Show optional fields'}
+              </button>
+
+              {showOptionalFields && (
+                <div className="space-y-4 pt-2 border-t border-[var(--border-muted)]">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                        Pages
+                      </label>
+                      <input
+                        type="text"
+                        value={pages}
+                        onChange={(e) => setPages(e.target.value)}
+                        placeholder="1-12"
+                        className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                        Article No.
+                      </label>
+                      <input
+                        type="text"
+                        value={articleNo}
+                        onChange={(e) => setArticleNo(e.target.value)}
+                        placeholder="42"
+                        className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                      Publisher
+                    </label>
+                    <input
+                      type="text"
+                      value={publisher}
+                      onChange={(e) => setPublisher(e.target.value)}
+                      placeholder="Association for Computing Machinery"
+                      className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="Honolulu, HI, USA"
+                      className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                      Keywords
+                    </label>
+                    <input
+                      type="text"
+                      value={keywords}
+                      onChange={(e) => setKeywords(e.target.value)}
+                      placeholder="HCI, user study, interaction design"
+                      className="w-full text-sm px-3 py-2.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-default)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--text-secondary)] transition-all"
+                    />
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Metadata fields (only in Reader view) */}

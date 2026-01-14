@@ -1806,8 +1806,16 @@ ${fullText}
 Please extract and return a JSON object with the following fields:
 - title: The full official title of the paper
 - firstAuthor: First author's name (e.g., "Smith, J." or "John Smith")
-- venue: Publication venue (CHI, UIST, journal name, etc.)
-- date: Publication year (e.g., "2023")
+- authors: Full author list (e.g., "Smith, John and Johnson, Alice and Wang, Bob")
+- venue: Publication venue short name (CHI, UIST, CSCW, etc.)
+- booktitle: Full conference/proceedings name (e.g., "Proceedings of the 2024 CHI Conference on Human Factors in Computing Systems")
+- date: Publication year (e.g., "2024")
+- doi: DOI if found in the paper (e.g., "10.1145/3613904.3642123")
+- pages: Page range if found (e.g., "1-12")
+- articleNo: Article number if found (e.g., "42")
+- publisher: Publisher name (e.g., "Association for Computing Machinery" or "ACM")
+- location: Conference location if found (e.g., "Honolulu, HI, USA")
+- keywords: Paper keywords if listed, comma-separated
 - methodology: Research methodology—be direct, no filler phrases (2-3 sentences)
 - conclusion: Key findings—go straight to the point (2-3 sentences)
 - limitation: Stated or obvious limitations (2-3 sentences)
@@ -1817,8 +1825,16 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 {
   "title": "...",
   "firstAuthor": "...",
+  "authors": "...",
   "venue": "...",
+  "booktitle": "...",
   "date": "...",
+  "doi": "...",
+  "pages": "...",
+  "articleNo": "...",
+  "publisher": "...",
+  "location": "...",
+  "keywords": "...",
   "methodology": "...",
   "conclusion": "...",
   "limitation": "...",
@@ -1861,20 +1877,27 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
         firstAuthor: extractedMetadata.firstAuthor || '',
         venue: extractedMetadata.venue || '',
         date: extractedMetadata.date || '',
+        doi: extractedMetadata.doi || '',
+        pages: extractedMetadata.pages || '',
+        articleNo: extractedMetadata.articleNo || '',
+        publisher: extractedMetadata.publisher || '',
+        location: extractedMetadata.location || '',
+        keywords: extractedMetadata.keywords || '',
         methodology: extractedMetadata.methodology || '',
         conclusion: extractedMetadata.conclusion || '',
         limitation: extractedMetadata.limitation || '',
         notes: extractedMetadata.notes || '',
       };
 
-      // Update the paper immediately with title, metadata and authors (if firstAuthor is available)
+      // Update the paper immediately with title, metadata and authors (if extracted)
       // This ensures metadata.firstAuthor is saved and matches the extracted author
       // Use targetPaper (captured at start) to ensure we update the correct paper
         const extractedTitle = extractedMetadata.title || '';
         const updatedPaper: Paper = {
         ...targetPaper,
         title: extractedTitle || targetPaper.title, // Update title if extracted, otherwise keep existing
-        authors: extractedMetadata.firstAuthor ? extractedMetadata.firstAuthor : targetPaper.authors, // Update main authors field with firstAuthor
+        authors: extractedMetadata.authors || extractedMetadata.firstAuthor || targetPaper.authors, // Update main authors field
+        hasAIInsights: true, // Mark that AI autofill has been used
           metadata: {
           ...targetPaper.metadata,
             ...newMetadata,

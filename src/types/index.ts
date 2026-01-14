@@ -39,13 +39,22 @@ export interface Paper {
   metadata?: {
     firstAuthor?: string;
     venue?: string;
-    date?: string;
+    date?: string; // Publication year (e.g., "2024")
     methodology?: string;
     conclusion?: string;
     limitation?: string;
     notes?: string; // Learnings for research
     archivedAt?: string; // Explicit timestamp for when the paper was archived
+    // Additional citation fields for CHI/UIST papers
+    doi?: string; // Digital Object Identifier
+    pages?: string; // Page range (e.g., "1-12")
+    articleNo?: string; // Article number for proceedings
+    publisher?: string; // Publisher (e.g., "ACM")
+    location?: string; // Conference location (e.g., "Honolulu, HI, USA")
+    keywords?: string; // Comma-separated keywords
   };
+  // Field to track if AI autofill has been used
+  hasAIInsights?: boolean;
 }
 
 export interface PaperFile {
