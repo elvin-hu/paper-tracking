@@ -2109,7 +2109,7 @@ export function Library() {
                       const filtered = allTags.filter(tag =>
                         !batchAddTags.includes(tag) &&
                         (batchNewTagInput.trim() === '' || tag.toLowerCase().includes(batchNewTagInput.toLowerCase()))
-                      ).slice(0, 8);
+                      );
                       return filtered.length > 0 ? (
                         <div
                           ref={batchTagSuggestionsRef}

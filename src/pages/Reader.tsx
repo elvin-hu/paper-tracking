@@ -3215,13 +3215,15 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                   )}
 
                                   {!resolved && (
-                                    <button
-                                      onClick={() => searchGoogleScholar(item.text)}
+                                    <a
+                                      href={`https://scholar.google.com/scholar?q=${encodeURIComponent(item.text.slice(0, 100))}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
                                       className="flex items-center gap-1 mt-2 px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-[10px] hover:text-[var(--text-primary)] transition-colors"
                                     >
                                       <ExternalLink className="w-2.5 h-2.5" />
                                       Search Scholar
-                                    </button>
+                                    </a>
                                   )}
                                 </div>
                               </div>

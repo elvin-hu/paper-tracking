@@ -312,20 +312,24 @@ export function FurtherReadingPage() {
 
                       {!resolved && (
                         <div className="flex gap-2 mt-3">
-                          <button
-                            onClick={() => searchGoogleScholar(highlight.text)}
+                          <a
+                            href={`https://scholar.google.com/scholar?q=${encodeURIComponent(highlight.text.slice(0, 100))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-xs hover:text-[var(--text-primary)] transition-colors"
                           >
                             <ExternalLink className="w-3 h-3" />
                             Scholar
-                          </button>
-                          <button
-                            onClick={() => searchSemanticScholar(highlight.text)}
+                          </a>
+                          <a
+                            href={`https://www.semanticscholar.org/search?q=${encodeURIComponent(highlight.text.slice(0, 100))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-xs hover:text-[var(--text-primary)] transition-colors"
                           >
                             <ExternalLink className="w-3 h-3" />
                             Semantic
-                          </button>
+                          </a>
                         </div>
                       )}
                     </div>
