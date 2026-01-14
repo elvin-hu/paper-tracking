@@ -26,6 +26,8 @@ import {
   Search,
   ArrowUpDown,
   Trash2,
+  Filter,
+  XCircle,
 } from 'lucide-react';
 import type { Paper, Highlight, Note, HighlightColor, SortOption } from '../types';
 import {
@@ -43,6 +45,7 @@ import {
   updatePaper,
   getSettings,
   getAllFurtherReadingHighlights,
+  getAllTags,
 } from '../lib/database';
 import { callOpenAI } from '../lib/openai';
 import { EditPaperModal } from '../components/EditPaperModal';
@@ -471,6 +474,36 @@ export function Reader() {
   const [pdfContainerReady, setPdfContainerReady] = useState(false); // For fade-in effect
   const paperScrollPositions = useRef<Map<string, number>>(new Map()); // Store scroll positions per paper
 
+  // Filter state - synced with Library via sessionStorage
+  const FILTER_STATE_KEY = 'library-filter-state';
+  const loadFilterState = useCallback(() => {
+    try {
+      const saved = sessionStorage.getItem(FILTER_STATE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          selectedTags: Array.isArray(parsed.selectedTags) ? parsed.selectedTags : [],
+          showStarredOnly: Boolean(parsed.showStarredOnly),
+          showUnreadOnly: Boolean(parsed.showUnreadOnly),
+          showFinishedOnly: Boolean(parsed.showFinishedOnly),
+          showUnfinishedOnly: Boolean(parsed.showUnfinishedOnly),
+        };
+      }
+    } catch {
+      console.warn('[Reader] Failed to load filter state');
+    }
+    return { selectedTags: [], showStarredOnly: false, showUnreadOnly: false, showFinishedOnly: false, showUnfinishedOnly: false };
+  }, []);
+  
+  const initialFilterState = loadFilterState();
+  const [selectedTags, setSelectedTags] = useState<string[]>(initialFilterState.selectedTags);
+  const [showStarredOnly, setShowStarredOnly] = useState(initialFilterState.showStarredOnly);
+  const [showUnreadOnly, setShowUnreadOnly] = useState(initialFilterState.showUnreadOnly);
+  const [showFinishedOnly, setShowFinishedOnly] = useState(initialFilterState.showFinishedOnly);
+  const [showUnfinishedOnly, setShowUnfinishedOnly] = useState(initialFilterState.showUnfinishedOnly);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [allTags, setAllTags] = useState<string[]>([]);
+
   // Metadata state
   const [metadata, setMetadata] = useState({
     firstAuthor: '',
@@ -645,13 +678,15 @@ export function Reader() {
   const loadAllPapers = useCallback(async () => {
     if (!currentProject) return;
 
-    const [papers, settings] = await Promise.all([
+    const [papers, settings, tags] = await Promise.all([
       getAllPapers(currentProject.id),
       getSettings(currentProject.id),
+      getAllTags(currentProject.id),
     ]);
     const paperMap = new Map<string, Paper>();
     papers.forEach((p) => paperMap.set(p.id, p));
     setAllPapers(paperMap);
+    setAllTags(tags);
     if (settings.sortOption) {
       setSortOption(settings.sortOption);
     }
@@ -770,17 +805,67 @@ export function Reader() {
       .trim();
   };
 
+  // Count active filters for badge
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (showStarredOnly) count++;
+    if (showUnreadOnly) count++;
+    if (showFinishedOnly) count++;
+    if (showUnfinishedOnly) count++;
+    count += selectedTags.length;
+    return count;
+  }, [showStarredOnly, showUnreadOnly, showFinishedOnly, showUnfinishedOnly, selectedTags]);
+
+  // Compute tag counts for filter modal
+  const tagsWithCounts = useMemo(() => {
+    const countMap = new Map<string, number>();
+    const allPapersArray = Array.from(allPapers.values()).filter(p => !p.isArchived);
+    allPapersArray.forEach(paper => {
+      paper.tags.forEach(tag => {
+        countMap.set(tag, (countMap.get(tag) || 0) + 1);
+      });
+    });
+    return allTags
+      .map(tag => ({ tag, count: countMap.get(tag) || 0 }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.tag.localeCompare(b.tag);
+      });
+  }, [allPapers, allTags]);
+
   // Memoize filtered and sorted papers for sidebar (expensive computation)
   const { displayPapers, hiddenCount } = useMemo(() => {
     const allPapersArray = Array.from(allPapers.values());
     let filtered = allPapersArray.filter(p => !p.isArchived);
     const searchLower = paperSearch.toLowerCase().trim();
 
+    // Apply search filter
     if (searchLower) {
       filtered = filtered.filter(p =>
         p.title.toLowerCase().includes(searchLower) ||
         (p.authors && p.authors.toLowerCase().includes(searchLower)) ||
         (p.tags && p.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+      );
+    }
+
+    // Apply quick filters (synced with Library)
+    if (showStarredOnly) {
+      filtered = filtered.filter(p => p.isStarred);
+    }
+    if (showUnreadOnly) {
+      filtered = filtered.filter(p => !p.hasAIInsights);
+    }
+    if (showFinishedOnly) {
+      filtered = filtered.filter(p => (p.readingProgress ?? 0) >= 100);
+    }
+    if (showUnfinishedOnly) {
+      filtered = filtered.filter(p => (p.readingProgress ?? 0) < 100);
+    }
+
+    // Apply tag filters
+    if (selectedTags.length > 0) {
+      filtered = filtered.filter(p =>
+        selectedTags.every(tag => p.tags.includes(tag))
       );
     }
 
@@ -804,7 +889,7 @@ export function Reader() {
       displayPapers: shouldLimit ? sorted.slice(0, maxResults) : sorted,
       hiddenCount: shouldLimit ? sorted.length - maxResults : 0,
     };
-  }, [allPapers, paperSearch, sortOption, expandSearch]);
+  }, [allPapers, paperSearch, sortOption, expandSearch, showStarredOnly, showUnreadOnly, showFinishedOnly, showUnfinishedOnly, selectedTags]);
 
   // Memoize highlights grouped by page number
   const pageHighlightsMap = useMemo(() => {
@@ -951,6 +1036,25 @@ export function Reader() {
       clearTimeout(timeoutId);
     };
   }, [showPaperList]);
+
+  // Sync filter state to sessionStorage (syncs with Library)
+  useEffect(() => {
+    // Preserve searchQuery from Library when saving
+    try {
+      const existingState = sessionStorage.getItem(FILTER_STATE_KEY);
+      const existing = existingState ? JSON.parse(existingState) : {};
+      sessionStorage.setItem(FILTER_STATE_KEY, JSON.stringify({
+        ...existing,
+        selectedTags,
+        showStarredOnly,
+        showUnreadOnly,
+        showFinishedOnly,
+        showUnfinishedOnly,
+      }));
+    } catch {
+      console.warn('[Reader] Failed to save filter state');
+    }
+  }, [selectedTags, showStarredOnly, showUnreadOnly, showFinishedOnly, showUnfinishedOnly]);
 
   // Save panel states to localStorage
   useEffect(() => {
@@ -2188,8 +2292,146 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                     </>
                   )}
                 </div>
+
+                {/* Filter Button */}
+                <button
+                  onClick={() => setShowFilterModal(true)}
+                  className={`relative p-1.5 rounded-lg transition-colors flex-shrink-0 ${
+                    activeFilterCount > 0
+                      ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+                  }`}
+                  title="Filter papers"
+                >
+                  <Filter className="w-3.5 h-3.5" />
+                  {activeFilterCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-[var(--accent-primary)] text-white text-[9px] font-medium rounded-full flex items-center justify-center">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
+
+            {/* Filter Modal */}
+            {showFilterModal && (
+              <>
+                <div
+                  className="fixed inset-0 bg-black/30 z-40"
+                  onClick={() => setShowFilterModal(false)}
+                />
+                <div className="absolute left-2 right-2 top-12 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg shadow-xl z-50 max-h-[70vh] overflow-y-auto">
+                  <div className="p-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider">Filters</h3>
+                      {activeFilterCount > 0 && (
+                        <button
+                          onClick={() => {
+                            setSelectedTags([]);
+                            setShowStarredOnly(false);
+                            setShowUnreadOnly(false);
+                            setShowFinishedOnly(false);
+                            setShowUnfinishedOnly(false);
+                          }}
+                          className="text-[10px] text-[var(--accent-red)] hover:underline"
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Quick Filters */}
+                    <div className="space-y-1 mb-4">
+                      <button
+                        onClick={() => setShowStarredOnly(!showStarredOnly)}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                          showStarredOnly
+                            ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                        }`}
+                      >
+                        <Star className={`w-3.5 h-3.5 ${showStarredOnly ? 'fill-current' : ''}`} />
+                        Starred
+                      </button>
+                      <button
+                        onClick={() => setShowUnreadOnly(!showUnreadOnly)}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                          showUnreadOnly
+                            ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                        }`}
+                      >
+                        <BookMarked className="w-3.5 h-3.5" />
+                        Unread
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowFinishedOnly(!showFinishedOnly);
+                          if (!showFinishedOnly) setShowUnfinishedOnly(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                          showFinishedOnly
+                            ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                        }`}
+                      >
+                        <div className="w-3.5 h-3.5 flex items-center justify-center">
+                          <div className="w-3 h-3 rounded-full border-2 border-current bg-current" />
+                        </div>
+                        Finished
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowUnfinishedOnly(!showUnfinishedOnly);
+                          if (!showUnfinishedOnly) setShowFinishedOnly(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                          showUnfinishedOnly
+                            ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                        }`}
+                      >
+                        <div className="w-3.5 h-3.5 flex items-center justify-center">
+                          <div className="w-3 h-3 rounded-full border-2 border-current" />
+                        </div>
+                        Unfinished
+                      </button>
+                    </div>
+
+                    {/* Tags */}
+                    {tagsWithCounts.length > 0 && (
+                      <>
+                        <h4 className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">Tags</h4>
+                        <div className="space-y-1">
+                          {tagsWithCounts.map(({ tag, count }) => (
+                            <button
+                              key={tag}
+                              onClick={() => {
+                                setSelectedTags(prev =>
+                                  prev.includes(tag)
+                                    ? prev.filter(t => t !== tag)
+                                    : [...prev, tag]
+                                );
+                              }}
+                              className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                                selectedTags.includes(tag)
+                                  ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                              }`}
+                            >
+                              <span>{tag}</span>
+                              <span className={`text-[10px] tabular-nums ${
+                                selectedTags.includes(tag) ? 'opacity-60' : 'text-[var(--text-muted)]'
+                              }`}>{count}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="flex-1 overflow-y-auto">
               {paperSearch.trim() && displayPapers.length === 0 ? (
