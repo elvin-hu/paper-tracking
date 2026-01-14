@@ -27,7 +27,6 @@ import {
   ArrowUpDown,
   Trash2,
   Filter,
-  XCircle,
 } from 'lucide-react';
 import type { Paper, Highlight, Note, HighlightColor, SortOption } from '../types';
 import {
