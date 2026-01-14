@@ -26,6 +26,7 @@ import {
   ArrowDown,
   Archive,
   PenTool,
+  XCircle,
 } from 'lucide-react';
 import type { Paper, SortOption, Note } from '../types';
 import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, updatePapersBatch, getSettings, updateSettings, getAllNotes, archivePaper } from '../lib/database';
@@ -1225,8 +1226,17 @@ export function Library() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full py-2 text-sm"
-                    style={{ paddingLeft: '2.25rem', paddingRight: '0.75rem' }}
+                    style={{ paddingLeft: '2.25rem', paddingRight: searchQuery ? '2rem' : '0.75rem' }}
                   />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                      aria-label="Clear search"
+                    >
+                      <XCircle className="w-4 h-4 fill-current" />
+                    </button>
+                  )}
                 </div>
               </div>
 
