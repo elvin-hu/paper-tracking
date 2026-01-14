@@ -207,6 +207,37 @@ export function Settings() {
               </div>
             </section>
 
+            {/* Reading List Color */}
+            <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-[var(--accent-purple)]/15 flex items-center justify-center">
+                  <BookOpen className="w-4 h-4 text-[var(--accent-purple)]" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+                    Reading List Color
+                  </h2>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    Color for items saved to reading list
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                {HIGHLIGHT_COLORS.map((c) => (
+                  <button
+                    key={c.color}
+                    onClick={() => setSettings((prev) => ({ ...prev, readingListColor: c.color }))}
+                    className={`w-10 h-10 rounded-lg transition-all ${(settings.readingListColor || 'purple') === c.color
+                      ? 'ring-2 ring-offset-2 ring-[var(--accent-primary)] ring-offset-[var(--bg-card)]'
+                      : ''
+                      }`}
+                    style={{ backgroundColor: c.border }}
+                  />
+                ))}
+              </div>
+            </section>
+
             {/* Experimental Features */}
             <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4">
               <div className="flex items-center gap-2.5 mb-3">

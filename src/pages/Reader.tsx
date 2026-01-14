@@ -25,6 +25,7 @@ import {
   Info,
   Search,
   ArrowUpDown,
+  Trash2,
 } from 'lucide-react';
 import type { Paper, Highlight, Note, HighlightColor, SortOption } from '../types';
 import {
@@ -444,6 +445,7 @@ export function Reader() {
   const [readingList, setReadingList] = useState<Highlight[]>([]);
   const [allReadingListItems, setAllReadingListItems] = useState<Highlight[]>([]); // All reading list items across papers
   const [allPapers, setAllPapers] = useState<Map<string, Paper>>(new Map());
+  const [readingListColor, setReadingListColor] = useState<HighlightColor>('purple'); // Reading list color from settings
   const [documentReady, setDocumentReady] = useState(false);
   const [documentKey, setDocumentKey] = useState(0); // Used to force Document recreation
   const [_highestPageViewed, setHighestPageViewed] = useState(0); // Track reading progress
@@ -652,6 +654,9 @@ export function Reader() {
     setAllPapers(paperMap);
     if (settings.sortOption) {
       setSortOption(settings.sortOption);
+    }
+    if (settings.readingListColor) {
+      setReadingListColor(settings.readingListColor);
     }
   }, [currentProject]);
 
@@ -1442,8 +1447,8 @@ export function Reader() {
       id: uuidv4(),
       paperId: currentPaperId,
       pageNumber: selectionPage,
-      // For further reading, use the selected color (allow user to choose, default to purple)
-      color: markAsFurtherReading ? (color || 'purple') : color,
+      // For further reading, use the selected color (allow user to choose, default to reading list color)
+      color: markAsFurtherReading ? (color || readingListColor) : color,
       text: highlightText,
       rects,
       note: noteText,
@@ -1809,7 +1814,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
   const getHighlightBg = (color: HighlightColor, isFurtherReading?: boolean) => {
     // Force purple for further reading items if they were previously blue
-    const effectiveColor = isFurtherReading && color === 'blue' ? 'purple' : color;
+    const effectiveColor = isFurtherReading && color === 'blue' ? readingListColor : color;
     return HIGHLIGHT_COLORS.find((c) => c.color === effectiveColor)?.bg || HIGHLIGHT_COLORS[0].bg;
   };
 
@@ -2403,7 +2408,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                   }}
                                   onClick={(e) => {
                                     e.stopPropagation();
-
+                                    
                                     // Get click position relative to the page container
                                     const pageEl = pageRefs.current.get(pageNum);
                                     if (!pageEl) return;
@@ -2412,7 +2417,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                     const clickY = e.clientY - pageRect.top;
 
                                     // Find the rect closest to the click position
-                                    const validRects = highlight.rects.filter(r => r.width > 5 && r.height > 5);
+                                    // Lower threshold to 2 to support small reference numbers like [7]
+                                    const validRects = highlight.rects.filter(r => r.width > 2 && r.height > 2);
                                     if (validRects.length === 0) return;
 
                                     // Find which rect was clicked (or closest to click)
@@ -2433,6 +2439,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                     const popupY = closestRect.y * effectiveScale - 10;
                                     setEditingHighlightPosition({ x: popupX, y: popupY });
                                     setEditingHighlight(highlight);
+                                    
                                     // Initialize note state - never default to edit/add mode
                                     setCurrentNoteIndex(0);
                                     setIsAddingNewNote(false);
@@ -2493,6 +2500,19 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                 const totalNotes = highlightNotes.length;
                                 const isInEditMode = isAddingNewNote || editingNoteId !== null;
                                 
+                                // Get reference info for any highlight containing a reference number
+                                const highlightRefNumber = detectReference(editingHighlight.text);
+                                const highlightRefInfo = highlightRefNumber ? getReferenceInfo(highlightRefNumber) : null;
+                                
+                                // For reading list items, the citation is stored in the first note
+                                // The note format is: "[7] Author. Year. Title..."
+                                const firstNote = highlightNotes[0];
+                                const citationFromNote = firstNote?.content;
+                                
+                                // Show reference info: either from detected number, from the note, or use the highlight text as fallback for reading list items
+                                const showRefInfo = highlightRefInfo?.title || (editingHighlight.isFurtherReading && (citationFromNote || editingHighlight.text));
+                                const refDisplayText = highlightRefInfo?.fullCitation || citationFromNote || (editingHighlight.isFurtherReading ? editingHighlight.text : null);
+                                
                                 return (
                               <div
                                 className="rounded-xl overflow-hidden shadow-xl"
@@ -2501,12 +2521,49 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                     ? (editColorInfo?.bgDark || '#3d3522')
                                     : (editColorInfo?.bg || '#fef9c3'),
                                       // Narrower when no notes, wider when notes exist
-                                      minWidth: totalNotes > 0 ? '280px' : 'auto',
+                                      minWidth: (totalNotes > 0 || showRefInfo) ? '280px' : 'auto',
                                   maxWidth: '320px',
                                       transition: 'all 0.2s ease-out',
                                     }}
                                   >
-                                    {/* Color picker bar - hidden during edit mode */}
+                                    {/* Reference info for highlights with detected references or reading list items */}
+                                    {showRefInfo && !isInEditMode && refDisplayText && (
+                                      <div 
+                                        className="px-3 py-2.5 border-b transition-all duration-200"
+                                        style={{
+                                          borderColor: `${editColorInfo?.border}30`,
+                                        }}
+                                      >
+                                        <p 
+                                          className="text-xs leading-relaxed mb-2"
+                                          style={{
+                                            color: isDarkMode
+                                              ? (editColorInfo?.textDark || '#fef3c7')
+                                              : (editColorInfo?.dark || '#78350f'),
+                                          }}
+                                        >
+                                          {refDisplayText}
+                                        </p>
+                                        <a
+                                          href={`https://scholar.google.com/scholar?q=${encodeURIComponent(refDisplayText.slice(0, 200))}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-full transition-opacity hover:opacity-80"
+                                          style={{
+                                            backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)',
+                                            color: isDarkMode
+                                              ? (editColorInfo?.textDark || '#fef3c7')
+                                              : (editColorInfo?.dark || '#78350f'),
+                                          }}
+                                        >
+                                          <ExternalLink className="w-3 h-3" />
+                                          Find on Google Scholar
+                                        </a>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Color picker bar - hidden during edit mode and for reading list items */}
+                                    {!editingHighlight.isFurtherReading && (
                                     <div
                                       className="overflow-hidden transition-all duration-200 ease-out"
                                       style={{
@@ -2529,6 +2586,31 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                         title={color.charAt(0).toUpperCase() + color.slice(1)}
                                       />
                                     ))}
+                                        {/* Reading list toggle button - only show for references */}
+                                        {highlightRefNumber && (
+                                        <button
+                                          onClick={async () => {
+                                            // Add to reading list
+                                            const updated = { ...editingHighlight, isFurtherReading: true, color: readingListColor };
+                                            await updateHighlight(updated);
+                                            setHighlights(prev => prev.map(h => h.id === updated.id ? updated : h));
+                                            setReadingList(prev => [...prev, updated]);
+                                            setAllReadingListItems(prev => [...prev, updated]);
+                                            setEditingHighlight(updated);
+                                          }}
+                                          className="w-6 h-6 rounded-full transition-all duration-150 hover:scale-110 relative flex items-center justify-center"
+                                          style={{
+                                            backgroundColor: isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
+                                            border: '2px solid transparent',
+                                          }}
+                                          title="Add to reading list"
+                                        >
+                                          <BookMarked className="w-3.5 h-3.5" style={{ 
+                                            color: isDarkMode ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)'
+                                          }} />
+                                        </button>
+                                        )}
+                                        
                                         {/* Remove highlight button - circle with red slash */}
                                         {!highlightHasNotes && (
                                   <button
@@ -2550,8 +2632,32 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                             />
                                   </button>
                                         )}
-                                      </div>
                                 </div>
+                                </div>
+                                    )}
+                                    
+                                    {/* Trash icon for reading list items - positioned at bottom right */}
+                                    {editingHighlight.isFurtherReading && !isInEditMode && (
+                                      <div className="px-3 py-2 flex justify-end">
+                                        <button
+                                          onClick={async () => {
+                                            const updated = { ...editingHighlight, isFurtherReading: false };
+                                            await updateHighlight(updated);
+                                            setHighlights(prev => prev.map(h => h.id === updated.id ? updated : h));
+                                            setReadingList(prev => prev.filter(h => h.id !== updated.id));
+                                            setAllReadingListItems(prev => prev.filter(h => h.id !== updated.id));
+                                            setEditingHighlight(updated);
+                                          }}
+                                          className="p-1.5 rounded-full transition-all hover:scale-110 hover:bg-red-500/20"
+                                          style={{
+                                            color: isDarkMode ? 'rgba(239, 68, 68, 0.7)' : 'rgba(239, 68, 68, 0.6)',
+                                          }}
+                                          title="Remove from reading list"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    )}
 
                                     {/* Notes section - hidden when no notes and not editing */}
                                     <div 
@@ -2784,8 +2890,11 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
           {/* Inline Color Picker */}
           {showColorPicker && (() => {
-            const detectedRef = detectReference(selectedText);
-            const looksLikeRef = isLikelyReference(selectedText);
+            // Only detect references for short selections (< 100 chars)
+            // Longer selections are treated as regular text to highlight
+            const isShortSelection = selectedText.length < 100;
+            const detectedRef = isShortSelection ? detectReference(selectedText) : null;
+            const looksLikeRef = isShortSelection && isLikelyReference(selectedText);
             const showRefButton = detectedRef || looksLikeRef;
 
             // Get reference info if available
@@ -2867,7 +2976,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
                       <button
                         onClick={() => {
-                          createHighlight('purple', true, citationNoteInput.trim() || undefined);
+                          createHighlight(readingListColor, true, citationNoteInput.trim() || undefined);
                           setCitationNoteInput('');
                         }}
                         disabled={isAlreadyInReadingList || isAlreadyInLibrary}
@@ -2887,6 +2996,22 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                           </>
                         )}
                       </button>
+                      
+                      {/* Divider and color picker for regular highlighting */}
+                      <div className="flex items-center gap-3 mt-4 pt-3 border-t border-[var(--border-default)]">
+                        <span className="text-[11px] text-[var(--text-muted)] whitespace-nowrap">Or highlight:</span>
+                        <div className="flex gap-1.5">
+                          {HIGHLIGHT_COLORS.map((c) => (
+                            <button
+                              key={c.color}
+                              onClick={() => createHighlight(c.color, false)}
+                              className="w-5 h-5 rounded-full transition-transform hover:scale-110"
+                              style={{ backgroundColor: c.border }}
+                              title={c.color.charAt(0).toUpperCase() + c.color.slice(1)}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2904,7 +3029,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
                       <button
                         onClick={() => {
-                          createHighlight('purple', true, citationNoteInput.trim() || undefined);
+                          createHighlight(readingListColor, true, citationNoteInput.trim() || undefined);
                           setCitationNoteInput('');
                         }}
                         disabled={isAlreadyInReadingList || isAlreadyInLibrary}
@@ -2924,6 +3049,22 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                           </>
                         )}
                       </button>
+                      
+                      {/* Divider and color picker for regular highlighting */}
+                      <div className="flex items-center gap-3 mt-4 pt-3 border-t border-[var(--border-default)]">
+                        <span className="text-[11px] text-[var(--text-muted)] whitespace-nowrap">Or highlight:</span>
+                        <div className="flex gap-1.5">
+                          {HIGHLIGHT_COLORS.map((c) => (
+                            <button
+                              key={c.color}
+                              onClick={() => createHighlight(c.color, false)}
+                              className="w-5 h-5 rounded-full transition-transform hover:scale-110"
+                              style={{ backgroundColor: c.border }}
+                              title={c.color.charAt(0).toUpperCase() + c.color.slice(1)}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -3186,19 +3327,42 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                 />
 
                                 <div className="flex-1 min-w-0">
-                                  <p
-                                    className={`text-xs text-[var(--text-primary)] leading-relaxed ${resolved ? 'line-through' : ''
-                                      }`}
+                                  <button
+                                    onClick={() => {
+                                      if (isCurrentPaper) {
+                                        // Scroll to the highlight and open the popup
+                                        scrollToHighlight(item);
+                                        // Open the popup after scrolling
+                                        setTimeout(() => {
+                                          const pageEl = pageRefs.current.get(item.pageNumber);
+                                          if (pageEl && item.rects.length > 0) {
+                                            const firstRect = item.rects[0];
+                                            const popupX = (firstRect.x + firstRect.width / 2) * effectiveScale;
+                                            const popupY = firstRect.y * effectiveScale - 10;
+                                            setEditingHighlightPosition({ x: popupX, y: popupY });
+                                            setEditingHighlight(item);
+                                            setCurrentNoteIndex(0);
+                                            setIsAddingNewNote(false);
+                                            setEditingNoteId(null);
+                                            setNoteInput('');
+                                            setIsEditingNote(false);
+                                          }
+                                        }, 300);
+                                      } else {
+                                        navigate(`/reader/${item.paperId}`, { state: { from: sourceRoute }, replace: true });
+                                      }
+                                    }}
+                                    className={`text-left text-xs text-[var(--text-primary)] leading-relaxed hover:text-[var(--accent-primary)] transition-colors ${resolved ? 'line-through' : ''}`}
                                     style={{ wordBreak: 'break-all' }}
                                   >
                                     {item.text}
-                                  </p>
+                                  </button>
 
                                   {itemPaper && (
                                     <button
                                       onClick={() => {
                                         if (isCurrentPaper) {
-                                          scrollToPage(item.pageNumber);
+                                          scrollToHighlight(item);
                                         } else {
                                           navigate(`/reader/${itemPaper.id}`, { state: { from: sourceRoute }, replace: true });
                                         }

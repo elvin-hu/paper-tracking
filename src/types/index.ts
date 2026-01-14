@@ -106,6 +106,7 @@ export interface JournalEntry {
 export interface AppSettings {
   openaiApiKey?: string;
   defaultHighlightColor: HighlightColor;
+  readingListColor?: HighlightColor; // Color for reading list items (defaults to purple)
   sidebarWidth: number;
   researchContext?: string; // Context about user's research for AI autofill
   sortOption?: SortOption; // Library sort preference
