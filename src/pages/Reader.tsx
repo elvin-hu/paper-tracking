@@ -2243,8 +2243,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
             className={`w-64 h-full flex flex-col bg-[var(--bg-secondary)] border-r border-[var(--border-default)] transition-transform duration-200 ease-out ${showPaperList ? 'translate-x-0' : '-translate-x-full'
               }`}
           >
-            {/* Sticky Search Bar + Sort */}
-            <div className="px-2 py-1.5 border-b border-[var(--border-default)] flex-shrink-0 sticky top-0 bg-[var(--bg-secondary)] z-10">
+            {/* Search Bar + Sort + Filter */}
+            <div className="px-2 py-2 border-b border-[var(--border-default)] flex-shrink-0 bg-[var(--bg-secondary)]">
               <div className="flex items-center gap-2">
                 {/* Search Input Container - clicking anywhere focuses input */}
                 <div
