@@ -2784,8 +2784,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                   backgroundColor: isDarkMode
                                     ? (editColorInfo?.bgDark || '#3d3522')
                                     : (editColorInfo?.bg || '#fef9c3'),
-                                      // Narrower when no notes, wider when notes exist
-                                      minWidth: (totalNotes > 0 || showRefInfo) ? '280px' : 'auto',
+                                      // Narrower only when just showing color bar, wider when notes exist or adding/editing
+                                      minWidth: (totalNotes > 0 || showRefInfo || isInEditMode) ? '280px' : 'auto',
                                   maxWidth: '320px',
                                       transition: 'all 0.2s ease-out',
                                     }}
