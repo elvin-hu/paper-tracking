@@ -2824,18 +2824,24 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                           {editingHighlight.isFurtherReading && (
                                             <button
                                               onClick={async () => {
-                                                const updated = { ...editingHighlight, isFurtherReading: false };
-                                                await updateHighlight(updated);
-                                                setHighlights(prev => prev.map(h => h.id === updated.id ? updated : h));
-                                                setReadingList(prev => prev.filter(h => h.id !== updated.id));
-                                                setAllReadingListItems(prev => prev.filter(h => h.id !== updated.id));
-                                                setEditingHighlight(updated);
+                                                // If no notes attached, delete the highlight entirely
+                                                if (highlightNotes.length === 0) {
+                                                  await handleDeleteHighlight(editingHighlight.id);
+                                                } else {
+                                                  // If notes exist, just remove from reading list but keep highlight
+                                                  const updated = { ...editingHighlight, isFurtherReading: false };
+                                                  await updateHighlight(updated);
+                                                  setHighlights(prev => prev.map(h => h.id === updated.id ? updated : h));
+                                                  setReadingList(prev => prev.filter(h => h.id !== updated.id));
+                                                  setAllReadingListItems(prev => prev.filter(h => h.id !== updated.id));
+                                                  setEditingHighlight(updated);
+                                                }
                                               }}
                                               className="p-1 rounded-full transition-all hover:scale-110 hover:bg-red-500/20"
                                               style={{
                                                 color: isDarkMode ? 'rgba(239, 68, 68, 0.7)' : 'rgba(239, 68, 68, 0.6)',
                                               }}
-                                              title="Remove from reading list"
+                                              title={highlightNotes.length === 0 ? "Remove highlight and reading list item" : "Remove from reading list"}
                                             >
                                               <Trash2 className="w-3.5 h-3.5" />
                                             </button>
