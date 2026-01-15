@@ -1590,8 +1590,8 @@ export function Reader() {
     setNotes((prev) => [...prev, note]);
     setNoteInput('');
     setIsAddingNewNote(false);
-    setEditingNoteId(note.id);
-    setCurrentNoteIndex(notes.filter(n => n.highlightId === editingHighlight.id).length); // Point to new note
+    setEditingNoteId(null); // Return to view mode, not edit mode
+    setCurrentNoteIndex(notes.filter(n => n.highlightId === editingHighlight.id).length);
   };
 
   const handleUpdateNote = async () => {
@@ -3047,8 +3047,15 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                       )}
                                       
                                       {/* Add new note input - shown when adding */}
-                                      {isAddingNewNote && (
-                                        <div className="animate-in fade-in duration-200">
+                                      <div
+                                        className="overflow-hidden transition-all duration-200 ease-out"
+                                        style={{
+                                          maxHeight: isAddingNewNote ? '200px' : 0,
+                                          opacity: isAddingNewNote ? 1 : 0,
+                                          marginBottom: isAddingNewNote ? '8px' : 0,
+                                        }}
+                                      >
+                                        {isAddingNewNote && (
                                   <textarea
                                     value={noteInput}
                                     onChange={(e) => setNoteInput(e.target.value)}
@@ -3069,7 +3076,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                         e.preventDefault();
                                         if (noteInput.trim()) {
                                           handleAddNote();
-                                                  setIsAddingNewNote(false);
                                         }
                                       } else if (e.key === 'Escape') {
                                                 setIsAddingNewNote(false);
@@ -3077,6 +3083,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                       }
                                     }}
                                   />
+                                        )}
                                   <div className="flex gap-2">
                                     <button
                                       onClick={() => {
@@ -3097,7 +3104,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                       onClick={() => {
                                         if (noteInput.trim()) {
                                           handleAddNote();
-                                                  setIsAddingNewNote(false);
                                         }
                                       }}
                                       disabled={!noteInput.trim()}
@@ -3106,8 +3112,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                       Save
                                     </button>
                                   </div>
-                                        </div>
-                                      )}
+                                      </div>
                                       
                                       {/* Add note pill button - hidden during any edit mode */}
                                       <div
