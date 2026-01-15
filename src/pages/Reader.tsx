@@ -3065,7 +3065,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                   <textarea
                                     value={noteInput}
                                     onChange={(e) => setNoteInput(e.target.value)}
-                                    placeholder="Add a note..."
+                                    placeholder="Create note..."
                                     rows={2}
                                     autoFocus
                                     className="w-full text-xs py-2 px-3 mb-2 resize-none border-0"
@@ -3144,7 +3144,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                           }}
                                         >
                                           <Plus className="w-3.5 h-3.5" />
-                                          {totalNotes > 0 ? 'Add another note' : 'Add a note'}
+                                          {totalNotes > 0 ? 'Create another note' : 'Create note'}
                                         </button>
                                 </div>
                               </div>
