@@ -2241,7 +2241,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Paper List */}
         <div
-          className={`flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-out ${showPaperList ? 'w-64' : 'w-0'
+          className={`flex-shrink-0 overflow-y-hidden overflow-x-visible transition-[width] duration-200 ease-out ${showPaperList ? 'w-64' : 'w-0'
             }`}
         >
           <div
@@ -2249,8 +2249,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               }`}
           >
             {/* Search Bar + Sort + Filter */}
-            <div className="pl-2 pr-3 py-1.5 border-b border-[var(--border-default)] flex-shrink-0 bg-[var(--bg-secondary)]">
-              <div className="flex items-center gap-1.5">
+            <div className="px-2 py-1.5 border-b border-[var(--border-default)] flex-shrink-0 bg-[var(--bg-secondary)] overflow-visible">
+              <div className="flex items-center gap-1">
                 {/* Search Input Container - clicking anywhere focuses input */}
                 <div
                   className={`flex-1 flex items-center gap-1.5 rounded-lg px-2 cursor-text transition-colors ${searchFocused
@@ -2345,12 +2345,14 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                   }`}
                   title="Filter papers"
                 >
-                  <Filter className="w-3.5 h-3.5" />
-                  {activeFilterCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-[var(--accent-primary)] text-white text-[9px] font-medium rounded-full flex items-center justify-center">
-                      {activeFilterCount}
-                    </span>
-                  )}
+                  <div className="relative">
+                    <Filter className="w-3.5 h-3.5" />
+                    {activeFilterCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] bg-[var(--accent-primary)] text-white text-[9px] font-medium rounded-full flex items-center justify-center px-0.5">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </div>
                 </button>
               </div>
             </div>
