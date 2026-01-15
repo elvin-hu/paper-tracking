@@ -434,6 +434,7 @@ export function Reader() {
   const [colorPickerPosition, setColorPickerPosition] = useState({ x: 0, y: 0 });
   const [editingHighlight, setEditingHighlight] = useState<Highlight | null>(null); // Highlight being edited for a new note
   const [editingHighlightPosition, setEditingHighlightPosition] = useState<{ x: number; y: number } | null>(null); // Position for floating editor
+  const [, setScrollTrigger] = useState(0); // Used to trigger re-render on scroll when popup is open
   const [hoveredNoteHighlightId, setHoveredNoteHighlightId] = useState<string | null>(null); // Highlight ID being hovered in sidebar
   const [noteInput, setNoteInput] = useState('');
   const [_currentNoteIndex, setCurrentNoteIndex] = useState(0); // Index of note being viewed
@@ -1054,6 +1055,20 @@ export function Reader() {
       console.warn('[Reader] Failed to save filter state');
     }
   }, [selectedTags, showStarredOnly, showUnreadOnly, showFinishedOnly, showUnfinishedOnly]);
+
+  // Update popup position on scroll when popup is open
+  useEffect(() => {
+    if (!editingHighlight || !containerRef.current) return;
+
+    const container = containerRef.current;
+    const handleScroll = () => {
+      // Trigger a re-render to update popup position
+      setScrollTrigger(prev => prev + 1);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [editingHighlight]);
 
   // Save panel states to localStorage
   useEffect(() => {
