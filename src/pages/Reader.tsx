@@ -2768,14 +2768,10 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                 const highlightRefNumber = detectReference(editingHighlight.text);
                                 const highlightRefInfo = highlightRefNumber ? getReferenceInfo(highlightRefNumber) : null;
                                 
-                                // For reading list items, the citation is stored in the first note
-                                // The note format is: "[7] Author. Year. Title..."
-                                const firstNote = highlightNotes[0];
-                                const citationFromNote = firstNote?.content;
-                                
-                                // Show reference info: either from detected number, from the note, or use the highlight text as fallback for reading list items
-                                const showRefInfo = highlightRefInfo?.title || (editingHighlight.isFurtherReading && (citationFromNote || editingHighlight.text));
-                                const refDisplayText = highlightRefInfo?.fullCitation || citationFromNote || (editingHighlight.isFurtherReading ? editingHighlight.text : null);
+                                // Show reference info: either from detected number or use the highlight text as fallback for reading list items
+                                // Notes should NOT replace the original reference - they are separate
+                                const showRefInfo = highlightRefInfo?.title || (editingHighlight.isFurtherReading && editingHighlight.text);
+                                const refDisplayText = highlightRefInfo?.fullCitation || (editingHighlight.isFurtherReading ? editingHighlight.text : null);
                                 
                                 return (
                               <div
@@ -2808,21 +2804,43 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                         >
                                           {refDisplayText}
                                         </p>
-                                        <a
-                                          href={`https://scholar.google.com/scholar?q=${encodeURIComponent(refDisplayText.slice(0, 200))}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-full transition-opacity hover:opacity-80"
-                                          style={{
-                                            backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)',
-                                            color: isDarkMode
-                                              ? (editColorInfo?.textDark || '#fef3c7')
-                                              : (editColorInfo?.dark || '#78350f'),
-                                          }}
-                                        >
-                                          <ExternalLink className="w-3 h-3" />
-                                          Find on Google Scholar
-                                        </a>
+                                        <div className="flex items-center justify-between">
+                                          <a
+                                            href={`https://scholar.google.com/scholar?q=${encodeURIComponent(refDisplayText.slice(0, 200))}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-full transition-opacity hover:opacity-80"
+                                            style={{
+                                              backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)',
+                                              color: isDarkMode
+                                                ? (editColorInfo?.textDark || '#fef3c7')
+                                                : (editColorInfo?.dark || '#78350f'),
+                                            }}
+                                          >
+                                            <ExternalLink className="w-3 h-3" />
+                                            Find on Google Scholar
+                                          </a>
+                                          {/* Trash icon for reading list items */}
+                                          {editingHighlight.isFurtherReading && (
+                                            <button
+                                              onClick={async () => {
+                                                const updated = { ...editingHighlight, isFurtherReading: false };
+                                                await updateHighlight(updated);
+                                                setHighlights(prev => prev.map(h => h.id === updated.id ? updated : h));
+                                                setReadingList(prev => prev.filter(h => h.id !== updated.id));
+                                                setAllReadingListItems(prev => prev.filter(h => h.id !== updated.id));
+                                                setEditingHighlight(updated);
+                                              }}
+                                              className="p-1 rounded-full transition-all hover:scale-110 hover:bg-red-500/20"
+                                              style={{
+                                                color: isDarkMode ? 'rgba(239, 68, 68, 0.7)' : 'rgba(239, 68, 68, 0.6)',
+                                              }}
+                                              title="Remove from reading list"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
                                     )}
                                     
@@ -2899,28 +2917,6 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                 </div>
                                     )}
                                     
-                                    {/* Trash icon for reading list items - positioned at bottom right */}
-                                    {editingHighlight.isFurtherReading && !isInEditMode && (
-                                      <div className="px-3 py-2 flex justify-end">
-                                        <button
-                                          onClick={async () => {
-                                            const updated = { ...editingHighlight, isFurtherReading: false };
-                                            await updateHighlight(updated);
-                                            setHighlights(prev => prev.map(h => h.id === updated.id ? updated : h));
-                                            setReadingList(prev => prev.filter(h => h.id !== updated.id));
-                                            setAllReadingListItems(prev => prev.filter(h => h.id !== updated.id));
-                                            setEditingHighlight(updated);
-                                          }}
-                                          className="p-1.5 rounded-full transition-all hover:scale-110 hover:bg-red-500/20"
-                                          style={{
-                                            color: isDarkMode ? 'rgba(239, 68, 68, 0.7)' : 'rgba(239, 68, 68, 0.6)',
-                                          }}
-                                          title="Remove from reading list"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                                    )}
 
                                     {/* Notes section - always show to allow adding notes */}
                                     <div 
@@ -2988,9 +2984,9 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                               {/* Edit mode for this note */}
                                               {editingNoteId === note.id && !isAddingNewNote && (
                                                 <div className="animate-in fade-in duration-200">
-                                                  <textarea
-                                                    value={noteInput}
-                                                    onChange={(e) => setNoteInput(e.target.value)}
+                                  <textarea
+                                    value={noteInput}
+                                    onChange={(e) => setNoteInput(e.target.value)}
                                                     placeholder="Edit note..."
                                                     rows={2}
                                                     autoFocus
