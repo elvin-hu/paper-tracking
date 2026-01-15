@@ -784,6 +784,7 @@ textarea::placeholder {
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
   transition: all 0.1s ease;
   display: flex;
   align-items: center;

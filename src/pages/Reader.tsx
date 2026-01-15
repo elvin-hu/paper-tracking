@@ -2836,15 +2836,14 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                         borderBottom: (isInEditMode || totalNotes === 0) ? 'none' : `1px solid ${editColorInfo?.border}30`,
                                       }}
                                     >
-                                      <div className={`px-3 py-2 flex items-center gap-2 ${totalNotes > 0 ? 'justify-center' : ''}`}>
+                                      <div className={`px-3 py-2 flex items-center gap-1 ${totalNotes > 0 ? 'justify-center' : ''}`}>
                                     {HIGHLIGHT_COLORS.map(({ color, border }) => (
                                       <button
                                         key={color}
                                         onClick={() => handleChangeHighlightColor(editingHighlight, color)}
-                                            className="w-6 h-6 rounded-full transition-all duration-150 hover:scale-110"
+                                        className={`color-btn ${editingHighlight.color === color ? 'selected' : ''}`}
                                         style={{
                                           backgroundColor: border,
-                                          border: editingHighlight.color === color ? `2px solid ${isDarkMode ? 'white' : border}` : '2px solid transparent',
                                           boxShadow: editingHighlight.color === color ? `0 0 0 2px ${isDarkMode ? 'rgba(255,255,255,0.3)' : 'white'}` : 'none',
                                         }}
                                         title={color.charAt(0).toUpperCase() + color.slice(1)}
@@ -2933,7 +2932,14 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                       }}
                                     >
                                       {/* List all existing notes */}
-                                      {highlightNotes.length > 0 && (
+                                      <div 
+                                        className="overflow-hidden transition-all duration-200 ease-out"
+                                        style={{
+                                          maxHeight: highlightNotes.length > 0 ? '400px' : 0,
+                                          opacity: highlightNotes.length > 0 ? 1 : 0,
+                                          marginBottom: highlightNotes.length > 0 ? '8px' : 0,
+                                        }}
+                                      >
                                         <div className="space-y-2">
                                           {highlightNotes.map((note) => (
                                             <div
@@ -3044,7 +3050,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                             </div>
                                           ))}
                                         </div>
-                                      )}
+                                      </div>
                                       
                                       {/* Add new note input - shown when adding */}
                                       <div
