@@ -2672,7 +2672,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                   }}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    
+
                                     // Get click position relative to the page container
                                     const pageEl = pageRefs.current.get(pageNum);
                                     if (!pageEl) return;
@@ -2917,19 +2917,19 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
                                             color: isDarkMode ? 'rgba(239, 68, 68, 0.7)' : 'rgba(239, 68, 68, 0.6)',
                                           }}
                                           title="Remove from reading list"
-                                        >
-                                          <Trash2 className="w-4 h-4" />
-                                        </button>
-                                      </div>
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                                     )}
 
-                                    {/* Notes section - hidden when no notes and not editing */}
+                                    {/* Notes section - always show to allow adding notes */}
                                     <div 
                                       className="overflow-hidden transition-all duration-200 ease-out"
                                       style={{
-                                        maxHeight: (totalNotes === 0 && !isInEditMode) ? 0 : '500px',
-                                        opacity: (totalNotes === 0 && !isInEditMode) ? 0 : 1,
-                                        padding: (totalNotes === 0 && !isInEditMode) ? 0 : '12px',
+                                        maxHeight: '500px',
+                                        opacity: 1,
+                                        padding: '12px',
                                       }}
                                     >
                                       {/* List all existing notes */}
