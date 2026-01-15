@@ -75,7 +75,7 @@ const HIGHLIGHT_COLORS: {
   ];
 
 // Parse references from PDF text
-function parseReferences(fullText: string): Map<string, string> {
+function parseReferences(fullText: string): { references: Map<string, string>; refSectionStartPos: number } {
   const references = new Map<string, string>();
 
   // Helper to clean up hyphenated line breaks in extracted text
@@ -170,7 +170,7 @@ function parseReferences(fullText: string): Map<string, string> {
 
   if (refSectionStart === -1) {
     console.log('[RefParser] Could not find references section in PDF');
-    return references;
+    return { references, refSectionStartPos: -1 };
   }
 
   let refSection = normalizedText.slice(refSectionStart);
@@ -336,7 +336,7 @@ function parseReferences(fullText: string): Map<string, string> {
     });
   }
 
-  return references;
+  return { references, refSectionStartPos: refSectionStart };
 }
 
 // Extract a readable title from a reference citation
@@ -444,6 +444,7 @@ export function Reader() {
   const [citationNoteInput, setCitationNoteInput] = useState('');
   const [references, setReferences] = useState<Map<string, string>>(new Map());
   const [referencesLoaded, setReferencesLoaded] = useState(false);
+  const [referencesStartPage, setReferencesStartPage] = useState<number | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'notes' | 'reading'>('notes');
   const [readingList, setReadingList] = useState<Highlight[]>([]);
   const [allReadingListItems, setAllReadingListItems] = useState<Highlight[]>([]); // All reading list items across papers
@@ -610,6 +611,7 @@ export function Reader() {
     // Reset references when switching papers
     setReferences(new Map());
     setReferencesLoaded(false);
+    setReferencesStartPage(null);
 
     // Clear existing PDF data first
     setPdfData(null);
@@ -625,6 +627,7 @@ export function Reader() {
       // Reset references when switching papers
       setReferences(new Map());
       setReferencesLoaded(false);
+      setReferencesStartPage(null);
 
       // Clear existing PDF data first
       setPdfData(null);
@@ -745,8 +748,14 @@ export function Reader() {
       setHighestPageViewed(prev => {
         const newHighest = Math.max(prev, maxVisiblePage);
         if (newHighest > prev && paperRef.current) {
-          // Calculate progress percentage
-          const progress = Math.round((newHighest / numPages) * 100);
+          // Use references start page as the effective "end" for content
+          // If no references section found, use total pages
+          const effectiveEndPage = referencesStartPage || numPages;
+          
+          // Calculate progress percentage based on content pages (up to references)
+          // If user is at or past references, they're at 100%
+          const progressPage = Math.min(newHighest, effectiveEndPage);
+          const progress = Math.min(100, Math.round((progressPage / effectiveEndPage) * 100));
           
           // Debounce saving to database
           if (saveTimeout) clearTimeout(saveTimeout);
@@ -771,7 +780,10 @@ export function Reader() {
 
     // Initialize highestPageViewed from existing progress to avoid overwriting
     if (paperRef.current?.readingProgress) {
-      const existingHighestPage = Math.ceil((paperRef.current.readingProgress / 100) * numPages);
+      // Convert stored progress back to page number
+      // Use effectiveEndPage if available for consistency
+      const effectiveEndPage = referencesStartPage || numPages;
+      const existingHighestPage = Math.ceil((paperRef.current.readingProgress / 100) * effectiveEndPage);
       setHighestPageViewed(existingHighestPage);
       // If already has progress, skip the threshold check
       hasPassedMinThreshold = true;
@@ -784,7 +796,7 @@ export function Reader() {
       container.removeEventListener('scroll', handleScroll);
       if (saveTimeout) clearTimeout(saveTimeout);
     };
-  }, [numPages]);
+  }, [numPages, referencesStartPage]);
 
   // Load all reading list items for deduplication
   useEffect(() => {
@@ -1222,6 +1234,9 @@ export function Reader() {
         const pdfDataCopy = file.data.slice(0);
         const pdf = await pdfjs.getDocument({ data: pdfDataCopy }).promise;
         let fullText = '';
+        
+        // Track page boundaries (cumulative character positions where each page starts)
+        const pageBoundaries: number[] = [0]; // Page 1 starts at position 0
 
         // Extract text from all pages
         const numPagesToExtract = pdf.numPages;
@@ -1232,12 +1247,30 @@ export function Reader() {
             .map((item: any) => (item.str || '') as string)
             .join(' ');
           fullText += pageText + '\n';
+          // Record where the next page starts
+          pageBoundaries.push(fullText.length);
         }
 
         // Parse references from the extracted text
-        const parsedRefs = parseReferences(fullText);
+        const { references: parsedRefs, refSectionStartPos } = parseReferences(fullText);
         setReferences(parsedRefs);
         setReferencesLoaded(true);
+        
+        // Find which page the references section starts on
+        if (refSectionStartPos > 0) {
+          // Find the page where refSectionStartPos falls
+          let refPage = numPagesToExtract; // Default to last page
+          for (let i = 1; i < pageBoundaries.length; i++) {
+            if (refSectionStartPos < pageBoundaries[i]) {
+              refPage = i;
+              break;
+            }
+          }
+          setReferencesStartPage(refPage);
+          console.log(`[Reader] References section starts on page ${refPage} of ${numPagesToExtract}`);
+        } else {
+          setReferencesStartPage(null);
+        }
 
         if (parsedRefs.size > 0) {
           console.log(`Parsed ${parsedRefs.size} references from PDF`);
