@@ -929,10 +929,11 @@ export function Reader() {
       paperRef.current = targetPaper;
     }
 
-    // Dismiss any open popups
+    // Dismiss any open popups and reset AI autofill state
     setEditingHighlight(null);
     setEditingHighlightPosition(null);
     setShowColorPicker(false);
+    setIsAIAutofilling(false);
 
     // Clear PDF state before switching to prevent ArrayBuffer detachment errors
     setPdfData(null);
@@ -1967,7 +1968,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
         });
 
       // Only update local state if we're still viewing the same paper
-      if (paper?.id === targetPaperId) {
+      // Use paperRef.current instead of paper to avoid stale closure issues
+      if (paperRef.current?.id === targetPaperId) {
         setPaper(updatedPaper);
         paperRef.current = updatedPaper;
         setMetadata(newMetadata);
