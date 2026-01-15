@@ -917,6 +917,11 @@ export function Reader() {
       paperRef.current = targetPaper;
     }
 
+    // Dismiss any open popups
+    setEditingHighlight(null);
+    setEditingHighlightPosition(null);
+    setShowColorPicker(false);
+
     // Clear PDF state before switching to prevent ArrayBuffer detachment errors
     setPdfData(null);
     setDocumentReady(false);
@@ -2244,8 +2249,8 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
               }`}
           >
             {/* Search Bar + Sort + Filter */}
-            <div className="px-2 py-2 border-b border-[var(--border-default)] flex-shrink-0 bg-[var(--bg-secondary)]">
-              <div className="flex items-center gap-2">
+            <div className="px-1.5 py-1.5 border-b border-[var(--border-default)] flex-shrink-0 bg-[var(--bg-secondary)]">
+              <div className="flex items-center gap-1">
                 {/* Search Input Container - clicking anywhere focuses input */}
                 <div
                   className={`flex-1 flex items-center gap-1.5 rounded-lg px-2 cursor-text transition-colors ${searchFocused
