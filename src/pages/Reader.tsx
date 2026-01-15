@@ -1493,7 +1493,7 @@ export function Reader() {
     return merged;
   };
 
-  const createHighlight = async (color: HighlightColor, isFurtherReading: boolean = false, note?: string) => {
+  const createHighlight = async (color: HighlightColor, isFurtherReading: boolean = false, note?: string, overrideRefInfo?: { refNumber: string; title: string; fullCitation: string }) => {
     // Use ref to get the CURRENT paperId, avoiding stale closure issues when switching papers quickly
     const currentPaperId = paperIdRef.current;
     if (!currentPaperId || !selectedText) return;
@@ -1528,19 +1528,19 @@ export function Reader() {
     // Merge overlapping rects to prevent double-highlighting
     const rects = mergeOverlappingRects(rawRects);
 
-    // Check if this looks like a reference
-    const refNumber = detectReference(selectedText);
+    // Check if this looks like a reference - use override if provided (fixes race condition)
+    const refNumber = overrideRefInfo?.refNumber || detectReference(selectedText);
 
-    // Mark as further reading if:
     // Mark as further reading if user clicked the "Further Reading" button
     const markAsFurtherReading = isFurtherReading;
 
-    // Get the reference title if available
+    // Get the reference title if available - use override if provided
     let noteText: string | undefined = note;
     let highlightText = selectedText;
 
     if (refNumber && markAsFurtherReading) {
-      const refInfo = getReferenceInfo(refNumber);
+      // Prefer the overrideRefInfo to avoid stale data issues
+      const refInfo = overrideRefInfo || getReferenceInfo(refNumber);
       if (refInfo) {
         // Use the title as the main text for the highlight
         highlightText = refInfo.title;
@@ -3275,7 +3275,13 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
                       <button
                         onClick={() => {
-                          createHighlight(readingListColor, true, citationNoteInput.trim() || undefined);
+                          // Pass the refInfo to avoid stale data when createHighlight re-detects
+                          const refInfoForCreate = detectedRef && refInfo ? {
+                            refNumber: detectedRef,
+                            title: refInfo.title,
+                            fullCitation: refInfo.fullCitation
+                          } : undefined;
+                          createHighlight(readingListColor, true, citationNoteInput.trim() || undefined, refInfoForCreate);
                           setCitationNoteInput('');
                         }}
                         disabled={isAlreadyInReadingList || isAlreadyInLibrary}
@@ -3328,7 +3334,13 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
 
                       <button
                         onClick={() => {
-                          createHighlight(readingListColor, true, citationNoteInput.trim() || undefined);
+                          // Pass the refNumber even without full info to ensure consistency
+                          const refInfoForCreate = detectedRef ? {
+                            refNumber: detectedRef,
+                            title: selectedText,
+                            fullCitation: `Reference [${detectedRef}]`
+                          } : undefined;
+                          createHighlight(readingListColor, true, citationNoteInput.trim() || undefined, refInfoForCreate);
                           setCitationNoteInput('');
                         }}
                         disabled={isAlreadyInReadingList || isAlreadyInLibrary}
