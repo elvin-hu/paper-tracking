@@ -160,10 +160,11 @@ Respond in this exact JSON format:
 
 interface PaperListPanelProps {
   papers: Paper[];
-  selectedPaperIds: Set<string>;
-  onTogglePaper: (paperId: string) => void;
-  onSelectAll: () => void;
-  onDeselectAll: () => void;
+  inSheetPaperIds: Set<string>; // Papers already in the sheet
+  stagedPaperIds: Set<string>; // Papers selected for addition
+  onToggleStaged: (paperId: string) => void;
+  onStageAll: () => void;
+  onClearStaged: () => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   filterTag: string | null;
@@ -173,10 +174,11 @@ interface PaperListPanelProps {
 
 function PaperListPanel({
   papers,
-  selectedPaperIds,
-  onTogglePaper,
-  onSelectAll,
-  onDeselectAll,
+  inSheetPaperIds,
+  stagedPaperIds,
+  onToggleStaged,
+  onStageAll,
+  onClearStaged,
   searchQuery,
   onSearchChange,
   filterTag,
@@ -195,7 +197,8 @@ function PaperListPanel({
     });
   }, [papers, searchQuery, filterTag]);
 
-  const selectedCount = selectedPaperIds.size;
+  const stagedCount = stagedPaperIds.size;
+  const inSheetCount = inSheetPaperIds.size;
   const filteredCount = filteredPapers.length;
 
   return (
@@ -256,45 +259,67 @@ function PaperListPanel({
       {/* Selection controls */}
       <div className="flex items-center justify-between px-4 py-2 bg-white/[0.02] border-b border-white/10">
         <span className="text-xs text-white/50">
-          {selectedCount} of {filteredCount} selected
+          {inSheetCount} in sheet{stagedCount > 0 && `, ${stagedCount} staged`}
         </span>
         <div className="flex gap-2">
           <button
-            onClick={onSelectAll}
+            onClick={onStageAll}
             className="text-xs text-blue-400 hover:text-blue-300"
           >
-            All
+            Stage all
           </button>
-          <button
-            onClick={onDeselectAll}
-            className="text-xs text-white/50 hover:text-white/70"
-          >
-            None
-          </button>
+          {stagedCount > 0 && (
+            <button
+              onClick={onClearStaged}
+              className="text-xs text-white/50 hover:text-white/70"
+            >
+              Clear
+            </button>
+          )}
         </div>
       </div>
 
       {/* Paper list */}
       <div className="flex-1 overflow-y-auto">
         {filteredPapers.map((paper) => {
-          const isSelected = selectedPaperIds.has(paper.id);
+          const isInSheet = inSheetPaperIds.has(paper.id);
+          const isStaged = stagedPaperIds.has(paper.id);
           return (
             <div
               key={paper.id}
-              onClick={() => onTogglePaper(paper.id)}
-              className={`flex items-start gap-3 px-4 py-3 cursor-pointer border-b border-white/5 transition-colors ${
-                isSelected ? 'bg-blue-500/10' : 'hover:bg-white/5'
+              onClick={() => !isInSheet && onToggleStaged(paper.id)}
+              className={`flex items-start gap-3 px-4 py-3 border-b border-white/5 transition-colors ${
+                isInSheet 
+                  ? 'bg-green-500/5 cursor-default' 
+                  : isStaged 
+                    ? 'bg-blue-500/10 cursor-pointer' 
+                    : 'hover:bg-white/5 cursor-pointer'
               }`}
             >
-              <div className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
-                isSelected ? 'bg-blue-500 border-blue-500' : 'border-white/30'
+              <div className={`mt-0.5 w-4 h-4 rounded flex-shrink-0 flex items-center justify-center transition-colors ${
+                isInSheet 
+                  ? 'bg-green-500/20 text-green-400' 
+                  : isStaged 
+                    ? 'bg-blue-500 border border-blue-500' 
+                    : 'border border-white/30'
               }`}>
-                {isSelected && <Check className="w-3 h-3 text-white" />}
+                {isInSheet ? (
+                  <Check className="w-3 h-3" />
+                ) : isStaged ? (
+                  <Check className="w-3 h-3 text-white" />
+                ) : null}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-white/90 line-clamp-2 leading-snug">
-                  {paper.title}
-                </p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm text-white/90 line-clamp-2 leading-snug">
+                    {paper.title}
+                  </p>
+                  {isInSheet && (
+                    <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] bg-green-500/20 text-green-400 rounded">
+                      In sheet
+                    </span>
+                  )}
+                </div>
                 {paper.authors && (
                   <p className="text-xs text-white/40 mt-1 truncate">
                     {paper.authors}
@@ -1247,10 +1272,11 @@ interface SpreadsheetProps {
   papers: Paper[];
   onUpdateSheet: (sheet: LitReviewSheet) => void;
   onRunExtraction: (rowIds?: string[], forceRefresh?: boolean) => void;
+  onRemoveRow: (rowId: string) => void;
   isExtracting: boolean;
 }
 
-function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, isExtracting }: SpreadsheetProps) {
+function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRow, isExtracting }: SpreadsheetProps) {
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
   const [resizing, setResizing] = useState<{ columnId: string; startX: number; startWidth: number } | null>(null);
   const [showMultiColumnModal, setShowMultiColumnModal] = useState(false);
@@ -1538,6 +1564,17 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, isExtracti
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
                         </button>
+                        <button
+                          onClick={() => {
+                            if (confirm('Remove this paper from the sheet?')) {
+                              onRemoveRow(row.id);
+                            }
+                          }}
+                          className="p-1 text-white/30 hover:text-red-400 rounded transition-colors"
+                          title="Remove from sheet"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1816,6 +1853,7 @@ export function LitReview() {
   const [showNewSheetModal, setShowNewSheetModal] = useState(false);
   const [newSheetName, setNewSheetName] = useState('');
   const [showSheetMenu, setShowSheetMenu] = useState(false);
+  const [stagedPaperIds, setStagedPaperIds] = useState<Set<string>>(new Set());
 
   // Load data
   useEffect(() => {
@@ -1885,12 +1923,109 @@ export function LitReview() {
     return Array.from(tags).sort();
   }, [papers]);
 
-  const selectedPaperIds = useMemo(() => 
+  const inSheetPaperIds = useMemo(() => 
     new Set(currentSheet?.selectedPaperIds || []),
     [currentSheet]
   );
 
   // Handlers
+  
+  // Toggle paper in staging area
+  const handleToggleStaged = (paperId: string) => {
+    setStagedPaperIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(paperId)) {
+        newSet.delete(paperId);
+      } else {
+        newSet.add(paperId);
+      }
+      return newSet;
+    });
+  };
+
+  // Stage all visible papers (that aren't already in sheet)
+  const handleStageAll = () => {
+    const filteredPapers = papers.filter(p => {
+      const matchesSearch = !searchQuery || 
+        p.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesTag = !filterTag || p.tags.includes(filterTag);
+      const notInSheet = !inSheetPaperIds.has(p.id);
+      return matchesSearch && matchesTag && notInSheet;
+    });
+    setStagedPaperIds(new Set(filteredPapers.map(p => p.id)));
+  };
+
+  // Clear staging area
+  const handleClearStaged = () => {
+    setStagedPaperIds(new Set());
+  };
+
+  // Confirm and add staged papers to sheet
+  const handleConfirmAddPapers = async () => {
+    if (!currentSheet || stagedPaperIds.size === 0) return;
+
+    const papersToAdd = papers.filter(p => stagedPaperIds.has(p.id));
+    const newSelectedIds = [...currentSheet.selectedPaperIds, ...papersToAdd.map(p => p.id)];
+    
+    const newRows = [...currentSheet.rows];
+    const rowsToAdd: LitReviewRow[] = [];
+    
+    papersToAdd.forEach(paper => {
+      const newRow: LitReviewRow = {
+        id: uuidv4(),
+        paperId: paper.id,
+        paperTitle: paper.title,
+        cells: {},
+        status: 'pending',
+      };
+      newRows.push(newRow);
+      rowsToAdd.push(newRow);
+    });
+
+    // Add rows to database (skip if using localStorage)
+    if (!useLocalStorage && rowsToAdd.length > 0) {
+      try {
+        await Promise.all(rowsToAdd.map(row => upsertLitReviewRow(currentSheet.id, row)));
+      } catch (error) {
+        console.error('Error adding rows:', error);
+      }
+    }
+
+    handleUpdateSheet({
+      ...currentSheet,
+      selectedPaperIds: newSelectedIds,
+      rows: newRows,
+    });
+
+    // Clear staging area
+    setStagedPaperIds(new Set());
+  };
+
+  // Remove a row from the sheet
+  const handleRemoveRow = async (rowId: string) => {
+    if (!currentSheet) return;
+
+    const rowToRemove = currentSheet.rows.find(r => r.id === rowId);
+    if (!rowToRemove) return;
+
+    const newSelectedIds = currentSheet.selectedPaperIds.filter(id => id !== rowToRemove.paperId);
+    const newRows = currentSheet.rows.filter(r => r.id !== rowId);
+
+    // Delete from database (skip if using localStorage)
+    if (!useLocalStorage) {
+      try {
+        await deleteLitReviewRowByPaper(currentSheet.id, rowToRemove.paperId);
+      } catch (error) {
+        console.error('Error removing row:', error);
+      }
+    }
+
+    handleUpdateSheet({
+      ...currentSheet,
+      selectedPaperIds: newSelectedIds,
+      rows: newRows,
+    });
+  };
   const handleCreateSheet = async () => {
     if (!currentProject || !newSheetName.trim()) return;
 
@@ -1954,112 +2089,6 @@ export function LitReview() {
       }
     }
   }, [useLocalStorage]);
-
-  const handleTogglePaper = async (paperId: string) => {
-    if (!currentSheet) return;
-
-    const paper = papers.find(p => p.id === paperId);
-    if (!paper) return;
-
-    let newSelectedIds: string[];
-    let newRows: LitReviewRow[];
-
-    if (selectedPaperIds.has(paperId)) {
-      // Remove paper
-      newSelectedIds = currentSheet.selectedPaperIds.filter(id => id !== paperId);
-      newRows = currentSheet.rows.filter(r => r.paperId !== paperId);
-      
-      // Delete row from database (skip if using localStorage)
-      if (!useLocalStorage) {
-        try {
-          await deleteLitReviewRowByPaper(currentSheet.id, paperId);
-        } catch (error) {
-          console.error('Error removing row:', error);
-        }
-      }
-    } else {
-      // Add paper
-      newSelectedIds = [...currentSheet.selectedPaperIds, paperId];
-      const newRow: LitReviewRow = {
-        id: uuidv4(),
-        paperId,
-        paperTitle: paper.title,
-        cells: {},
-        status: 'pending',
-      };
-      newRows = [...currentSheet.rows, newRow];
-      
-      // Add row to database (skip if using localStorage)
-      if (!useLocalStorage) {
-        try {
-          await upsertLitReviewRow(currentSheet.id, newRow);
-        } catch (error) {
-          console.error('Error adding row:', error);
-        }
-      }
-    }
-
-    handleUpdateSheet({
-      ...currentSheet,
-      selectedPaperIds: newSelectedIds,
-      rows: newRows,
-    });
-  };
-
-  const handleSelectAllPapers = async () => {
-    if (!currentSheet) return;
-
-    const filteredPapers = papers.filter(p => {
-      const matchesSearch = !searchQuery || 
-        p.title.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesTag = !filterTag || p.tags.includes(filterTag);
-      return matchesSearch && matchesTag;
-    });
-
-    const newSelectedIds = [...new Set([...currentSheet.selectedPaperIds, ...filteredPapers.map(p => p.id)])];
-    const existingPaperIds = new Set(currentSheet.rows.map(r => r.paperId));
-    
-    const newRows = [...currentSheet.rows];
-    const rowsToAdd: LitReviewRow[] = [];
-    
-    filteredPapers.forEach(paper => {
-      if (!existingPaperIds.has(paper.id)) {
-        const newRow: LitReviewRow = {
-          id: uuidv4(),
-          paperId: paper.id,
-          paperTitle: paper.title,
-          cells: {},
-          status: 'pending',
-        };
-        newRows.push(newRow);
-        rowsToAdd.push(newRow);
-      }
-    });
-
-    // Add rows to database (skip if using localStorage)
-    if (!useLocalStorage && rowsToAdd.length > 0) {
-      try {
-        await Promise.all(rowsToAdd.map(row => upsertLitReviewRow(currentSheet.id, row)));
-      } catch (error) {
-        console.error('Error adding rows:', error);
-      }
-    }
-
-    handleUpdateSheet({
-      ...currentSheet,
-      selectedPaperIds: newSelectedIds,
-      rows: newRows,
-    });
-  };
-
-  const handleDeselectAllPapers = () => {
-    if (!currentSheet) return;
-    handleUpdateSheet({
-      ...currentSheet,
-      selectedPaperIds: [],
-      rows: [],
-    });
-  };
 
   const handleApplyPreset = (preset: LitReviewPreset) => {
     if (!currentSheet) return;
@@ -2341,10 +2370,11 @@ export function LitReview() {
           <div className="w-72 flex-shrink-0">
             <PaperListPanel
               papers={papers}
-              selectedPaperIds={selectedPaperIds}
-              onTogglePaper={handleTogglePaper}
-              onSelectAll={handleSelectAllPapers}
-              onDeselectAll={handleDeselectAllPapers}
+              inSheetPaperIds={inSheetPaperIds}
+              stagedPaperIds={stagedPaperIds}
+              onToggleStaged={handleToggleStaged}
+              onStageAll={handleStageAll}
+              onClearStaged={handleClearStaged}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
               filterTag={filterTag}
@@ -2359,6 +2389,7 @@ export function LitReview() {
             papers={papers}
             onUpdateSheet={handleUpdateSheet}
             onRunExtraction={handleRunExtraction}
+            onRemoveRow={handleRemoveRow}
             isExtracting={isExtracting}
           />
 
@@ -2493,6 +2524,62 @@ export function LitReview() {
               >
                 Create Sheet
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom confirmation bar for staged papers */}
+      {stagedPaperIds.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 animate-in slide-in-from-bottom duration-200">
+          <div className="bg-[#1e1e22] border-t border-white/10 shadow-2xl">
+            <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <span className="text-sm font-medium text-blue-400">{stagedPaperIds.size}</span>
+                  </div>
+                  <span className="text-sm text-white/80">
+                    paper{stagedPaperIds.size !== 1 ? 's' : ''} selected
+                  </span>
+                </div>
+                <div className="h-4 w-px bg-white/10" />
+                <div className="flex -space-x-1">
+                  {Array.from(stagedPaperIds).slice(0, 3).map(id => {
+                    const paper = papers.find(p => p.id === id);
+                    return (
+                      <div
+                        key={id}
+                        className="w-6 h-6 rounded-full bg-white/10 border-2 border-[#1e1e22] flex items-center justify-center"
+                        title={paper?.title}
+                      >
+                        <FileText className="w-3 h-3 text-white/50" />
+                      </div>
+                    );
+                  })}
+                  {stagedPaperIds.size > 3 && (
+                    <div className="w-6 h-6 rounded-full bg-white/10 border-2 border-[#1e1e22] flex items-center justify-center">
+                      <span className="text-[10px] text-white/50">+{stagedPaperIds.size - 3}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleClearStaged}
+                  className="px-4 py-2 text-sm text-white/60 hover:text-white/80 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmAddPapers}
+                  className="flex items-center gap-2 px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add to Sheet
+                </button>
+              </div>
             </div>
           </div>
         </div>
