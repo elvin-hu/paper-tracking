@@ -199,7 +199,6 @@ function PaperListPanel({
 
   const stagedCount = stagedPaperIds.size;
   const inSheetCount = inSheetPaperIds.size;
-  const filteredCount = filteredPapers.length;
 
   return (
     <div className="flex flex-col h-full bg-[#1a1a1e] border-r border-white/10">
