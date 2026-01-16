@@ -624,6 +624,76 @@ Example response format: ["prompt for column 1", "prompt for column 2", ...]`,
   }
 }
 
+// AI Column Inference from Natural Language Descriptions
+interface InferredColumn {
+  name: string;
+  type: LitReviewColumnType;
+  description: string;
+  options?: string[];
+}
+
+async function inferColumnsFromDescriptions(descriptions: string[]): Promise<InferredColumn[]> {
+  const data = await callOpenAIWithFallback([
+    {
+      role: 'system',
+      content: `You are an expert at designing data schemas for literature review analysis.
+
+Given natural language descriptions of what information to extract from academic papers, you will:
+1. Create a short, clear column NAME (2-4 words max)
+2. Determine the best data TYPE:
+   - "text" for free-form text answers
+   - "number" for numeric values (sample size, year, count, etc.)
+   - "boolean" for yes/no questions
+   - "select" for single-choice from a list (if categories are mentioned or implied)
+   - "multiselect" for multiple choices from a list
+3. Write a precise extraction PROMPT that tells an AI exactly what to look for
+4. If type is "select" or "multiselect", provide the OPTIONS array
+
+Be intelligent about inferring types:
+- Questions asking "what type/kind/category" → often "select"
+- Questions asking "does the paper..." or "is there..." → "boolean"
+- Questions about counts, sizes, years → "number"
+- Questions about methods, findings, limitations → "text"`,
+    },
+    {
+      role: 'user',
+      content: `Convert these descriptions into structured columns for a literature review spreadsheet:
+
+${descriptions.map((d, i) => `${i + 1}. ${d}`).join('\n')}
+
+Return a JSON array of objects with this structure:
+[
+  {
+    "name": "Short Column Name",
+    "type": "text|number|boolean|select|multiselect",
+    "description": "Detailed extraction prompt for the AI",
+    "options": ["Option 1", "Option 2"] // only for select/multiselect
+  }
+]`,
+    },
+  ], { temperature: 0.3 });
+
+  const content = data.choices?.[0]?.message?.content || '[]';
+  const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
+  
+  try {
+    const parsed = JSON.parse(cleanContent);
+    return parsed.map((col: InferredColumn) => ({
+      name: col.name || 'Unnamed',
+      type: (['text', 'number', 'boolean', 'select', 'multiselect'].includes(col.type) ? col.type : 'text') as LitReviewColumnType,
+      description: col.description || '',
+      options: col.options,
+    }));
+  } catch {
+    // Fallback: treat each description as a text column
+    return descriptions.map(desc => ({
+      name: desc.slice(0, 30),
+      type: 'text' as LitReviewColumnType,
+      description: desc,
+    }));
+  }
+}
+
 // Multi-Column Add Modal
 interface MultiColumnModalProps {
   onAddColumns: (columns: LitReviewColumn[]) => void;
@@ -710,37 +780,40 @@ function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
   };
 
   const handleQuickAdd = async () => {
-    const columnNames = quickText
+    const descriptions = quickText
       .split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0);
 
-    if (columnNames.length === 0) {
-      alert('Please enter at least one column name');
+    if (descriptions.length === 0) {
+      alert('Please enter at least one column description');
       return;
     }
 
     setIsGenerating(true);
     try {
-      // Generate prompts for all columns (AI will infer types)
-      const prompts = await generateColumnPrompts(
-        columnNames.map(name => ({ name, type: 'text' as LitReviewColumnType }))
-      );
+      // AI infers column names, types, and prompts from descriptions
+      const inferredColumns = await inferColumnsFromDescriptions(descriptions);
 
-      // Create columns with generated prompts
-      const newColumns: LitReviewColumn[] = columnNames.map((name, i) => ({
+      // Create columns with inferred properties
+      const newColumns: LitReviewColumn[] = inferredColumns.map(col => ({
         id: uuidv4(),
-        name,
-        type: 'text' as LitReviewColumnType,
-        description: prompts[i] || '',
-        width: 150,
+        name: col.name,
+        type: col.type,
+        description: col.description,
+        options: col.options?.map(opt => ({
+          id: uuidv4(),
+          label: opt,
+          color: `hsl(${Math.random() * 360}, 60%, 50%)`,
+        })),
+        width: col.type === 'text' ? 200 : 150,
       }));
 
       onAddColumns(newColumns);
       onClose();
     } catch (error) {
-      console.error('Failed to generate prompts:', error);
-      alert('Failed to generate prompts. Please try again.');
+      console.error('Failed to infer columns:', error);
+      alert('Failed to create columns. Please try again.');
     } finally {
       setIsGenerating(false);
     }
@@ -812,21 +885,25 @@ function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
         </div>
 
         {mode === 'quick' ? (
-          /* Quick Mode - Plain text entry */
+          /* Quick Mode - Natural language descriptions */
           <div className="p-5 space-y-4">
             <div>
               <label className="block text-sm text-white/70 mb-2">
-                Enter column names (one per line)
+                Describe what you want to extract (one per line)
               </label>
               <textarea
                 value={quickText}
                 onChange={(e) => setQuickText(e.target.value)}
-                placeholder={`Study Type\nSample Size\nKey Findings\nLimitations\n...`}
+                placeholder={`What research methodology was used (qualitative, quantitative, or mixed)?
+How many participants were in the study?
+What are the main findings?
+Does the paper include a user study?
+What limitations are mentioned by the authors?`}
                 rows={10}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none font-mono"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none"
               />
               <p className="text-xs text-white/40 mt-2">
-                {quickColumnCount} column{quickColumnCount !== 1 ? 's' : ''} • AI will automatically generate extraction prompts
+                {quickColumnCount} column{quickColumnCount !== 1 ? 's' : ''} • AI will infer column names, types, and extraction prompts
               </p>
             </div>
           </div>
