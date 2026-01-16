@@ -14,7 +14,7 @@ import {
   RefreshCw,
   Archive,
 } from 'lucide-react';
-import type { Paper, JournalEntry, KeyInsight, Note } from '../types';
+import type { Paper, JournalEntry, KeyInsight, Note, Highlight } from '../types';
 import {
   getAllPapers,
   getAllJournalEntries,
@@ -22,16 +22,18 @@ import {
   updateJournalEntry,
   getSettings,
   getAllNotes,
+  getAllHighlightsByProject,
 } from '../lib/database';
 import { callOpenAI } from '../lib/openai';
 
 import { useProject } from '../contexts/ProjectContext';
 
-// Group papers by the dates their notes were created
-// Group papers by date (either from notes or archive date)
+// Group papers by the dates their notes/highlights were created
+// Group papers by date (from highlights, notes, or archive date)
 function groupPapersForJournal(
   papers: Paper[],
-  notes: Note[]
+  notes: Note[],
+  highlights: Highlight[]
 ): Map<string, Paper[]> {
   const groups = new Map<string, Paper[]>();
   const paperMap = new Map(papers.map(p => [p.id, p]));
@@ -51,14 +53,21 @@ function groupPapersForJournal(
     }
   };
 
-  // 1. Group by notes
+  // 1. Group by highlights (papers you've read and highlighted)
+  highlights.forEach(highlight => {
+    const highlightDate = new Date(highlight.createdAt);
+    const dateStr = `${highlightDate.getFullYear()}-${String(highlightDate.getMonth() + 1).padStart(2, '0')}-${String(highlightDate.getDate()).padStart(2, '0')}`;
+    addToGroup(dateStr, highlight.paperId);
+  });
+
+  // 2. Group by notes
   notes.forEach(note => {
     const noteDate = new Date(note.createdAt);
     const dateStr = `${noteDate.getFullYear()}-${String(noteDate.getMonth() + 1).padStart(2, '0')}-${String(noteDate.getDate()).padStart(2, '0')}`;
     addToGroup(dateStr, note.paperId);
   });
 
-  // 2. Group archived papers (by archivedAt or updated date)
+  // 3. Group archived papers (by archivedAt or updated date)
   papers.forEach(paper => {
     if (paper.isArchived) {
       // Use metadata.archivedAt if available (most accurate for archive action), otherwise fallback
@@ -98,6 +107,7 @@ export default function Journal() {
   const navigate = useNavigate();
   const [papers, setPapers] = useState<Paper[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [journalEntries, setJournalEntries] = useState<Map<string, JournalEntry>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [generatingDate, setGeneratingDate] = useState<string | null>(null);
@@ -112,14 +122,16 @@ export default function Journal() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [loadedPapers, entries, loadedNotes] = await Promise.all([
+      const [loadedPapers, entries, loadedNotes, loadedHighlights] = await Promise.all([
         getAllPapers(currentProject?.id),
         getAllJournalEntries(currentProject?.id),
         getAllNotes(currentProject?.id),
+        getAllHighlightsByProject(currentProject?.id),
       ]);
 
       setPapers(loadedPapers);
       setNotes(loadedNotes);
+      setHighlights(loadedHighlights);
 
       const entryMap = new Map<string, JournalEntry>();
       entries.forEach(e => entryMap.set(e.date, e));
@@ -478,8 +490,8 @@ Respond in this exact JSON format:
     setEditingInsights(editingInsights.filter((_, i) => i !== index));
   };
 
-  // Group papers by date based on note activity and archives
-  const papersByDate = groupPapersForJournal(papers, notes);
+  // Group papers by date based on highlights, notes, and archives
+  const papersByDate = groupPapersForJournal(papers, notes, highlights);
   const sortedDates = Array.from(papersByDate.keys()).sort((a: string, b: string) => b.localeCompare(a));
 
   return (
