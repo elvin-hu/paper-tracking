@@ -508,7 +508,7 @@ async function callOpenAIWithFallback(
   messages: { role: string; content: string }[],
   options: { model?: string; temperature?: number; max_tokens?: number } = {}
 ): Promise<{ choices: { message: { content: string } }[] }> {
-  const { model = 'gpt-4o-mini', temperature = 0.3, max_tokens = 1000 } = options;
+  const { model = 'gpt-4o', temperature = 0.3, max_tokens = 2000 } = options;
   
   // Try server-side API first
   try {
