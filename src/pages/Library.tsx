@@ -28,6 +28,7 @@ import {
   PenTool,
   XCircle,
   Download,
+  Table2,
 } from 'lucide-react';
 import type { Paper, SortOption, Note } from '../types';
 import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, updatePapersBatch, getSettings, updateSettings, getAllNotes, archivePaper } from '../lib/database';
@@ -1267,6 +1268,13 @@ export function Library() {
             >
               <BookMarked className="w-4 h-4" />
               <span className="font-medium">Reading List</span>
+            </button>
+            <button
+              onClick={() => navigate('/lit-review')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm"
+            >
+              <Table2 className="w-4 h-4" />
+              <span className="font-medium">Lit Review</span>
             </button>
             {composingEnabled && (
               <button

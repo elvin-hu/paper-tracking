@@ -538,6 +538,207 @@ export async function deleteNote(id: string): Promise<void> {
 
 
 
+// ============================================================================
+// Literature Review Operations
+// ============================================================================
+
+import type {
+  LitReviewSheet,
+  LitReviewRow,
+  LitReviewVersion,
+  LitReviewColumn,
+  LitReviewCell,
+} from '../types/litreview';
+
+// Get all sheets for a project
+export async function getLitReviewSheets(projectId: string): Promise<LitReviewSheet[]> {
+  const userId = await getCurrentUserId();
+  
+  const { data: sheetsData, error: sheetsError } = await supabase
+    .from('lit_review_sheets')
+    .select('*')
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (sheetsError) throw sheetsError;
+  if (!sheetsData) return [];
+
+  // For each sheet, get its rows and versions
+  const sheets: LitReviewSheet[] = await Promise.all(
+    sheetsData.map(async (sheet) => {
+      const [rowsResult, versionsResult] = await Promise.all([
+        supabase
+          .from('lit_review_rows')
+          .select('*')
+          .eq('sheet_id', sheet.id)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('lit_review_versions')
+          .select('*')
+          .eq('sheet_id', sheet.id)
+          .order('created_at', { ascending: true }),
+      ]);
+
+      const rows: LitReviewRow[] = (rowsResult.data || []).map((row) => ({
+        id: row.id,
+        paperId: row.paper_id,
+        paperTitle: row.paper_title,
+        cells: row.cells as Record<string, LitReviewCell>,
+        status: row.status as LitReviewRow['status'],
+        errorMessage: row.error_message,
+        extractedAt: row.extracted_at ? new Date(row.extracted_at) : undefined,
+      }));
+
+      const versions: LitReviewVersion[] = (versionsResult.data || []).map((v) => ({
+        id: v.id,
+        name: v.name,
+        createdAt: new Date(v.created_at),
+        columns: v.columns as LitReviewColumn[],
+        rows: v.rows as LitReviewRow[],
+      }));
+
+      return {
+        id: sheet.id,
+        projectId: sheet.project_id,
+        name: sheet.name,
+        columns: sheet.columns as LitReviewColumn[],
+        rows,
+        versions,
+        selectedPaperIds: sheet.selected_paper_ids || [],
+        currentVersionId: sheet.current_version_id,
+        createdAt: new Date(sheet.created_at),
+        updatedAt: new Date(sheet.updated_at),
+      };
+    })
+  );
+
+  return sheets;
+}
+
+// Create a new sheet
+export async function createLitReviewSheet(
+  projectId: string,
+  name: string
+): Promise<LitReviewSheet> {
+  const userId = await getCurrentUserId();
+
+  const { data, error } = await supabase
+    .from('lit_review_sheets')
+    .insert({
+      project_id: projectId,
+      user_id: userId,
+      name,
+      columns: [],
+      selected_paper_ids: [],
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return {
+    id: data.id,
+    projectId: data.project_id,
+    name: data.name,
+    columns: [],
+    rows: [],
+    versions: [],
+    selectedPaperIds: [],
+    createdAt: new Date(data.created_at),
+    updatedAt: new Date(data.updated_at),
+  };
+}
+
+// Update a sheet (columns, name, selectedPaperIds)
+export async function updateLitReviewSheet(sheet: LitReviewSheet): Promise<void> {
+  const { error } = await supabase
+    .from('lit_review_sheets')
+    .update({
+      name: sheet.name,
+      columns: sheet.columns,
+      selected_paper_ids: sheet.selectedPaperIds,
+      current_version_id: sheet.currentVersionId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', sheet.id);
+
+  if (error) throw error;
+}
+
+// Delete a sheet
+export async function deleteLitReviewSheet(sheetId: string): Promise<void> {
+  const { error } = await supabase
+    .from('lit_review_sheets')
+    .delete()
+    .eq('id', sheetId);
+
+  if (error) throw error;
+}
+
+// Add or update a row
+export async function upsertLitReviewRow(
+  sheetId: string,
+  row: LitReviewRow
+): Promise<void> {
+  const { error } = await supabase
+    .from('lit_review_rows')
+    .upsert({
+      id: row.id,
+      sheet_id: sheetId,
+      paper_id: row.paperId,
+      paper_title: row.paperTitle,
+      cells: row.cells,
+      status: row.status,
+      error_message: row.errorMessage,
+      extracted_at: row.extractedAt?.toISOString(),
+    }, { onConflict: 'sheet_id,paper_id' });
+
+  if (error) throw error;
+}
+
+// Delete a row
+export async function deleteLitReviewRow(rowId: string): Promise<void> {
+  const { error } = await supabase
+    .from('lit_review_rows')
+    .delete()
+    .eq('id', rowId);
+
+  if (error) throw error;
+}
+
+// Delete rows by paper ID for a sheet
+export async function deleteLitReviewRowByPaper(
+  sheetId: string,
+  paperId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('lit_review_rows')
+    .delete()
+    .eq('sheet_id', sheetId)
+    .eq('paper_id', paperId);
+
+  if (error) throw error;
+}
+
+// Save a version snapshot
+export async function saveLitReviewVersion(
+  sheetId: string,
+  version: LitReviewVersion
+): Promise<void> {
+  const { error } = await supabase
+    .from('lit_review_versions')
+    .insert({
+      id: version.id,
+      sheet_id: sheetId,
+      name: version.name,
+      columns: version.columns,
+      rows: version.rows,
+    });
+
+  if (error) throw error;
+}
+
 // Further reading operations (now using highlights with isFurtherReading flag)
 export async function getFurtherReadingByPaper(paperId: string): Promise<FurtherReading[]> {
   const highlights = await getHighlightsByPaper(paperId);

@@ -8,6 +8,7 @@ import { Auth } from './pages/Auth';
 import { Account } from './pages/Account';
 import { Compose } from './pages/Compose';
 import Journal from './pages/Journal';
+import { LitReview } from './pages/LitReview';
 import { ProjectProvider } from './contexts/ProjectContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { FeatureFlagProvider } from './contexts/FeatureFlagContext';
@@ -52,6 +53,11 @@ function App() {
               <Route path="/compose" element={
                 <ProtectedRoute>
                   <Compose />
+                </ProtectedRoute>
+              } />
+              <Route path="/lit-review" element={
+                <ProtectedRoute>
+                  <LitReview />
                 </ProtectedRoute>
               } />
               <Route path="/settings" element={

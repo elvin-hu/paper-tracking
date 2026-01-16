@@ -2,6 +2,14 @@
 // In production: calls /api/openai (Vercel Edge Function)
 // In development: calls OpenAI directly using VITE_OPENAI_API_KEY from .env.local
 
+import * as pdfjs from 'pdfjs-dist';
+
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
+
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -73,4 +81,33 @@ export async function callOpenAI(request: ChatCompletionRequest): Promise<ChatCo
   }
 
   return response.json();
+}
+
+// Extract text from a PDF ArrayBuffer
+export async function extractTextFromPDF(pdfData: ArrayBuffer): Promise<string> {
+  try {
+    const pdf = await pdfjs.getDocument({ data: pdfData }).promise;
+    let fullText = '';
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item) => {
+          // TextItem has 'str' property, TextMarkedContent doesn't
+          if ('str' in item) {
+            return item.str;
+          }
+          return '';
+        })
+        .join(' ');
+      fullText += pageText + '\n';
+    }
+
+    pdf.destroy();
+    return fullText;
+  } catch (error) {
+    console.error('Error extracting PDF text:', error);
+    throw error;
+  }
 }
