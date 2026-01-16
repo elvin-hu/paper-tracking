@@ -215,7 +215,7 @@ function PaperListPanel({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search papers..."
-            className="w-full pl-10 pr-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+            className="w-full pl-10 pr-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
           />
         </div>
 
@@ -224,7 +224,7 @@ function PaperListPanel({
           <button
             onClick={() => setShowTagFilter(!showTagFilter)}
             className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors ${
-              filterTag ? 'bg-blue-500/20 text-blue-400' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+              filterTag ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
             }`}
           >
             <Filter className="w-3.5 h-3.5" />
@@ -245,7 +245,7 @@ function PaperListPanel({
                   key={tag}
                   onClick={() => { onFilterTagChange(tag); setShowTagFilter(false); }}
                   className={`w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-tertiary)] ${
-                    filterTag === tag ? 'text-blue-400' : 'text-[var(--text-primary)]'
+                    filterTag === tag ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'
                   }`}
                 >
                   {tag}
@@ -264,7 +264,7 @@ function PaperListPanel({
         <div className="flex gap-2">
           <button
             onClick={onStageAll}
-            className="text-xs text-blue-400 hover:text-blue-300"
+            className="text-xs text-[var(--accent-primary)] hover:text-[var(--accent-primary)]"
           >
             Stage all
           </button>
@@ -290,17 +290,17 @@ function PaperListPanel({
               onClick={() => !isInSheet && onToggleStaged(paper.id)}
               className={`flex items-start gap-3 px-4 py-3 border-b border-[var(--border-muted)] transition-colors ${
                 isInSheet 
-                  ? 'bg-green-500/5 cursor-default' 
+                  ? 'bg-[var(--accent-green-bg)]/10 cursor-default' 
                   : isStaged 
-                    ? 'bg-blue-500/10 cursor-pointer' 
+                    ? 'bg-[var(--accent-primary)]/10 cursor-pointer' 
                     : 'hover:bg-[var(--bg-tertiary)] cursor-pointer'
               }`}
             >
               <div className={`mt-0.5 w-4 h-4 rounded flex-shrink-0 flex items-center justify-center transition-colors ${
                 isInSheet 
-                  ? 'bg-green-500/20 text-green-400' 
+                  ? 'bg-[var(--accent-green-bg)]/25 text-[var(--accent-green)]' 
                   : isStaged 
-                    ? 'bg-blue-500 border border-blue-500' 
+                    ? 'bg-[var(--accent-primary)] border border-[var(--accent-primary)]' 
                     : 'border border-[var(--border-default)]'
               }`}>
                 {isInSheet ? (
@@ -315,7 +315,7 @@ function PaperListPanel({
                     {paper.title}
                   </p>
                   {isInSheet && (
-                    <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] bg-green-500/20 text-green-400 rounded">
+                    <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] bg-[var(--accent-green-bg)]/20 text-[var(--accent-green)] font-medium rounded">
                       In sheet
                     </span>
                   )}
@@ -410,7 +410,7 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
               type="text"
               value={localColumn.name}
               onChange={(e) => setLocalColumn({ ...localColumn, name: e.target.value })}
-              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
             />
           </div>
 
@@ -424,7 +424,7 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
                 type: e.target.value as LitReviewColumnType,
                 options: ['select', 'multiselect'].includes(e.target.value) ? localColumn.options || [] : undefined,
               })}
-              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
             >
               {typeOptions.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -442,7 +442,7 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
               value={localColumn.description}
               onChange={(e) => setLocalColumn({ ...localColumn, description: e.target.value })}
               rows={3}
-              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
               placeholder="e.g., What type of study was conducted? Look for methodology section."
             />
           </div>
@@ -461,7 +461,7 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
                     <span className="flex-1 text-sm text-[var(--text-primary)]">{opt.label}</span>
                     <button
                       onClick={() => handleRemoveOption(opt.id)}
-                      className="p-1 text-[var(--text-muted)] hover:text-red-400"
+                      className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-red)]"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -474,7 +474,7 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
                     onChange={(e) => setNewOption(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddOption()}
                     placeholder="Add option..."
-                    className="flex-1 px-3 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="flex-1 px-3 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
                   />
                   <button
                     onClick={handleAddOption}
@@ -496,7 +496,7 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
               onChange={(e) => setLocalColumn({ ...localColumn, width: parseInt(e.target.value) || 150 })}
               min={80}
               max={500}
-              className="w-24 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              className="w-24 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
             />
             <span className="ml-2 text-xs text-[var(--text-muted)]">px</span>
           </div>
@@ -505,7 +505,7 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
         <div className="flex items-center justify-between p-5 border-t border-[var(--border-default)]">
           <button
             onClick={onDelete}
-            className="px-4 py-2 text-sm text-red-400 hover:text-red-300"
+            className="px-4 py-2 text-sm text-[var(--accent-red)] hover:text-[var(--accent-red)]"
           >
             Delete Column
           </button>
@@ -933,7 +933,7 @@ What are the main findings?
 Does the paper include a user study?
 What limitations are mentioned by the authors?`}
                 rows={10}
-                className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-xl text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none"
+                className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-xl text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30 resize-none"
               />
               <p className="text-xs text-[var(--text-muted)] mt-2">
                 {quickColumnCount} column{quickColumnCount !== 1 ? 's' : ''} • AI will infer column names, types, and extraction prompts
@@ -953,7 +953,7 @@ What limitations are mentioned by the authors?`}
                 {columns.length > 1 && (
                   <button
                     onClick={() => removeColumn(column.id)}
-                    className="p-1 text-[var(--text-muted)] hover:text-red-400 transition-colors"
+                    className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -969,7 +969,7 @@ What limitations are mentioned by the authors?`}
                     value={column.name}
                     onChange={(e) => updateColumn(column.id, { name: e.target.value })}
                     placeholder="e.g., Study Type"
-                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
                   />
                 </div>
 
@@ -983,7 +983,7 @@ What limitations are mentioned by the authors?`}
                       options: ['select', 'multiselect'].includes(e.target.value) ? column.options : [],
                       optionsText: ['select', 'multiselect'].includes(e.target.value) ? column.optionsText : '',
                     })}
-                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
                   >
                     {typeOptions.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -1004,7 +1004,7 @@ What limitations are mentioned by the authors?`}
                       options: e.target.value.split(',').map(o => o.trim()).filter(o => o),
                     })}
                     placeholder="e.g., Qualitative, Quantitative, Mixed"
-                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
                   />
                 </div>
               )}
@@ -1014,7 +1014,7 @@ What limitations are mentioned by the authors?`}
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">
                     <span className="flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-purple-400" />
+                      <Sparkles className="w-3 h-3 text-[var(--accent-purple)]" />
                       AI-Generated Prompt
                     </span>
                   </label>
@@ -1022,7 +1022,7 @@ What limitations are mentioned by the authors?`}
                     value={column.prompt}
                     onChange={(e) => updateColumn(column.id, { prompt: e.target.value })}
                     rows={2}
-                    className="w-full px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-purple-500/50 resize-none"
+                    className="w-full px-3 py-2 bg-[var(--accent-purple-bg)]/10 border border-[var(--accent-purple-bg)]/20 rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-purple-bg)]/50 resize-none"
                   />
                 </div>
               )}
@@ -1046,7 +1046,7 @@ What limitations are mentioned by the authors?`}
             <button
               onClick={handleGeneratePrompts}
               disabled={isGenerating || columns.every(c => !c.name.trim())}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-300 rounded-lg hover:bg-purple-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-purple-bg)]/20 text-[var(--accent-purple)] rounded-lg hover:bg-[var(--accent-purple-bg)]/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isGenerating ? (
                 <>
@@ -1217,7 +1217,7 @@ function EditableCell({
   if (status === 'processing') {
     return (
       <div className="flex items-center justify-center h-full min-h-[40px]">
-        <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+        <Loader2 className="w-4 h-4 text-[var(--accent-primary)] animate-spin" />
       </div>
     );
   }
@@ -1225,7 +1225,7 @@ function EditableCell({
   // Error state
   if (status === 'error') {
     return (
-      <div className="flex items-center gap-1.5 text-red-400 text-xs min-h-[40px]">
+      <div className="flex items-center gap-1.5 text-[var(--accent-red)] text-xs min-h-[40px]">
         <AlertCircle className="w-3.5 h-3.5" />
         Error
       </div>
@@ -1234,8 +1234,8 @@ function EditableCell({
 
   const value = cell?.value;
   const confidence = cell?.confidence;
-  const confidenceColor = confidence && confidence >= 0.8 ? 'text-green-400' : 
-                         confidence && confidence >= 0.5 ? 'text-yellow-400' : 'text-red-400';
+  const confidenceColor = confidence && confidence >= 0.8 ? 'text-[var(--accent-green)]' : 
+                         confidence && confidence >= 0.5 ? 'text-[var(--accent-orange)]' : 'text-[var(--accent-red)]';
 
   // Editing mode
   if (isEditing) {
@@ -1250,7 +1250,7 @@ function EditableCell({
           }}
           onBlur={onEndEdit}
           onKeyDown={handleInputKeyDown}
-          className="w-full h-full bg-[var(--bg-tertiary)] border border-blue-500 rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none"
+          className="w-full h-full bg-[var(--bg-tertiary)] border border-[var(--accent-primary)] rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none"
         >
           <option value="yes">Yes</option>
           <option value="no">No</option>
@@ -1269,7 +1269,7 @@ function EditableCell({
           }}
           onBlur={onEndEdit}
           onKeyDown={handleInputKeyDown}
-          className="w-full h-full bg-[var(--bg-tertiary)] border border-blue-500 rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none"
+          className="w-full h-full bg-[var(--bg-tertiary)] border border-[var(--accent-primary)] rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none"
         >
           <option value="">Select...</option>
           {column.options?.map(opt => (
@@ -1288,7 +1288,7 @@ function EditableCell({
         onBlur={saveAndClose}
         onKeyDown={handleInputKeyDown}
         placeholder={column.type === 'multiselect' ? 'Comma separated...' : 'Type here...'}
-        className="w-full min-h-[60px] bg-[var(--bg-tertiary)] border border-blue-500 rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none resize-none"
+        className="w-full min-h-[60px] bg-[var(--bg-tertiary)] border border-[var(--accent-primary)] rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none resize-none"
         rows={3}
       />
     );
@@ -1297,7 +1297,7 @@ function EditableCell({
   // Display mode
   const baseClasses = `min-h-[40px] w-full h-full px-2 py-2 cursor-pointer rounded transition-all ${
     isSelected 
-      ? 'ring-2 ring-blue-500 bg-blue-500/10' 
+      ? 'ring-2 ring-[var(--accent-primary)] bg-[var(--accent-primary)]/10' 
       : 'hover:bg-[var(--bg-tertiary)]'
   }`;
 
@@ -1310,7 +1310,7 @@ function EditableCell({
       return (
         <div className="flex items-center gap-2">
           {value ? (
-            <CheckCircle2 className="w-4 h-4 text-green-400" />
+            <CheckCircle2 className="w-4 h-4 text-[var(--accent-green)]" />
           ) : (
             <X className="w-4 h-4 text-[var(--text-muted)]" />
           )}
@@ -1540,7 +1540,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
           </button>
           <button
             onClick={() => setShowMultiColumnModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-sm rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 bg-[var(--accent-purple-bg)]/10 hover:bg-[var(--accent-purple-bg)]/20 text-[var(--accent-purple)] text-sm rounded-lg transition-colors"
           >
             <Columns className="w-4 h-4" />
             Add Multiple
@@ -1622,7 +1622,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
 
                 {/* Resize handle */}
                 <div
-                  className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 transition-colors"
+                  className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--accent-primary)]/50 transition-colors"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     setResizing({ columnId: column.id, startX: e.clientX, startWidth: column.width });
@@ -1663,9 +1663,9 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                   <div className="sticky left-0 w-[280px] flex-shrink-0 px-4 py-3 bg-[var(--bg-primary)] border-r border-[var(--border-default)] z-10">
                     <div className="flex items-start gap-2">
                       <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
-                        row.status === 'completed' ? 'bg-green-400' :
-                        row.status === 'processing' ? 'bg-blue-400 animate-pulse' :
-                        row.status === 'error' ? 'bg-red-400' : 'bg-[var(--text-muted)]'
+                        row.status === 'completed' ? 'bg-[var(--accent-green-bg)]' :
+                        row.status === 'processing' ? 'bg-[var(--accent-primary)] animate-pulse' :
+                        row.status === 'error' ? 'bg-[var(--accent-red-bg)]' : 'bg-[var(--text-muted)]'
                       }`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-[var(--text-primary)] line-clamp-2">{row.paperTitle}</p>
@@ -1678,7 +1678,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                           href={`/reader/${row.paperId}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1 text-[var(--text-muted)] hover:text-blue-400 rounded transition-colors"
+                          className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-primary)] rounded transition-colors"
                           title="Open paper in new tab"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
@@ -1697,7 +1697,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                               onRemoveRow(row.id);
                             }
                           }}
-                          className="p-1 text-[var(--text-muted)] hover:text-red-400 rounded transition-colors"
+                          className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-red)] rounded transition-colors"
                           title="Remove from sheet"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1851,7 +1851,7 @@ function ConfigPanel({
             <div className="px-4 pb-4 space-y-2">
               <button
                 onClick={onSaveVersion}
-                className="w-full flex items-center gap-2 px-3 py-2 bg-blue-500/20 text-blue-400 rounded-lg text-sm hover:bg-blue-500/30 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] rounded-lg text-sm hover:bg-[var(--accent-primary-muted)] transition-colors"
               >
                 <Save className="w-4 h-4" />
                 Save Current Version
@@ -1866,14 +1866,14 @@ function ConfigPanel({
                     onClick={() => onRestoreVersion(version.id)}
                     className={`w-full p-3 text-left rounded-lg transition-colors ${
                       sheet.currentVersionId === version.id 
-                        ? 'bg-blue-500/20 border border-blue-500/30' 
+                        ? 'bg-[var(--accent-primary)]/20 border border-[var(--accent-primary)]/30' 
                         : 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-[var(--text-primary)]">{version.name}</p>
                       {sheet.currentVersionId === version.id && (
-                        <span className="text-[10px] text-blue-400 uppercase">Current</span>
+                        <span className="text-[10px] text-[var(--accent-primary)] uppercase">Current</span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-muted)]">
@@ -1909,7 +1909,7 @@ function ConfigPanel({
                 onClick={onExportExcel}
                 className="w-full flex items-center gap-3 px-3 py-2.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
               >
-                <FileSpreadsheet className="w-4 h-4 text-green-400" />
+                <FileSpreadsheet className="w-4 h-4 text-[var(--accent-green)]" />
                 <div className="text-left">
                   <p className="text-sm text-[var(--text-primary)]">Download Excel</p>
                   <p className="text-xs text-[var(--text-muted)]">.xlsx format</p>
@@ -1919,7 +1919,7 @@ function ConfigPanel({
                 onClick={onExportCSV}
                 className="w-full flex items-center gap-3 px-3 py-2.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
               >
-                <FileText className="w-4 h-4 text-blue-400" />
+                <FileText className="w-4 h-4 text-[var(--accent-primary)]" />
                 <div className="text-left">
                   <p className="text-sm text-[var(--text-primary)]">Download CSV</p>
                   <p className="text-xs text-[var(--text-muted)]">.csv format</p>
@@ -1942,7 +1942,7 @@ function ConfigPanel({
                 }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
               >
-                <Copy className="w-4 h-4 text-purple-400" />
+                <Copy className="w-4 h-4 text-[var(--accent-purple)]" />
                 <div className="text-left">
                   <p className="text-sm text-[var(--text-primary)]">Copy to Clipboard</p>
                   <p className="text-xs text-[var(--text-muted)]">Paste into Google Sheets</p>
@@ -2437,7 +2437,7 @@ export function LitReview() {
     return (
       <div className="h-screen bg-[var(--bg-primary)] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+          <Loader2 className="w-8 h-8 text-[var(--accent-primary)] animate-spin" />
           <p className="text-[var(--text-secondary)]">Loading literature review...</p>
         </div>
       </div>
@@ -2608,7 +2608,7 @@ export function LitReview() {
                 }
                 setShowSheetMenu(false);
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10"
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--accent-red)] hover:bg-[var(--accent-red-bg)]/10"
             >
               <Trash2 className="w-4 h-4" />
               Delete
@@ -2644,7 +2644,7 @@ export function LitReview() {
                 }}
                 placeholder="e.g., HCI Studies 2024"
                 autoFocus
-                className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30"
               />
             </div>
 
@@ -2674,8 +2674,8 @@ export function LitReview() {
             <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
-                    <span className="text-sm font-medium text-blue-400">{stagedPaperIds.size}</span>
+                  <div className="w-8 h-8 rounded-full bg-[var(--accent-primary)]/20 flex items-center justify-center">
+                    <span className="text-sm font-medium text-[var(--accent-primary)]">{stagedPaperIds.size}</span>
                   </div>
                   <span className="text-sm text-[var(--text-primary)]">
                     paper{stagedPaperIds.size !== 1 ? 's' : ''} selected
