@@ -968,106 +968,272 @@ function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
   );
 }
 
-// Cell renderer
-interface CellProps {
+// Editable Cell Component
+interface EditableCellProps {
   cell: LitReviewCell | undefined;
   column: LitReviewColumn;
   status: LitReviewRow['status'];
-  onEdit?: (value: LitReviewCell['value']) => void;
+  isSelected: boolean;
+  isEditing: boolean;
+  onSelect: () => void;
+  onStartEdit: () => void;
+  onEndEdit: () => void;
+  onUpdateValue: (value: LitReviewCell['value']) => void;
+  onNavigate: (direction: 'up' | 'down' | 'left' | 'right') => void;
 }
 
-function Cell({ cell, column, status }: CellProps) {
+function EditableCell({ 
+  cell, 
+  column, 
+  status, 
+  isSelected, 
+  isEditing,
+  onSelect,
+  onStartEdit,
+  onEndEdit,
+  onUpdateValue,
+  onNavigate,
+}: EditableCellProps) {
+  const inputRef = useRef<HTMLTextAreaElement | HTMLInputElement | HTMLSelectElement>(null);
+  const [editValue, setEditValue] = useState('');
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      if (inputRef.current instanceof HTMLTextAreaElement || inputRef.current instanceof HTMLInputElement) {
+        inputRef.current.select();
+      }
+    }
+  }, [isEditing]);
+
+  // Initialize edit value
+  useEffect(() => {
+    if (isEditing) {
+      const val = cell?.value;
+      if (Array.isArray(val)) {
+        setEditValue(val.join(', '));
+      } else if (val !== null && val !== undefined) {
+        setEditValue(String(val));
+      } else {
+        setEditValue('');
+      }
+    }
+  }, [isEditing, cell?.value]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isEditing) {
+      // Navigation when selected but not editing
+      if (e.key === 'Enter' || e.key === 'F2') {
+        e.preventDefault();
+        onStartEdit();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        onNavigate('up');
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        onNavigate('down');
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        onNavigate('left');
+      } else if (e.key === 'ArrowRight' || e.key === 'Tab') {
+        e.preventDefault();
+        onNavigate('right');
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+        // Start typing to edit
+        onStartEdit();
+      }
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      saveAndClose();
+      onNavigate('down');
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      saveAndClose();
+      onNavigate(e.shiftKey ? 'left' : 'right');
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onEndEdit();
+    }
+  };
+
+  const saveAndClose = () => {
+    let newValue: LitReviewCell['value'] = editValue;
+    
+    if (column.type === 'number') {
+      const num = parseFloat(editValue);
+      newValue = isNaN(num) ? null : num;
+    } else if (column.type === 'boolean') {
+      newValue = editValue.toLowerCase() === 'yes' || editValue.toLowerCase() === 'true' || editValue === '1';
+    } else if (column.type === 'multiselect') {
+      newValue = editValue.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    
+    onUpdateValue(newValue);
+    onEndEdit();
+  };
+
+  // Processing state
   if (status === 'processing') {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full min-h-[40px]">
         <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
       </div>
     );
   }
 
+  // Error state
   if (status === 'error') {
     return (
-      <div className="flex items-center gap-1.5 text-red-400 text-xs">
+      <div className="flex items-center gap-1.5 text-red-400 text-xs min-h-[40px]">
         <AlertCircle className="w-3.5 h-3.5" />
         Error
       </div>
     );
   }
 
-  if (!cell || cell.value === null || cell.value === undefined) {
-    return <span className="text-white/30 text-xs">—</span>;
-  }
-
-  const { value, confidence } = cell;
+  const value = cell?.value;
+  const confidence = cell?.confidence;
   const confidenceColor = confidence && confidence >= 0.8 ? 'text-green-400' : 
                          confidence && confidence >= 0.5 ? 'text-yellow-400' : 'text-red-400';
 
-  // Render based on column type
-  if (column.type === 'boolean') {
+  // Editing mode
+  if (isEditing) {
+    if (column.type === 'boolean') {
+      return (
+        <select
+          ref={inputRef as React.RefObject<HTMLSelectElement>}
+          value={editValue.toLowerCase() === 'yes' || editValue.toLowerCase() === 'true' || editValue === '1' ? 'yes' : 'no'}
+          onChange={(e) => {
+            onUpdateValue(e.target.value === 'yes');
+            onEndEdit();
+          }}
+          onBlur={onEndEdit}
+          onKeyDown={handleInputKeyDown}
+          className="w-full h-full bg-[#2a2a2e] border border-blue-500 rounded px-2 py-1 text-sm text-white focus:outline-none"
+        >
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+      );
+    }
+
+    if (column.type === 'select') {
+      return (
+        <select
+          ref={inputRef as React.RefObject<HTMLSelectElement>}
+          value={editValue}
+          onChange={(e) => {
+            onUpdateValue(e.target.value);
+            onEndEdit();
+          }}
+          onBlur={onEndEdit}
+          onKeyDown={handleInputKeyDown}
+          className="w-full h-full bg-[#2a2a2e] border border-blue-500 rounded px-2 py-1 text-sm text-white focus:outline-none"
+        >
+          <option value="">Select...</option>
+          {column.options?.map(opt => (
+            <option key={opt.id} value={opt.label}>{opt.label}</option>
+          ))}
+        </select>
+      );
+    }
+
+    // Text / Number / Multiselect - use textarea for multiline
     return (
-      <div className="flex items-center gap-2">
-        {value ? (
-          <CheckCircle2 className="w-4 h-4 text-green-400" />
-        ) : (
-          <X className="w-4 h-4 text-white/30" />
-        )}
-      </div>
+      <textarea
+        ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+        value={editValue}
+        onChange={(e) => setEditValue(e.target.value)}
+        onBlur={saveAndClose}
+        onKeyDown={handleInputKeyDown}
+        placeholder={column.type === 'multiselect' ? 'Comma separated...' : 'Type here...'}
+        className="w-full min-h-[60px] bg-[#2a2a2e] border border-blue-500 rounded px-2 py-1 text-sm text-white focus:outline-none resize-none"
+        rows={3}
+      />
     );
   }
 
-  if (column.type === 'select' || column.type === 'multiselect') {
-    const values = Array.isArray(value) ? value : [value];
-    return (
-      <div className="flex flex-wrap gap-1">
-        {values.map((v, i) => {
-          const option = column.options?.find(o => o.label === v);
-          return (
-            <span
-              key={i}
-              className="px-2 py-0.5 text-xs rounded-full"
-              style={{
-                backgroundColor: option?.color ? `${option.color}20` : 'rgba(255,255,255,0.1)',
-                color: option?.color || 'rgba(255,255,255,0.8)',
-              }}
-            >
-              {v}
-            </span>
-          );
-        })}
-        {confidence !== undefined && (
-          <span className={`text-[10px] ${confidenceColor} ml-1`}>
-            {Math.round(confidence * 100)}%
-          </span>
-        )}
-      </div>
-    );
-  }
+  // Display mode
+  const baseClasses = `min-h-[40px] w-full h-full px-2 py-2 cursor-pointer rounded transition-all ${
+    isSelected 
+      ? 'ring-2 ring-blue-500 bg-blue-500/10' 
+      : 'hover:bg-white/5'
+  }`;
 
-  if (column.type === 'number') {
-    return (
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-white/90 font-mono">{value}</span>
-        {confidence !== undefined && (
-          <span className={`text-[10px] ${confidenceColor}`}>
-            {Math.round(confidence * 100)}%
-          </span>
-        )}
-      </div>
-    );
-  }
+  const renderValue = () => {
+    if (value === null || value === undefined) {
+      return <span className="text-white/30 text-xs italic">Empty - click to edit</span>;
+    }
 
-  // Text
+    if (column.type === 'boolean') {
+      return (
+        <div className="flex items-center gap-2">
+          {value ? (
+            <CheckCircle2 className="w-4 h-4 text-green-400" />
+          ) : (
+            <X className="w-4 h-4 text-white/30" />
+          )}
+          <span className="text-sm text-white/70">{value ? 'Yes' : 'No'}</span>
+        </div>
+      );
+    }
+
+    if (column.type === 'select' || column.type === 'multiselect') {
+      const values = Array.isArray(value) ? value : [value];
+      return (
+        <div className="flex flex-wrap gap-1">
+          {values.filter(Boolean).map((v, i) => {
+            const option = column.options?.find(o => o.label === v);
+            return (
+              <span
+                key={i}
+                className="px-2 py-0.5 text-xs rounded-full"
+                style={{
+                  backgroundColor: option?.color ? `${option.color}20` : 'rgba(255,255,255,0.1)',
+                  color: option?.color || 'rgba(255,255,255,0.8)',
+                }}
+              >
+                {v}
+              </span>
+            );
+          })}
+        </div>
+      );
+    }
+
+    if (column.type === 'number') {
+      return <span className="text-sm text-white/90 font-mono">{value}</span>;
+    }
+
+    // Text - no line clamp, show full content
+    return <p className="text-sm text-white/80 whitespace-pre-wrap break-words">{String(value)}</p>;
+  };
+
   return (
-    <div className="relative group">
-      <p className="text-sm text-white/80 line-clamp-2">{String(value)}</p>
-      {confidence !== undefined && (
-        <span className={`text-[10px] ${confidenceColor} absolute top-0 right-0`}>
-          {Math.round(confidence * 100)}%
-        </span>
-      )}
-      {cell.sourceText && (
-        <div className="absolute hidden group-hover:block bottom-full left-0 mb-1 p-2 bg-[#2a2a2e] border border-white/10 rounded-lg shadow-xl z-20 max-w-xs">
-          <p className="text-xs text-white/60 italic">"{cell.sourceText}"</p>
+    <div
+      className={baseClasses}
+      onClick={onSelect}
+      onDoubleClick={onStartEdit}
+      onKeyDown={handleKeyDown}
+      tabIndex={isSelected ? 0 : -1}
+      role="gridcell"
+    >
+      <div className="relative">
+        {renderValue()}
+        {confidence !== undefined && (
+          <span className={`text-[10px] ${confidenceColor} absolute top-0 right-0`}>
+            {Math.round(confidence * 100)}%
+          </span>
+        )}
+      </div>
+      {cell?.sourceText && isSelected && (
+        <div className="mt-2 p-2 bg-[#2a2a2e] border border-white/10 rounded text-xs text-white/50 italic">
+          Source: "{cell.sourceText}"
         </div>
       )}
     </div>
@@ -1087,9 +1253,69 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, isExtracti
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
   const [resizing, setResizing] = useState<{ columnId: string; startX: number; startWidth: number } | null>(null);
   const [showMultiColumnModal, setShowMultiColumnModal] = useState(false);
+  const [selectedCell, setSelectedCell] = useState<{ rowId: string; columnId: string } | null>(null);
+  const [editingCell, setEditingCell] = useState<{ rowId: string; columnId: string } | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
   const editingColumn = editingColumnId ? sheet.columns.find(c => c.id === editingColumnId) : null;
+
+  // Handle cell value update
+  const handleCellUpdate = useCallback((rowId: string, columnId: string, value: LitReviewCell['value']) => {
+    onUpdateSheet({
+      ...sheet,
+      rows: sheet.rows.map(r => 
+        r.id === rowId 
+          ? { 
+              ...r, 
+              cells: { 
+                ...r.cells, 
+                [columnId]: { 
+                  ...r.cells[columnId],
+                  value, 
+                  confidence: undefined, // User-edited, remove AI confidence
+                  sourceText: undefined,
+                } 
+              } 
+            } 
+          : r
+      ),
+    });
+  }, [sheet, onUpdateSheet]);
+
+  // Handle keyboard navigation
+  const handleNavigate = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
+    if (!selectedCell) return;
+
+    const rowIndex = sheet.rows.findIndex(r => r.id === selectedCell.rowId);
+    const colIndex = sheet.columns.findIndex(c => c.id === selectedCell.columnId);
+
+    let newRowIndex = rowIndex;
+    let newColIndex = colIndex;
+
+    switch (direction) {
+      case 'up':
+        newRowIndex = Math.max(0, rowIndex - 1);
+        break;
+      case 'down':
+        newRowIndex = Math.min(sheet.rows.length - 1, rowIndex + 1);
+        break;
+      case 'left':
+        newColIndex = Math.max(0, colIndex - 1);
+        break;
+      case 'right':
+        newColIndex = Math.min(sheet.columns.length - 1, colIndex + 1);
+        break;
+    }
+
+    if (newRowIndex !== rowIndex || newColIndex !== colIndex) {
+      const newRow = sheet.rows[newRowIndex];
+      const newCol = sheet.columns[newColIndex];
+      if (newRow && newCol) {
+        setSelectedCell({ rowId: newRow.id, columnId: newCol.id });
+        setEditingCell(null);
+      }
+    }
+  }, [selectedCell, sheet.rows, sheet.columns]);
 
   // Handle column resize
   useEffect(() => {
@@ -1308,13 +1534,26 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, isExtracti
                   {sheet.columns.map((column) => (
                     <div
                       key={column.id}
-                      style={{ width: column.width }}
-                      className="flex-shrink-0 px-3 py-3 border-r border-white/5"
+                      style={{ width: column.width, minWidth: column.width }}
+                      className="flex-shrink-0 border-r border-white/5"
                     >
-                      <Cell
+                      <EditableCell
                         cell={row.cells[column.id]}
                         column={column}
                         status={row.status}
+                        isSelected={selectedCell?.rowId === row.id && selectedCell?.columnId === column.id}
+                        isEditing={editingCell?.rowId === row.id && editingCell?.columnId === column.id}
+                        onSelect={() => {
+                          setSelectedCell({ rowId: row.id, columnId: column.id });
+                          setEditingCell(null);
+                        }}
+                        onStartEdit={() => {
+                          setSelectedCell({ rowId: row.id, columnId: column.id });
+                          setEditingCell({ rowId: row.id, columnId: column.id });
+                        }}
+                        onEndEdit={() => setEditingCell(null)}
+                        onUpdateValue={(value) => handleCellUpdate(row.id, column.id, value)}
+                        onNavigate={handleNavigate}
                       />
                     </div>
                   ))}

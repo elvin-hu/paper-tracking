@@ -19,6 +19,8 @@
     "react-dom": "^19.2.0",
     "react-pdf": "^10.2.0",
     "react-router-dom": "^7.11.0",
+    "react-spreadsheet": "^0.10.1",
+    "scheduler": "^0.27.0",
     "tailwindcss": "^4.1.18",
     "tldraw": "^4.2.3",
     "uuid": "^13.0.0"
