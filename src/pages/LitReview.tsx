@@ -614,6 +614,8 @@ interface ColumnDraft {
 }
 
 function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
+  const [mode, setMode] = useState<'quick' | 'detailed'>('quick');
+  const [quickText, setQuickText] = useState('');
   const [columns, setColumns] = useState<ColumnDraft[]>([
     { id: uuidv4(), name: '', type: 'text', options: [], optionsText: '', prompt: '' },
   ]);
@@ -681,6 +683,43 @@ function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
     }
   };
 
+  const handleQuickAdd = async () => {
+    const columnNames = quickText
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    if (columnNames.length === 0) {
+      alert('Please enter at least one column name');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      // Generate prompts for all columns (AI will infer types)
+      const prompts = await generateColumnPrompts(
+        columnNames.map(name => ({ name, type: 'text' as LitReviewColumnType }))
+      );
+
+      // Create columns with generated prompts
+      const newColumns: LitReviewColumn[] = columnNames.map((name, i) => ({
+        id: uuidv4(),
+        name,
+        type: 'text' as LitReviewColumnType,
+        description: prompts[i] || '',
+        width: 150,
+      }));
+
+      onAddColumns(newColumns);
+      onClose();
+    } catch (error) {
+      console.error('Failed to generate prompts:', error);
+      alert('Failed to generate prompts. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleSave = () => {
     const validColumns = columns.filter(c => c.name.trim());
     if (validColumns.length === 0) {
@@ -707,9 +746,11 @@ function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
     onClose();
   };
 
+  const quickColumnCount = quickText.split('\n').filter(l => l.trim()).length;
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#1e1e22] border border-white/10 rounded-2xl w-full max-w-3xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-[#1e1e22] border border-white/10 rounded-2xl w-full max-w-3xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col my-8">
         <div className="flex items-center justify-between p-5 border-b border-white/10">
           <div>
             <h3 className="text-lg font-medium text-white">Add Multiple Columns</h3>
@@ -720,7 +761,52 @@ function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {/* Mode Toggle */}
+        <div className="flex gap-1 p-2 mx-5 mt-5 bg-white/5 rounded-lg w-fit">
+          <button
+            onClick={() => setMode('quick')}
+            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
+              mode === 'quick' 
+                ? 'bg-white/10 text-white' 
+                : 'text-white/50 hover:text-white/70'
+            }`}
+          >
+            Quick
+          </button>
+          <button
+            onClick={() => setMode('detailed')}
+            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
+              mode === 'detailed' 
+                ? 'bg-white/10 text-white' 
+                : 'text-white/50 hover:text-white/70'
+            }`}
+          >
+            Detailed
+          </button>
+        </div>
+
+        {mode === 'quick' ? (
+          /* Quick Mode - Plain text entry */
+          <div className="p-5 space-y-4">
+            <div>
+              <label className="block text-sm text-white/70 mb-2">
+                Enter column names (one per line)
+              </label>
+              <textarea
+                value={quickText}
+                onChange={(e) => setQuickText(e.target.value)}
+                placeholder={`Study Type\nSample Size\nKey Findings\nLimitations\n...`}
+                rows={10}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none font-mono"
+              />
+              <p className="text-xs text-white/40 mt-2">
+                {quickColumnCount} column{quickColumnCount !== 1 ? 's' : ''} • AI will automatically generate extraction prompts
+              </p>
+            </div>
+          </div>
+        ) : (
+          /* Detailed Mode - Individual column configuration */
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {columns.map((column, index) => (
             <div
               key={column.id}
@@ -816,40 +902,65 @@ function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
             Add Another Column
           </button>
         </div>
+        )}
 
+        {/* Footer */}
         <div className="flex items-center justify-between p-5 border-t border-white/10 bg-[#1a1a1e]">
-          <button
-            onClick={handleGeneratePrompts}
-            disabled={isGenerating || columns.every(c => !c.name.trim())}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-300 rounded-lg hover:bg-purple-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                {promptsGenerated ? 'Regenerate Prompts' : 'Generate Prompts with AI'}
-              </>
-            )}
-          </button>
+          {mode === 'detailed' && (
+            <button
+              onClick={handleGeneratePrompts}
+              disabled={isGenerating || columns.every(c => !c.name.trim())}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-300 rounded-lg hover:bg-purple-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  {promptsGenerated ? 'Regenerate Prompts' : 'Generate Prompts with AI'}
+                </>
+              )}
+            </button>
+          )}
 
-          <div className="flex gap-3">
+          <div className={`flex gap-3 ${mode === 'quick' ? 'ml-auto' : ''}`}>
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm text-white/60 hover:text-white/80"
+              disabled={isGenerating}
+              className="px-4 py-2 text-sm text-white/60 hover:text-white/80 disabled:opacity-50"
             >
               Cancel
             </button>
-            <button
-              onClick={handleSave}
-              disabled={columns.every(c => !c.name.trim())}
-              className="px-5 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Add {columns.filter(c => c.name.trim()).length} Column{columns.filter(c => c.name.trim()).length !== 1 ? 's' : ''}
-            </button>
+            {mode === 'quick' ? (
+              <button
+                onClick={handleQuickAdd}
+                disabled={isGenerating || quickColumnCount === 0}
+                className="flex items-center gap-2 px-5 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Generating Prompts...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Add {quickColumnCount} Column{quickColumnCount !== 1 ? 's' : ''}
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                onClick={handleSave}
+                disabled={columns.every(c => !c.name.trim())}
+                className="px-5 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add {columns.filter(c => c.name.trim()).length} Column{columns.filter(c => c.name.trim()).length !== 1 ? 's' : ''}
+              </button>
+            )}
           </div>
         </div>
       </div>
