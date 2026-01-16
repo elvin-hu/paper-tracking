@@ -1395,11 +1395,6 @@ function EditableCell({
       <div className="relative">
         {renderValue()}
       </div>
-      {cell?.sourceText && isSelected && (
-        <div className="mt-2 p-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded text-xs text-[var(--text-muted)] italic">
-          Source: "{cell.sourceText}"
-        </div>
-      )}
     </div>
   );
 }
@@ -1416,12 +1411,14 @@ interface SpreadsheetProps {
   isPreview: boolean;
   selectedModel: ModelId;
   onModelChange: (model: ModelId) => void;
+  onSelectCell: (cell: { rowId: string; columnId: string } | null) => void;
 }
 
-function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColumnExtraction, onRemoveRow, isExtracting, isPreview, selectedModel, onModelChange }: SpreadsheetProps) {
+function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColumnExtraction, onRemoveRow, isExtracting, isPreview, selectedModel, onModelChange, onSelectCell }: SpreadsheetProps) {
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
   const [resizing, setResizing] = useState<{ columnId: string; startX: number; startWidth: number } | null>(null);
-  const [rowResizing, setRowResizing] = useState<{ rowId: string; startY: number; startHeight: number } | null>(null);
+  const [paperColumnWidth, setPaperColumnWidth] = useState(280);
+  const [resizingPaperColumn, setResizingPaperColumn] = useState<{ startX: number; startWidth: number } | null>(null);
   const [showMultiColumnModal, setShowMultiColumnModal] = useState(false);
   const [selectedCell, setSelectedCell] = useState<{ rowId: string; columnId: string } | null>(null);
   const [editingCell, setEditingCell] = useState<{ rowId: string; columnId: string } | null>(null);
@@ -1432,7 +1429,6 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
     startColIndex: number;
     endColIndex: number;
   } | null>(null);
-  const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
   const tableRef = useRef<HTMLDivElement>(null);
 
   const editingColumn = editingColumnId ? sheet.columns.find(c => c.id === editingColumnId) : null;
@@ -1453,6 +1449,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                   confidence: undefined, // User-edited, remove AI confidence
                   sourceText: undefined,
                   status: undefined,
+                  aiValue: r.cells[columnId]?.aiValue ?? r.cells[columnId]?.value ?? null,
                 } 
               } 
             } 
@@ -1543,17 +1540,17 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
     };
   }, [resizing, sheet, onUpdateSheet]);
 
-  // Handle row resize
+  // Handle paper column resize
   useEffect(() => {
-    if (!rowResizing) return;
+    if (!resizingPaperColumn) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const diff = e.clientY - rowResizing.startY;
-      const newHeight = Math.max(44, Math.min(240, rowResizing.startHeight + diff));
-      setRowHeights(prev => ({ ...prev, [rowResizing.rowId]: newHeight }));
+      const diff = e.clientX - resizingPaperColumn.startX;
+      const newWidth = Math.max(150, Math.min(500, resizingPaperColumn.startWidth + diff));
+      setPaperColumnWidth(newWidth);
     };
 
-    const handleMouseUp = () => setRowResizing(null);
+    const handleMouseUp = () => setResizingPaperColumn(null);
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -1561,7 +1558,11 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [rowResizing]);
+  }, [resizingPaperColumn]);
+
+  useEffect(() => {
+    onSelectCell(selectedCell);
+  }, [selectedCell, onSelectCell]);
 
   const handleAddMultipleColumns = (newColumns: LitReviewColumn[]) => {
     if (isPreview) return;
@@ -1610,12 +1611,24 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
     setEditingColumnId(null);
   };
 
-  const totalWidth = 280 + sheet.columns.reduce((sum, c) => sum + c.width, 0) + 50;
+  const totalWidth = paperColumnWidth + sheet.columns.reduce((sum, c) => sum + c.width, 0) + 50;
+
+  // Clear selection when clicking on empty toolbar area
+  const handleToolbarClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setSelectedCell(null);
+      setSelectionAnchor(null);
+      setSelectionRange(null);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-[var(--bg-primary)] min-w-0 overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)]">
+      <div 
+        className="flex items-center justify-between px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)]"
+        onClick={handleToolbarClick}
+      >
         <div className="flex items-center gap-3">
           <button
             onClick={handleAddColumn}
@@ -1696,12 +1709,23 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
         <div style={{ minWidth: totalWidth }}>
           {/* Header */}
           <div className="flex sticky top-0 bg-[var(--bg-card)] z-10 border-b border-[var(--border-default)]">
-            {/* Paper title column - fixed */}
-            <div className="sticky left-0 w-[280px] flex-shrink-0 px-4 py-3 bg-[var(--bg-card)] border-r border-[var(--border-default)] z-20">
+            {/* Paper title column - fixed but resizable */}
+            <div 
+              className="sticky left-0 flex-shrink-0 px-4 py-3 bg-[var(--bg-card)] border-r border-[var(--border-default)] z-20 relative"
+              style={{ width: paperColumnWidth }}
+            >
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-[var(--text-muted)]" />
                 <span className="text-sm font-medium text-[var(--text-primary)]">Paper</span>
               </div>
+              {/* Resize handle */}
+              <div
+                className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--accent-primary)]/50 transition-colors"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setResizingPaperColumn({ startX: e.clientX, startWidth: paperColumnWidth });
+                }}
+              />
             </div>
 
             {/* Dynamic columns */}
@@ -1770,17 +1794,18 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
           ) : (
             sheet.rows.map((row, rowIndex) => {
               const paper = papers.find(p => p.id === row.paperId);
-              const rowHeight = rowHeights[row.id] ?? 72;
               return (
                 <div
                   key={row.id}
-                  style={{ height: rowHeight }}
                   className={`group flex border-b border-[var(--border-muted)] hover:bg-[var(--accent-primary-muted)] transition-colors relative ${
                     rowIndex % 2 === 0 ? 'bg-transparent' : ''
                   }`}
                 >
-                  {/* Paper title - fixed */}
-                  <div className="sticky left-0 w-[280px] flex-shrink-0 px-4 py-3 bg-[var(--bg-primary)] border-r border-[var(--border-default)] z-10">
+                  {/* Paper title - fixed but resizable */}
+                  <div 
+                    className="sticky left-0 flex-shrink-0 px-4 py-3 bg-[var(--bg-primary)] border-r border-[var(--border-default)] z-10"
+                    style={{ width: paperColumnWidth }}
+                  >
                     <div className="flex items-start gap-2">
                       <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
                         row.status === 'completed' ? 'bg-[var(--accent-green-bg)]' :
@@ -1788,7 +1813,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                         row.status === 'error' ? 'bg-[var(--accent-red-bg)]' : 'bg-[var(--text-muted)]'
                       }`} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-[var(--text-primary)] line-clamp-2">{row.paperTitle}</p>
+                        <p className="text-sm text-[var(--text-primary)]">{row.paperTitle}</p>
                         {paper?.metadata?.venue && (
                           <p className="text-xs text-[var(--text-muted)] mt-0.5">{paper.metadata.venue}</p>
                         )}
@@ -1852,6 +1877,13 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                         isInRange={isInRange}
                         isEditing={editingCell?.rowId === row.id && editingCell?.columnId === column.id}
                         onSelect={(options) => {
+                          // If clicking the same cell that's already selected, deselect
+                          if (selectedCell?.rowId === row.id && selectedCell?.columnId === column.id && !options?.shiftKey) {
+                            setSelectedCell(null);
+                            setSelectionAnchor(null);
+                            setSelectionRange(null);
+                            return;
+                          }
                           setSelectedCell({ rowId: row.id, columnId: column.id });
                           setEditingCell(null);
                           if (options?.shiftKey && selectionAnchor) {
@@ -1895,14 +1927,6 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                   {/* Spacer */}
                   <div className="flex-shrink-0 w-[50px]" />
 
-                  {/* Row resize handle */}
-                  <div
-                    className="absolute left-0 right-0 bottom-0 h-2 cursor-row-resize hover:bg-[var(--accent-primary)]/10"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      setRowResizing({ rowId: row.id, startY: e.clientY, startHeight: rowHeight });
-                    }}
-                  />
                 </div>
               );
             })
@@ -1940,6 +1964,10 @@ interface ConfigPanelProps {
   onExitPreview: () => void;
   isPreview: boolean;
   previewVersionId: string | null;
+  selectedColumn: LitReviewColumn | null;
+  selectedRow: LitReviewRow | null;
+  selectedCell: LitReviewCell | null;
+  onOverrideValue: (value: LitReviewCell['value']) => void;
   onExportExcel: () => void;
   onExportCSV: () => void;
 }
@@ -1952,54 +1980,221 @@ function ConfigPanel({
   onExitPreview,
   isPreview,
   previewVersionId,
+  selectedColumn,
+  selectedRow,
+  selectedCell,
+  onOverrideValue,
   onExportExcel,
   onExportCSV,
 }: ConfigPanelProps) {
   const [showPresets, setShowPresets] = useState(true);
   const [showVersions, setShowVersions] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [overrideValue, setOverrideValue] = useState('');
+
+  useEffect(() => {
+    if (!selectedCell) {
+      setOverrideValue('');
+      return;
+    }
+    const val = selectedCell.value;
+    if (Array.isArray(val)) {
+      setOverrideValue(val.join(', '));
+    } else if (val !== null && val !== undefined) {
+      setOverrideValue(String(val));
+    } else {
+      setOverrideValue('');
+    }
+  }, [selectedCell]);
+
+  const handleSaveOverride = () => {
+    if (!selectedColumn) return;
+    let newValue: LitReviewCell['value'] = overrideValue;
+
+    if (selectedColumn.type === 'number') {
+      const num = parseFloat(overrideValue);
+      newValue = isNaN(num) ? null : num;
+    } else if (selectedColumn.type === 'boolean') {
+      newValue = overrideValue.toLowerCase() === 'yes' || overrideValue.toLowerCase() === 'true' || overrideValue === '1';
+    } else if (selectedColumn.type === 'multiselect') {
+      newValue = overrideValue.split(',').map(s => s.trim()).filter(Boolean);
+    }
+
+    onOverrideValue(newValue);
+  };
+
+  const hasCellSelected = !!selectedColumn;
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-secondary)] border-l border-[var(--border-default)] overflow-hidden">
-      {/* Header */}
-      <div className="p-4 border-b border-[var(--border-default)]">
-        <h2 className="text-sm font-semibold text-[var(--text-primary)]">Configuration</h2>
-      </div>
-
       <div className="flex-1 overflow-y-auto">
-        {/* Presets section */}
-        <div className="border-b border-[var(--border-default)]">
-          <button
-            onClick={() => setShowPresets(!showPresets)}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
-          >
-            <div className="flex items-center gap-2">
-              <Columns className="w-4 h-4 text-[var(--text-muted)]" />
-              <span>Column Presets</span>
-            </div>
-            {showPresets ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          </button>
+        {/* Cell Inspector (Figma-like) - shown when cell is selected */}
+        {hasCellSelected ? (
+          <div className="p-4">
+            {/* Paper name - subtle header */}
+            {selectedRow && (
+              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-3">
+                {selectedRow.paperTitle.length > 50 
+                  ? selectedRow.paperTitle.slice(0, 50) + '...' 
+                  : selectedRow.paperTitle}
+              </p>
+            )}
 
-          {showPresets && (
-            <div className="px-4 pb-4 space-y-2">
-              {DEFAULT_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() => onApplyPreset(preset)}
-                  className="w-full p-3 text-left bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors group"
-                >
-                  <p className="text-sm text-[var(--text-primary)] font-medium">{preset.name}</p>
-                  {preset.description && (
-                    <p className="text-xs text-[var(--text-muted)] mt-1">{preset.description}</p>
-                  )}
-                  <p className="text-xs text-[var(--text-muted)] mt-2">
-                    {preset.columns.length} columns
-                  </p>
-                </button>
-              ))}
+            {/* Column info card */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4 mb-4">
+              <div className="flex items-start justify-between mb-2">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">{selectedColumn.name}</h3>
+                <span className="text-[10px] px-2 py-0.5 bg-[var(--bg-tertiary)] text-[var(--text-muted)] rounded-full capitalize">
+                  {selectedColumn.type}
+                </span>
+              </div>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                {selectedColumn.description}
+              </p>
             </div>
-          )}
-        </div>
+
+            {/* Source section */}
+            <div className="mb-4">
+              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2">Source</p>
+              <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-3">
+                {selectedCell?.sourceText ? (
+                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">
+                    "{selectedCell.sourceText}"
+                  </p>
+                ) : (
+                  <p className="text-xs text-[var(--text-muted)] italic">
+                    No source text captured
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Value section */}
+            <div className="mb-4">
+              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2">Value</p>
+              {selectedColumn.type === 'select' ? (
+                <select
+                  value={overrideValue}
+                  onChange={(e) => setOverrideValue(e.target.value)}
+                  disabled={isPreview}
+                  className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 ${
+                    isPreview ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
+                >
+                  <option value="">Select...</option>
+                  {selectedColumn.options?.map(opt => (
+                    <option key={opt.id} value={opt.label}>{opt.label}</option>
+                  ))}
+                </select>
+              ) : selectedColumn.type === 'boolean' ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setOverrideValue('yes'); }}
+                    disabled={isPreview}
+                    className={`flex-1 px-3 py-2 text-sm rounded-xl border transition-colors ${
+                      overrideValue.toLowerCase() === 'yes' || overrideValue.toLowerCase() === 'true'
+                        ? 'bg-[var(--accent-green-bg)]/20 border-[var(--accent-green-bg)] text-[var(--accent-green)]'
+                        : 'bg-[var(--bg-card)] border-[var(--border-default)] text-[var(--text-secondary)]'
+                    } ${isPreview ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    onClick={() => { setOverrideValue('no'); }}
+                    disabled={isPreview}
+                    className={`flex-1 px-3 py-2 text-sm rounded-xl border transition-colors ${
+                      overrideValue.toLowerCase() === 'no' || overrideValue.toLowerCase() === 'false'
+                        ? 'bg-[var(--accent-red-bg)]/20 border-[var(--accent-red-bg)] text-[var(--accent-red)]'
+                        : 'bg-[var(--bg-card)] border-[var(--border-default)] text-[var(--text-secondary)]'
+                    } ${isPreview ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <textarea
+                  value={overrideValue}
+                  onChange={(e) => setOverrideValue(e.target.value)}
+                  placeholder={selectedColumn.type === 'multiselect' ? 'Comma separated values...' : 'Enter value...'}
+                  disabled={isPreview}
+                  className={`w-full min-h-[100px] px-3 py-2.5 text-sm bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 resize-none ${
+                    isPreview ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
+                  rows={4}
+                />
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleSaveOverride}
+                disabled={isPreview || !selectedColumn}
+                className={`w-full px-4 py-2.5 text-sm font-medium bg-[var(--accent-primary)] text-[var(--bg-primary)] rounded-xl transition-colors ${
+                  isPreview ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90'
+                }`}
+              >
+                Save
+              </button>
+              {selectedCell?.aiValue !== undefined && selectedCell?.aiValue !== selectedCell?.value && (
+                <button
+                  onClick={() => onOverrideValue(selectedCell.aiValue ?? null)}
+                  disabled={isPreview}
+                  className={`w-full px-4 py-2.5 text-sm bg-[var(--bg-card)] border border-[var(--border-default)] text-[var(--text-primary)] rounded-xl transition-colors ${
+                    isPreview ? 'opacity-60 cursor-not-allowed' : 'hover:bg-[var(--bg-tertiary)]'
+                  }`}
+                >
+                  Revert to AI value
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Default state - Sheet setup */
+          <>
+            {/* Header */}
+            <div className="p-4 border-b border-[var(--border-default)]">
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">Sheet Setup</h2>
+              <p className="text-xs text-[var(--text-muted)] mt-1">
+                Configure columns and templates
+              </p>
+            </div>
+
+            {/* Presets section */}
+            <div className="border-b border-[var(--border-default)]">
+              <button
+                onClick={() => setShowPresets(!showPresets)}
+                className="w-full flex items-center justify-between px-4 py-3 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+              >
+                <div className="flex items-center gap-2">
+                  <Columns className="w-4 h-4 text-[var(--text-muted)]" />
+                  <span>Column Presets</span>
+                </div>
+                {showPresets ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </button>
+
+              {showPresets && (
+                <div className="px-4 pb-4 space-y-2">
+                  {DEFAULT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => onApplyPreset(preset)}
+                      className="w-full p-3 text-left bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 rounded-lg transition-colors group"
+                    >
+                      <p className="text-sm text-[var(--text-primary)] font-medium">{preset.name}</p>
+                      {preset.description && (
+                        <p className="text-xs text-[var(--text-muted)] mt-1">{preset.description}</p>
+                      )}
+                      <p className="text-xs text-[var(--text-muted)] mt-2">
+                        {preset.columns.length} columns
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Version History section */}
         <div className="border-b border-[var(--border-default)]">
@@ -2166,6 +2361,7 @@ export function LitReview() {
   const [showSheetMenu, setShowSheetMenu] = useState(false);
   const [stagedPaperIds, setStagedPaperIds] = useState<Set<string>>(new Set());
   const [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
+  const [selectedCell, setSelectedCell] = useState<{ rowId: string; columnId: string } | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelId>(() => {
     const saved = localStorage.getItem('litreview-model');
     return (saved as ModelId) || 'gpt-4o-mini';
@@ -2256,6 +2452,21 @@ export function LitReview() {
   }, [currentSheet, previewVersion]);
 
   const isPreviewMode = Boolean(previewVersion);
+
+  const selectedRow = useMemo(() => {
+    if (!displaySheet || !selectedCell) return null;
+    return displaySheet.rows.find(r => r.id === selectedCell.rowId) || null;
+  }, [displaySheet, selectedCell]);
+
+  const selectedColumn = useMemo(() => {
+    if (!displaySheet || !selectedCell) return null;
+    return displaySheet.columns.find(c => c.id === selectedCell.columnId) || null;
+  }, [displaySheet, selectedCell]);
+
+  const selectedCellData = useMemo(() => {
+    if (!selectedRow || !selectedColumn) return null;
+    return selectedRow.cells[selectedColumn.id] || null;
+  }, [selectedRow, selectedColumn]);
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -2497,7 +2708,7 @@ export function LitReview() {
         const cells: Record<string, LitReviewCell> = {};
         for (const column of currentSheet.columns) {
           const cell = await extractColumnValue(paperText, column, selectedModel);
-          cells[column.id] = { ...cell, status: undefined };
+          cells[column.id] = { ...cell, status: undefined, aiValue: cell.value };
         }
 
         // Update row
@@ -2588,7 +2799,7 @@ export function LitReview() {
           ...row,
           cells: {
             ...row.cells,
-            [columnId]: { ...cell, status: undefined },
+            [columnId]: { ...cell, status: undefined, aiValue: cell.value },
           },
         };
 
@@ -2680,6 +2891,32 @@ export function LitReview() {
 
   const handleExitPreview = () => {
     setPreviewVersionId(null);
+  };
+
+  const handleOverrideValue = (value: LitReviewCell['value']) => {
+    if (!currentSheet || !selectedCell || !selectedColumn) return;
+    if (isPreviewMode) return;
+
+    handleUpdateSheet({
+      ...currentSheet,
+      rows: currentSheet.rows.map(r => {
+        if (r.id !== selectedCell.rowId) return r;
+        const existingCell = r.cells[selectedCell.columnId];
+        const aiValue = existingCell?.aiValue ?? existingCell?.value ?? null;
+        return {
+          ...r,
+          cells: {
+            ...r.cells,
+            [selectedCell.columnId]: {
+              ...existingCell,
+              value,
+              confidence: undefined,
+              aiValue,
+            },
+          },
+        };
+      }),
+    });
   };
 
   const handleExportExcel = () => {
@@ -2838,6 +3075,7 @@ export function LitReview() {
             isPreview={isPreviewMode}
             selectedModel={selectedModel}
             onModelChange={setSelectedModel}
+            onSelectCell={setSelectedCell}
           />
 
           {/* Right panel - Config */}
@@ -2850,6 +3088,10 @@ export function LitReview() {
               onExitPreview={handleExitPreview}
               isPreview={isPreviewMode}
               previewVersionId={previewVersionId}
+              selectedColumn={selectedColumn}
+              selectedRow={selectedRow}
+              selectedCell={selectedCellData}
+              onOverrideValue={handleOverrideValue}
               onExportExcel={handleExportExcel}
               onExportCSV={handleExportCSV}
             />

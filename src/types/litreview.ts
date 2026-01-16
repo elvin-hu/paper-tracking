@@ -25,6 +25,7 @@ export interface LitReviewCell {
   sourceText?: string; // Text excerpt used for extraction
   sourcePageNumber?: number;
   status?: 'processing' | 'error';
+  aiValue?: string | string[] | number | boolean | null;
 }
 
 export interface LitReviewRow {
