@@ -164,6 +164,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     function switchProject(projectId: string) {
         const project = projects.find(p => p.id === projectId);
         if (project) {
+            // Clear filter states when switching projects (tags are project-specific)
+            sessionStorage.removeItem('library-filter-state');
+            sessionStorage.removeItem('reader-filter-state');
+            
             setCurrentProject(project);
             // window.location.reload() removed to prevent flickering
         }

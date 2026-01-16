@@ -239,6 +239,21 @@ export function Library() {
     loadData();
   }, [loadData]);
 
+  // Clear filters when project changes (tags are project-specific)
+  const prevProjectIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (currentProject && prevProjectIdRef.current !== null && prevProjectIdRef.current !== currentProject.id) {
+      // Project changed - clear filters
+      setSelectedTags([]);
+      setShowStarredOnly(false);
+      setShowUnreadOnly(false);
+      setShowArchivedOnly(false);
+      setShowFinishedOnly(false);
+      setShowUnfinishedOnly(false);
+    }
+    prevProjectIdRef.current = currentProject?.id ?? null;
+  }, [currentProject]);
+
   // Refresh notes when page becomes visible again (user navigates back from Reader)
   useEffect(() => {
     const refreshNotes = async () => {

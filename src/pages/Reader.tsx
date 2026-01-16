@@ -704,6 +704,20 @@ export function Reader() {
     }
   }, [loadAllPapers, isProjectLoading, currentProject]);
 
+  // Clear filters when project changes (tags are project-specific)
+  const prevProjectIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (currentProject && prevProjectIdRef.current !== null && prevProjectIdRef.current !== currentProject.id) {
+      // Project changed - clear filters
+      setSelectedTags([]);
+      setShowStarredOnly(false);
+      setShowUnreadOnly(false);
+      setShowFinishedOnly(false);
+      setShowUnfinishedOnly(false);
+    }
+    prevProjectIdRef.current = currentProject?.id ?? null;
+  }, [currentProject]);
+
   // Track reading progress based on scroll position
   useEffect(() => {
     const container = containerRef.current;
