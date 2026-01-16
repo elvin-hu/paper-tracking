@@ -24,6 +24,7 @@ export interface LitReviewCell {
   confidence?: number; // 0-1 AI confidence score
   sourceText?: string; // Text excerpt used for extraction
   sourcePageNumber?: number;
+  status?: 'processing' | 'error';
 }
 
 export interface LitReviewRow {

@@ -163,6 +163,7 @@ interface PaperListPanelProps {
   papers: Paper[];
   inSheetPaperIds: Set<string>; // Papers already in the sheet
   stagedPaperIds: Set<string>; // Papers selected for addition
+  isPreview: boolean;
   onToggleStaged: (paperId: string) => void;
   onStageAll: () => void;
   onClearStaged: () => void;
@@ -177,6 +178,7 @@ function PaperListPanel({
   papers,
   inSheetPaperIds,
   stagedPaperIds,
+  isPreview,
   onToggleStaged,
   onStageAll,
   onClearStaged,
@@ -215,7 +217,10 @@ function PaperListPanel({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search papers..."
-            className="w-full pl-10 pr-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
+            disabled={isPreview}
+            className={`w-full pl-10 pr-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30 ${
+              isPreview ? 'opacity-60 cursor-not-allowed' : ''
+            }`}
           />
         </div>
 
@@ -223,9 +228,10 @@ function PaperListPanel({
         <div className="relative">
           <button
             onClick={() => setShowTagFilter(!showTagFilter)}
+            disabled={isPreview}
             className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors ${
               filterTag ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
-            }`}
+            } ${isPreview ? 'opacity-60 cursor-not-allowed' : ''}`}
           >
             <Filter className="w-3.5 h-3.5" />
             {filterTag || 'Filter by tag'}
@@ -264,14 +270,16 @@ function PaperListPanel({
         <div className="flex gap-2">
           <button
             onClick={onStageAll}
-            className="text-xs text-[var(--accent-primary)] hover:text-[var(--accent-primary)]"
+            disabled={isPreview}
+            className={`text-xs text-[var(--accent-primary)] hover:text-[var(--accent-primary)] ${isPreview ? 'opacity-60 cursor-not-allowed' : ''}`}
           >
             Stage all
           </button>
           {stagedCount > 0 && (
             <button
               onClick={onClearStaged}
-              className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+              disabled={isPreview}
+              className={`text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] ${isPreview ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
               Clear
             </button>
@@ -287,7 +295,7 @@ function PaperListPanel({
           return (
             <div
               key={paper.id}
-              onClick={() => !isInSheet && onToggleStaged(paper.id)}
+              onClick={() => !isPreview && !isInSheet && onToggleStaged(paper.id)}
               className={`flex items-start gap-3 px-4 py-3 border-b border-[var(--border-muted)] transition-colors ${
                 isInSheet 
                   ? 'bg-[var(--accent-green-bg)]/10 cursor-default' 
@@ -1108,22 +1116,26 @@ What limitations are mentioned by the authors?`}
 interface EditableCellProps {
   cell: LitReviewCell | undefined;
   column: LitReviewColumn;
-  status: LitReviewRow['status'];
+  rowStatus: LitReviewRow['status'];
   isSelected: boolean;
+  isInRange: boolean;
   isEditing: boolean;
-  onSelect: () => void;
+  isReadOnly: boolean;
+  onSelect: (options?: { shiftKey?: boolean }) => void;
   onStartEdit: () => void;
   onEndEdit: () => void;
   onUpdateValue: (value: LitReviewCell['value']) => void;
-  onNavigate: (direction: 'up' | 'down' | 'left' | 'right') => void;
+  onNavigate: (direction: 'up' | 'down' | 'left' | 'right', options?: { shiftKey?: boolean }) => void;
 }
 
 function EditableCell({ 
   cell, 
   column, 
-  status, 
+  rowStatus, 
   isSelected, 
+  isInRange,
   isEditing,
+  isReadOnly,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -1159,22 +1171,38 @@ function EditableCell({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isEditing) {
+      if (isReadOnly) {
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          onNavigate('up', { shiftKey: e.shiftKey });
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          onNavigate('down', { shiftKey: e.shiftKey });
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          onNavigate('left', { shiftKey: e.shiftKey });
+        } else if (e.key === 'ArrowRight' || e.key === 'Tab') {
+          e.preventDefault();
+          onNavigate('right', { shiftKey: e.shiftKey });
+        }
+        return;
+      }
       // Navigation when selected but not editing
       if (e.key === 'Enter' || e.key === 'F2') {
         e.preventDefault();
         onStartEdit();
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        onNavigate('up');
+        onNavigate('up', { shiftKey: e.shiftKey });
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        onNavigate('down');
+        onNavigate('down', { shiftKey: e.shiftKey });
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        onNavigate('left');
+        onNavigate('left', { shiftKey: e.shiftKey });
       } else if (e.key === 'ArrowRight' || e.key === 'Tab') {
         e.preventDefault();
-        onNavigate('right');
+        onNavigate('right', { shiftKey: e.shiftKey });
       } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
         // Start typing to edit
         onStartEdit();
@@ -1214,7 +1242,7 @@ function EditableCell({
   };
 
   // Processing state
-  if (status === 'processing') {
+    if (cell?.status === 'processing' || rowStatus === 'processing') {
     return (
       <div className="flex items-center justify-center h-full min-h-[40px]">
         <Loader2 className="w-4 h-4 text-[var(--accent-primary)] animate-spin" />
@@ -1223,7 +1251,7 @@ function EditableCell({
   }
 
   // Error state
-  if (status === 'error') {
+    if (cell?.status === 'error' || rowStatus === 'error') {
     return (
       <div className="flex items-center gap-1.5 text-[var(--accent-red)] text-xs min-h-[40px]">
         <AlertCircle className="w-3.5 h-3.5" />
@@ -1233,72 +1261,77 @@ function EditableCell({
   }
 
   const value = cell?.value;
-  const confidence = cell?.confidence;
-  const confidenceColor = confidence && confidence >= 0.8 ? 'text-[var(--accent-green)]' : 
-                         confidence && confidence >= 0.5 ? 'text-[var(--accent-orange)]' : 'text-[var(--accent-red)]';
 
   // Editing mode
   if (isEditing) {
     if (column.type === 'boolean') {
       return (
-        <select
-          ref={inputRef as React.RefObject<HTMLSelectElement>}
-          value={editValue.toLowerCase() === 'yes' || editValue.toLowerCase() === 'true' || editValue === '1' ? 'yes' : 'no'}
-          onChange={(e) => {
-            onUpdateValue(e.target.value === 'yes');
-            onEndEdit();
-          }}
-          onBlur={onEndEdit}
-          onKeyDown={handleInputKeyDown}
-          className="w-full h-full bg-[var(--bg-tertiary)] border border-[var(--accent-primary)] rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none"
-        >
-          <option value="yes">Yes</option>
-          <option value="no">No</option>
-        </select>
+        <div className="relative h-full min-h-[40px]">
+          <select
+            ref={inputRef as React.RefObject<HTMLSelectElement>}
+            value={editValue.toLowerCase() === 'yes' || editValue.toLowerCase() === 'true' || editValue === '1' ? 'yes' : 'no'}
+            onChange={(e) => {
+              onUpdateValue(e.target.value === 'yes');
+              onEndEdit();
+            }}
+            onBlur={onEndEdit}
+            onKeyDown={handleInputKeyDown}
+            className="absolute inset-0 w-full h-full bg-[var(--bg-tertiary)] border border-[var(--accent-primary)] rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none"
+          >
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </div>
       );
     }
 
     if (column.type === 'select') {
       return (
-        <select
-          ref={inputRef as React.RefObject<HTMLSelectElement>}
-          value={editValue}
-          onChange={(e) => {
-            onUpdateValue(e.target.value);
-            onEndEdit();
-          }}
-          onBlur={onEndEdit}
-          onKeyDown={handleInputKeyDown}
-          className="w-full h-full bg-[var(--bg-tertiary)] border border-[var(--accent-primary)] rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none"
-        >
-          <option value="">Select...</option>
-          {column.options?.map(opt => (
-            <option key={opt.id} value={opt.label}>{opt.label}</option>
-          ))}
-        </select>
+        <div className="relative h-full min-h-[40px]">
+          <select
+            ref={inputRef as React.RefObject<HTMLSelectElement>}
+            value={editValue}
+            onChange={(e) => {
+              onUpdateValue(e.target.value);
+              onEndEdit();
+            }}
+            onBlur={onEndEdit}
+            onKeyDown={handleInputKeyDown}
+            className="absolute inset-0 w-full h-full bg-[var(--bg-tertiary)] border border-[var(--accent-primary)] rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none"
+          >
+            <option value="">Select...</option>
+            {column.options?.map(opt => (
+              <option key={opt.id} value={opt.label}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
       );
     }
 
     // Text / Number / Multiselect - use textarea for multiline
     return (
-      <textarea
-        ref={inputRef as React.RefObject<HTMLTextAreaElement>}
-        value={editValue}
-        onChange={(e) => setEditValue(e.target.value)}
-        onBlur={saveAndClose}
-        onKeyDown={handleInputKeyDown}
-        placeholder={column.type === 'multiselect' ? 'Comma separated...' : 'Type here...'}
-        className="w-full min-h-[60px] bg-[var(--bg-tertiary)] border border-[var(--accent-primary)] rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none resize-none"
-        rows={3}
-      />
+      <div className="relative h-full min-h-[60px]">
+        <textarea
+          ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={saveAndClose}
+          onKeyDown={handleInputKeyDown}
+          placeholder={column.type === 'multiselect' ? 'Comma separated...' : 'Type here...'}
+          className="absolute inset-0 w-full h-full bg-[var(--bg-tertiary)] border border-[var(--accent-primary)] rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none resize-none"
+          rows={3}
+        />
+      </div>
     );
   }
 
   // Display mode
-  const baseClasses = `min-h-[40px] w-full h-full px-2 py-2 cursor-pointer rounded transition-all ${
+  const baseClasses = `min-h-[40px] w-full h-full px-2 py-2 cursor-pointer rounded transition-all relative ${
     isSelected 
-      ? 'ring-2 ring-[var(--accent-primary)] bg-[var(--accent-primary)]/10' 
-      : 'hover:bg-[var(--bg-tertiary)]'
+      ? 'z-10 ring-2 ring-[var(--accent-primary)] bg-[var(--accent-primary)]/10' 
+      : isInRange
+        ? 'bg-[var(--accent-primary)]/5'
+        : 'hover:bg-[var(--bg-tertiary)]'
   }`;
 
   const renderValue = () => {
@@ -1353,19 +1386,14 @@ function EditableCell({
   return (
     <div
       className={baseClasses}
-      onClick={onSelect}
-      onDoubleClick={onStartEdit}
+      onClick={(e) => onSelect({ shiftKey: e.shiftKey })}
+      onDoubleClick={isReadOnly ? undefined : onStartEdit}
       onKeyDown={handleKeyDown}
       tabIndex={isSelected ? 0 : -1}
       role="gridcell"
     >
       <div className="relative">
         {renderValue()}
-        {confidence !== undefined && (
-          <span className={`text-[10px] ${confidenceColor} absolute top-0 right-0`}>
-            {Math.round(confidence * 100)}%
-          </span>
-        )}
       </div>
       {cell?.sourceText && isSelected && (
         <div className="mt-2 p-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded text-xs text-[var(--text-muted)] italic">
@@ -1382,18 +1410,29 @@ interface SpreadsheetProps {
   papers: Paper[];
   onUpdateSheet: (sheet: LitReviewSheet) => void;
   onRunExtraction: (rowIds?: string[], forceRefresh?: boolean) => void;
+  onRunColumnExtraction: (columnId: string) => void;
   onRemoveRow: (rowId: string) => void;
   isExtracting: boolean;
+  isPreview: boolean;
   selectedModel: ModelId;
   onModelChange: (model: ModelId) => void;
 }
 
-function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRow, isExtracting, selectedModel, onModelChange }: SpreadsheetProps) {
+function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColumnExtraction, onRemoveRow, isExtracting, isPreview, selectedModel, onModelChange }: SpreadsheetProps) {
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
   const [resizing, setResizing] = useState<{ columnId: string; startX: number; startWidth: number } | null>(null);
+  const [rowResizing, setRowResizing] = useState<{ rowId: string; startY: number; startHeight: number } | null>(null);
   const [showMultiColumnModal, setShowMultiColumnModal] = useState(false);
   const [selectedCell, setSelectedCell] = useState<{ rowId: string; columnId: string } | null>(null);
   const [editingCell, setEditingCell] = useState<{ rowId: string; columnId: string } | null>(null);
+  const [selectionAnchor, setSelectionAnchor] = useState<{ rowId: string; columnId: string } | null>(null);
+  const [selectionRange, setSelectionRange] = useState<{
+    startRowIndex: number;
+    endRowIndex: number;
+    startColIndex: number;
+    endColIndex: number;
+  } | null>(null);
+  const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
   const tableRef = useRef<HTMLDivElement>(null);
 
   const editingColumn = editingColumnId ? sheet.columns.find(c => c.id === editingColumnId) : null;
@@ -1413,6 +1452,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                   value, 
                   confidence: undefined, // User-edited, remove AI confidence
                   sourceText: undefined,
+                  status: undefined,
                 } 
               } 
             } 
@@ -1422,7 +1462,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
   }, [sheet, onUpdateSheet]);
 
   // Handle keyboard navigation
-  const handleNavigate = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
+  const handleNavigate = useCallback((direction: 'up' | 'down' | 'left' | 'right', options?: { shiftKey?: boolean }) => {
     if (!selectedCell) return;
 
     const rowIndex = sheet.rows.findIndex(r => r.id === selectedCell.rowId);
@@ -1452,9 +1492,31 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
       if (newRow && newCol) {
         setSelectedCell({ rowId: newRow.id, columnId: newCol.id });
         setEditingCell(null);
+        if (options?.shiftKey && selectionAnchor) {
+          const startRowIndex = Math.min(
+            sheet.rows.findIndex(r => r.id === selectionAnchor.rowId),
+            newRowIndex
+          );
+          const endRowIndex = Math.max(
+            sheet.rows.findIndex(r => r.id === selectionAnchor.rowId),
+            newRowIndex
+          );
+          const startColIndex = Math.min(
+            sheet.columns.findIndex(c => c.id === selectionAnchor.columnId),
+            newColIndex
+          );
+          const endColIndex = Math.max(
+            sheet.columns.findIndex(c => c.id === selectionAnchor.columnId),
+            newColIndex
+          );
+          setSelectionRange({ startRowIndex, endRowIndex, startColIndex, endColIndex });
+        } else {
+          setSelectionAnchor({ rowId: newRow.id, columnId: newCol.id });
+          setSelectionRange(null);
+        }
       }
     }
-  }, [selectedCell, sheet.rows, sheet.columns]);
+  }, [selectedCell, sheet.rows, sheet.columns, selectionAnchor]);
 
   // Handle column resize
   useEffect(() => {
@@ -1481,7 +1543,28 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
     };
   }, [resizing, sheet, onUpdateSheet]);
 
+  // Handle row resize
+  useEffect(() => {
+    if (!rowResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const diff = e.clientY - rowResizing.startY;
+      const newHeight = Math.max(44, Math.min(240, rowResizing.startHeight + diff));
+      setRowHeights(prev => ({ ...prev, [rowResizing.rowId]: newHeight }));
+    };
+
+    const handleMouseUp = () => setRowResizing(null);
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [rowResizing]);
+
   const handleAddMultipleColumns = (newColumns: LitReviewColumn[]) => {
+    if (isPreview) return;
     onUpdateSheet({
       ...sheet,
       columns: [...sheet.columns, ...newColumns],
@@ -1489,6 +1572,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
   };
 
   const handleAddColumn = () => {
+    if (isPreview) return;
     const newColumn: LitReviewColumn = {
       id: uuidv4(),
       name: 'New Column',
@@ -1504,6 +1588,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
   };
 
   const handleUpdateColumn = (column: LitReviewColumn) => {
+    if (isPreview) return;
     onUpdateSheet({
       ...sheet,
       columns: sheet.columns.map(c => c.id === column.id ? column : c),
@@ -1511,6 +1596,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
   };
 
   const handleDeleteColumn = (columnId: string) => {
+    if (isPreview) return;
     onUpdateSheet({
       ...sheet,
       columns: sheet.columns.filter(c => c.id !== columnId),
@@ -1533,21 +1619,27 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
         <div className="flex items-center gap-3">
           <button
             onClick={handleAddColumn}
-            className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] text-[var(--text-primary)] text-sm rounded-lg transition-colors"
+            disabled={isPreview}
+            className={`flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] text-[var(--text-primary)] text-sm rounded-lg transition-colors ${
+              isPreview ? 'opacity-60 cursor-not-allowed' : ''
+            }`}
           >
             <Plus className="w-4 h-4" />
             Add Column
           </button>
           <button
             onClick={() => setShowMultiColumnModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-[var(--accent-purple-bg)]/10 hover:bg-[var(--accent-purple-bg)]/20 text-[var(--accent-purple)] text-sm rounded-lg transition-colors"
+            disabled={isPreview}
+            className={`flex items-center gap-2 px-3 py-1.5 bg-[var(--accent-purple-bg)]/10 hover:bg-[var(--accent-purple-bg)]/20 text-[var(--accent-purple)] text-sm rounded-lg transition-colors ${
+              isPreview ? 'opacity-60 cursor-not-allowed' : ''
+            }`}
           >
             <Columns className="w-4 h-4" />
             Add Multiple
           </button>
           <button
-            onClick={() => onRunExtraction()}
-            disabled={isExtracting || sheet.columns.length === 0 || sheet.selectedPaperIds.length === 0}
+            onClick={() => !isPreview && onRunExtraction()}
+            disabled={isPreview || isExtracting || sheet.columns.length === 0 || sheet.selectedPaperIds.length === 0}
             className={`flex items-center gap-2 px-4 py-1.5 text-sm rounded-lg transition-all ${
               isExtracting ? 'bg-blue-500/50 text-[var(--text-secondary)]' :
               sheet.columns.length === 0 || sheet.selectedPaperIds.length === 0 
@@ -1576,7 +1668,10 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
             <select
               value={selectedModel}
               onChange={(e) => onModelChange(e.target.value as ModelId)}
-              className="px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+              disabled={isPreview}
+              className={`px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)] ${
+                isPreview ? 'opacity-60 cursor-not-allowed' : ''
+              }`}
             >
               {OPENAI_MODELS.map(model => (
                 <option key={model.id} value={model.id}>
@@ -1585,6 +1680,11 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
               ))}
             </select>
           </div>
+          {isPreview && (
+            <span className="text-xs text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-2 py-1 rounded-lg">
+              Preview mode (read-only)
+            </span>
+          )}
           <span className="text-xs text-[var(--text-secondary)]">
             {sheet.rows.filter(r => r.status === 'completed').length} / {sheet.rows.length} rows complete
           </span>
@@ -1611,13 +1711,31 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                 style={{ width: column.width }}
                 className="flex-shrink-0 px-3 py-3 border-r border-[var(--border-muted)] group relative"
               >
-                <button
-                  onClick={() => setEditingColumnId(column.id)}
-                  className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent-primary)] transition-colors"
-                >
-                  {column.name}
-                  <Settings2 className="w-3.5 h-3.5 opacity-0 group-hover:opacity-50" />
-                </button>
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => !isPreview && setEditingColumnId(column.id)}
+                    disabled={isPreview}
+                    className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent-primary)] transition-colors"
+                  >
+                    {column.name}
+                    <Settings2 className="w-3.5 h-3.5 opacity-0 group-hover:opacity-50" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!isPreview) {
+                        onRunColumnExtraction(column.id);
+                      }
+                    }}
+                    disabled={isPreview}
+                    className={`p-1 text-[var(--text-muted)] hover:text-[var(--accent-primary)] rounded transition-colors opacity-0 group-hover:opacity-100 ${
+                      isPreview ? 'opacity-40 cursor-not-allowed' : ''
+                    }`}
+                    title="Re-run this column for all rows"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">{column.description}</p>
 
                 {/* Resize handle */}
@@ -1652,10 +1770,12 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
           ) : (
             sheet.rows.map((row, rowIndex) => {
               const paper = papers.find(p => p.id === row.paperId);
+              const rowHeight = rowHeights[row.id] ?? 72;
               return (
                 <div
                   key={row.id}
-                  className={`group flex border-b border-[var(--border-muted)] hover:bg-[var(--accent-primary-muted)] transition-colors ${
+                  style={{ height: rowHeight }}
+                  className={`group flex border-b border-[var(--border-muted)] hover:bg-[var(--accent-primary-muted)] transition-colors relative ${
                     rowIndex % 2 === 0 ? 'bg-transparent' : ''
                   }`}
                 >
@@ -1685,7 +1805,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                         </a>
                         <button
                           onClick={() => onRunExtraction([row.id])}
-                          disabled={isExtracting}
+                          disabled={isPreview || isExtracting}
                           className="p-1 text-[var(--text-muted)] hover:text-[var(--text-secondary)] rounded transition-colors disabled:opacity-30"
                           title="Re-run extraction for this row"
                         >
@@ -1693,11 +1813,15 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                         </button>
                         <button
                           onClick={() => {
+                            if (isPreview) return;
                             if (confirm('Remove this paper from the sheet?')) {
                               onRemoveRow(row.id);
                             }
                           }}
-                          className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-red)] rounded transition-colors"
+                          disabled={isPreview}
+                          className={`p-1 text-[var(--text-muted)] hover:text-[var(--accent-red)] rounded transition-colors ${
+                            isPreview ? 'opacity-40 cursor-not-allowed' : ''
+                          }`}
                           title="Remove from sheet"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1707,35 +1831,78 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                   </div>
 
                   {/* Data cells */}
-                  {sheet.columns.map((column) => (
+                  {sheet.columns.map((column, columnIndex) => {
+                    const isInRange = selectionRange
+                      ? rowIndex >= selectionRange.startRowIndex &&
+                        rowIndex <= selectionRange.endRowIndex &&
+                        columnIndex >= selectionRange.startColIndex &&
+                        columnIndex <= selectionRange.endColIndex
+                      : false;
+                    return (
                     <div
                       key={column.id}
                       style={{ width: column.width, minWidth: column.width }}
-                      className="flex-shrink-0 border-r border-[var(--border-muted)]"
+                      className="flex-shrink-0 border-r border-[var(--border-muted)] overflow-visible"
                     >
                       <EditableCell
                         cell={row.cells[column.id]}
                         column={column}
-                        status={row.status}
+                        rowStatus={row.status}
                         isSelected={selectedCell?.rowId === row.id && selectedCell?.columnId === column.id}
+                        isInRange={isInRange}
                         isEditing={editingCell?.rowId === row.id && editingCell?.columnId === column.id}
-                        onSelect={() => {
+                        onSelect={(options) => {
                           setSelectedCell({ rowId: row.id, columnId: column.id });
                           setEditingCell(null);
+                          if (options?.shiftKey && selectionAnchor) {
+                            const startRowIndex = Math.min(
+                              sheet.rows.findIndex(r => r.id === selectionAnchor.rowId),
+                              rowIndex
+                            );
+                            const endRowIndex = Math.max(
+                              sheet.rows.findIndex(r => r.id === selectionAnchor.rowId),
+                              rowIndex
+                            );
+                            const startColIndex = Math.min(
+                              sheet.columns.findIndex(c => c.id === selectionAnchor.columnId),
+                              columnIndex
+                            );
+                            const endColIndex = Math.max(
+                              sheet.columns.findIndex(c => c.id === selectionAnchor.columnId),
+                              columnIndex
+                            );
+                            setSelectionRange({ startRowIndex, endRowIndex, startColIndex, endColIndex });
+                          } else {
+                            setSelectionAnchor({ rowId: row.id, columnId: column.id });
+                            setSelectionRange(null);
+                          }
                         }}
                         onStartEdit={() => {
+                          if (isPreview) return;
                           setSelectedCell({ rowId: row.id, columnId: column.id });
                           setEditingCell({ rowId: row.id, columnId: column.id });
+                          setSelectionAnchor({ rowId: row.id, columnId: column.id });
+                          setSelectionRange(null);
                         }}
                         onEndEdit={() => setEditingCell(null)}
                         onUpdateValue={(value) => handleCellUpdate(row.id, column.id, value)}
                         onNavigate={handleNavigate}
+                        isReadOnly={isPreview}
                       />
                     </div>
-                  ))}
+                  )})}
 
                   {/* Spacer */}
                   <div className="flex-shrink-0 w-[50px]" />
+
+                  {/* Row resize handle */}
+                  <div
+                    className="absolute left-0 right-0 bottom-0 h-2 cursor-row-resize hover:bg-[var(--accent-primary)]/10"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setRowResizing({ rowId: row.id, startY: e.clientY, startHeight: rowHeight });
+                    }}
+                  />
                 </div>
               );
             })
@@ -1744,7 +1911,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
       </div>
 
       {/* Column config modal */}
-      {editingColumn && (
+      {!isPreview && editingColumn && (
         <ColumnConfig
           column={editingColumn}
           onUpdate={handleUpdateColumn}
@@ -1754,7 +1921,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
       )}
 
       {/* Multi-column add modal */}
-      {showMultiColumnModal && (
+      {!isPreview && showMultiColumnModal && (
         <MultiColumnModal
           onAddColumns={handleAddMultipleColumns}
           onClose={() => setShowMultiColumnModal(false)}
@@ -1767,10 +1934,12 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
 // Right panel - Configuration & Version History
 interface ConfigPanelProps {
   sheet: LitReviewSheet;
-  onUpdateSheet: (sheet: LitReviewSheet) => void;
   onApplyPreset: (preset: LitReviewPreset) => void;
   onSaveVersion: () => void;
-  onRestoreVersion: (versionId: string) => void;
+  onPreviewVersion: (versionId: string) => void;
+  onExitPreview: () => void;
+  isPreview: boolean;
+  previewVersionId: string | null;
   onExportExcel: () => void;
   onExportCSV: () => void;
 }
@@ -1779,7 +1948,10 @@ function ConfigPanel({
   sheet,
   onApplyPreset,
   onSaveVersion,
-  onRestoreVersion,
+  onPreviewVersion,
+  onExitPreview,
+  isPreview,
+  previewVersionId,
   onExportExcel,
   onExportCSV,
 }: ConfigPanelProps) {
@@ -1851,11 +2023,23 @@ function ConfigPanel({
             <div className="px-4 pb-4 space-y-2">
               <button
                 onClick={onSaveVersion}
-                className="w-full flex items-center gap-2 px-3 py-2 bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] rounded-lg text-sm hover:bg-[var(--accent-primary-muted)] transition-colors"
+                disabled={isPreview}
+                className={`w-full flex items-center gap-2 px-3 py-2 bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] rounded-lg text-sm hover:bg-[var(--accent-primary-muted)] transition-colors ${
+                  isPreview ? 'opacity-60 cursor-not-allowed' : ''
+                }`}
               >
                 <Save className="w-4 h-4" />
                 Save Current Version
               </button>
+              {isPreview && (
+                <button
+                  onClick={onExitPreview}
+                  className="w-full flex items-center gap-2 px-3 py-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-lg text-sm hover:bg-[var(--bg-tertiary)] transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  Exit Preview
+                </button>
+              )}
 
               {sheet.versions.length === 0 ? (
                 <p className="text-xs text-[var(--text-muted)] text-center py-4">No saved versions yet</p>
@@ -1863,17 +2047,17 @@ function ConfigPanel({
                 sheet.versions.slice().reverse().map((version) => (
                   <button
                     key={version.id}
-                    onClick={() => onRestoreVersion(version.id)}
+                    onClick={() => onPreviewVersion(version.id)}
                     className={`w-full p-3 text-left rounded-lg transition-colors ${
-                      sheet.currentVersionId === version.id 
+                      previewVersionId === version.id 
                         ? 'bg-[var(--accent-primary)]/20 border border-[var(--accent-primary)]/30' 
                         : 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-[var(--text-primary)]">{version.name}</p>
-                      {sheet.currentVersionId === version.id && (
-                        <span className="text-[10px] text-[var(--accent-primary)] uppercase">Current</span>
+                      {previewVersionId === version.id && (
+                        <span className="text-[10px] text-[var(--accent-primary)] uppercase">Preview</span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-muted)]">
@@ -1981,6 +2165,7 @@ export function LitReview() {
   const [newSheetName, setNewSheetName] = useState('');
   const [showSheetMenu, setShowSheetMenu] = useState(false);
   const [stagedPaperIds, setStagedPaperIds] = useState<Set<string>>(new Set());
+  const [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelId>(() => {
     const saved = localStorage.getItem('litreview-model');
     return (saved as ModelId) || 'gpt-4o-mini';
@@ -2053,6 +2238,25 @@ export function LitReview() {
     [sheets, currentSheetId]
   );
 
+  const previewVersion = useMemo(() => {
+    if (!currentSheet || !previewVersionId) return null;
+    return currentSheet.versions.find(v => v.id === previewVersionId) || null;
+  }, [currentSheet, previewVersionId]);
+
+  const displaySheet = useMemo(() => {
+    if (!currentSheet) return null;
+    if (!previewVersion) return currentSheet;
+    return {
+      ...currentSheet,
+      columns: previewVersion.columns,
+      rows: previewVersion.rows,
+      selectedPaperIds: previewVersion.rows.map(r => r.paperId),
+      currentVersionId: previewVersion.id,
+    };
+  }, [currentSheet, previewVersion]);
+
+  const isPreviewMode = Boolean(previewVersion);
+
   const allTags = useMemo(() => {
     const tags = new Set<string>();
     papers.forEach(p => p.tags.forEach(t => tags.add(t)));
@@ -2060,9 +2264,15 @@ export function LitReview() {
   }, [papers]);
 
   const inSheetPaperIds = useMemo(() => 
-    new Set(currentSheet?.selectedPaperIds || []),
-    [currentSheet]
+    new Set(displaySheet?.selectedPaperIds || []),
+    [displaySheet]
   );
+
+  useEffect(() => {
+    if (previewVersionId && !previewVersion) {
+      setPreviewVersionId(null);
+    }
+  }, [previewVersionId, previewVersion]);
 
   // Handlers
   
@@ -2287,7 +2497,7 @@ export function LitReview() {
         const cells: Record<string, LitReviewCell> = {};
         for (const column of currentSheet.columns) {
           const cell = await extractColumnValue(paperText, column, selectedModel);
-          cells[column.id] = cell;
+          cells[column.id] = { ...cell, status: undefined };
         }
 
         // Update row
@@ -2337,8 +2547,106 @@ export function LitReview() {
     setIsExtracting(false);
   };
 
-  const handleSaveVersion = async () => {
+  const handleRunColumnExtraction = async (columnId: string) => {
     if (!currentSheet) return;
+    const column = currentSheet.columns.find(c => c.id === columnId);
+    if (!column) return;
+
+    setIsExtracting(true);
+
+    // Mark target cells as processing
+    setSheets(prev => prev.map(s => {
+      if (s.id !== currentSheet.id) return s;
+      return {
+        ...s,
+        rows: s.rows.map(r => ({
+          ...r,
+          cells: {
+            ...r.cells,
+            [columnId]: {
+              value: r.cells[columnId]?.value ?? null,
+              confidence: r.cells[columnId]?.confidence,
+              sourceText: r.cells[columnId]?.sourceText,
+              status: 'processing',
+            },
+          },
+        })),
+        updatedAt: new Date(),
+      };
+    }));
+
+    for (const row of currentSheet.rows) {
+      try {
+        const paperFile = await getPaperFile(row.paperId);
+        if (!paperFile) {
+          throw new Error('PDF not found');
+        }
+
+        const paperText = await extractTextFromPDF(paperFile.data);
+        const cell = await extractColumnValue(paperText, column, selectedModel);
+        const updatedRow: LitReviewRow = {
+          ...row,
+          cells: {
+            ...row.cells,
+            [columnId]: { ...cell, status: undefined },
+          },
+        };
+
+        if (!useLocalStorage) {
+          try {
+            await upsertLitReviewRow(currentSheet.id, updatedRow);
+          } catch (dbError) {
+            console.error('Error saving row to database:', dbError);
+          }
+        }
+
+        setSheets(prev => prev.map(s => {
+          if (s.id !== currentSheet.id) return s;
+          return {
+            ...s,
+            rows: s.rows.map(r => r.id === row.id ? updatedRow : r),
+            updatedAt: new Date(),
+          };
+        }));
+      } catch (error) {
+        console.error('Column extraction error for row:', row.id, error);
+        const errorRow: LitReviewRow = {
+          ...row,
+          cells: {
+            ...row.cells,
+            [columnId]: {
+              value: row.cells[columnId]?.value ?? null,
+              confidence: row.cells[columnId]?.confidence,
+              sourceText: row.cells[columnId]?.sourceText,
+              status: 'error',
+            },
+          },
+        };
+
+        if (!useLocalStorage) {
+          try {
+            await upsertLitReviewRow(currentSheet.id, errorRow);
+          } catch (dbError) {
+            console.error('Error saving error row to database:', dbError);
+          }
+        }
+
+        setSheets(prev => prev.map(s => {
+          if (s.id !== currentSheet.id) return s;
+          return {
+            ...s,
+            rows: s.rows.map(r => r.id === row.id ? errorRow : r),
+            updatedAt: new Date(),
+          };
+        }));
+      }
+    }
+
+    setIsExtracting(false);
+  };
+
+  const handleSaveVersion = async () => {
+    if (!currentSheet || isPreviewMode) return;
 
     const versionName = `Version ${currentSheet.versions.length + 1}`;
     const version: LitReviewVersion = {
@@ -2365,18 +2673,13 @@ export function LitReview() {
     });
   };
 
-  const handleRestoreVersion = (versionId: string) => {
+  const handlePreviewVersion = (versionId: string) => {
     if (!currentSheet) return;
+    setPreviewVersionId(versionId);
+  };
 
-    const version = currentSheet.versions.find(v => v.id === versionId);
-    if (!version) return;
-
-    handleUpdateSheet({
-      ...currentSheet,
-      columns: [...version.columns],
-      rows: version.rows.map(r => ({ ...r })),
-      currentVersionId: versionId,
-    });
+  const handleExitPreview = () => {
+    setPreviewVersionId(null);
   };
 
   const handleExportExcel = () => {
@@ -2466,7 +2769,10 @@ export function LitReview() {
           {sheets.map((sheet) => (
             <div
               key={sheet.id}
-              onClick={() => setCurrentSheetId(sheet.id)}
+              onClick={() => {
+                setCurrentSheetId(sheet.id);
+                setPreviewVersionId(null);
+              }}
               className={`relative flex items-center px-4 py-2 text-sm rounded-lg transition-all cursor-pointer ${
                 currentSheetId === sheet.id
                   ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
@@ -2508,6 +2814,7 @@ export function LitReview() {
               papers={papers}
               inSheetPaperIds={inSheetPaperIds}
               stagedPaperIds={stagedPaperIds}
+              isPreview={isPreviewMode}
               onToggleStaged={handleToggleStaged}
               onStageAll={handleStageAll}
               onClearStaged={handleClearStaged}
@@ -2521,12 +2828,14 @@ export function LitReview() {
 
           {/* Center - Spreadsheet */}
           <Spreadsheet
-            sheet={currentSheet}
+            sheet={displaySheet || currentSheet}
             papers={papers}
             onUpdateSheet={handleUpdateSheet}
             onRunExtraction={handleRunExtraction}
+            onRunColumnExtraction={handleRunColumnExtraction}
             onRemoveRow={handleRemoveRow}
             isExtracting={isExtracting}
+            isPreview={isPreviewMode}
             selectedModel={selectedModel}
             onModelChange={setSelectedModel}
           />
@@ -2535,10 +2844,12 @@ export function LitReview() {
           <div className="w-72 flex-shrink-0">
             <ConfigPanel
               sheet={currentSheet}
-              onUpdateSheet={handleUpdateSheet}
               onApplyPreset={handleApplyPreset}
               onSaveVersion={handleSaveVersion}
-              onRestoreVersion={handleRestoreVersion}
+              onPreviewVersion={handlePreviewVersion}
+              onExitPreview={handleExitPreview}
+              isPreview={isPreviewMode}
+              previewVersionId={previewVersionId}
               onExportExcel={handleExportExcel}
               onExportCSV={handleExportCSV}
             />
@@ -2668,7 +2979,7 @@ export function LitReview() {
       )}
 
       {/* Bottom confirmation bar for staged papers */}
-      {stagedPaperIds.size > 0 && (
+      {!isPreviewMode && stagedPaperIds.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-40 animate-in slide-in-from-bottom duration-200">
           <div className="bg-[var(--bg-card)] border-t border-[var(--border-default)] shadow-2xl">
             <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
