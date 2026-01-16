@@ -39,14 +39,15 @@ export function CreateProjectModal({ isOpen, onClose, onCreate }: CreateProjectM
 
         setIsCreating(true);
         try {
+            // onCreate is expected to close the modal via onClose callback
+            // Don't call handleClose() here - parent handles closing before async completes
             await onCreate(name.trim());
-            handleClose();
         } catch (error) {
             console.error('Failed to create project:', error);
             alert('Failed to create project');
-        } finally {
             setIsCreating(false);
         }
+        // Note: Don't reset isCreating on success - component will unmount
     };
 
     if (!isOpen) return null;

@@ -19,6 +19,9 @@ export function ProjectSelector() {
     };
 
     const handleCreateProject = async (name: string) => {
+        // Close modal immediately before the async operation
+        // This prevents the modal from reappearing after loadProjects() triggers a re-render
+        setShowCreateModal(false);
         await createProject(name);
     };
 
