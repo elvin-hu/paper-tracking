@@ -26,6 +26,7 @@ import {
   MoreHorizontal,
   Columns,
   Save,
+  ExternalLink,
 } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import {
@@ -1245,7 +1246,7 @@ interface SpreadsheetProps {
   sheet: LitReviewSheet;
   papers: Paper[];
   onUpdateSheet: (sheet: LitReviewSheet) => void;
-  onRunExtraction: (rowIds?: string[]) => void;
+  onRunExtraction: (rowIds?: string[], forceRefresh?: boolean) => void;
   isExtracting: boolean;
 }
 
@@ -1501,7 +1502,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, isExtracti
               return (
                 <div
                   key={row.id}
-                  className={`flex border-b border-white/5 hover:bg-white/[0.02] transition-colors ${
+                  className={`group flex border-b border-white/5 hover:bg-white/[0.02] transition-colors ${
                     rowIndex % 2 === 0 ? 'bg-white/[0.01]' : ''
                   }`}
                 >
@@ -1519,14 +1520,25 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, isExtracti
                           <p className="text-xs text-white/40 mt-0.5">{paper.metadata.venue}</p>
                         )}
                       </div>
-                      <button
-                        onClick={() => onRunExtraction([row.id])}
-                        disabled={isExtracting}
-                        className="p-1 text-white/30 hover:text-white/60 rounded opacity-0 group-hover:opacity-100 transition-all"
-                        title="Re-run extraction for this row"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <a
+                          href={`/reader/${row.paperId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1 text-white/30 hover:text-blue-400 rounded transition-colors"
+                          title="Open paper in new tab"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                        <button
+                          onClick={() => onRunExtraction([row.id])}
+                          disabled={isExtracting}
+                          className="p-1 text-white/30 hover:text-white/60 rounded transition-colors disabled:opacity-30"
+                          title="Re-run extraction for this row"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -2055,7 +2067,7 @@ export function LitReview() {
     });
   };
 
-  const handleRunExtraction = async (rowIds?: string[]) => {
+  const handleRunExtraction = async (rowIds?: string[], forceRefresh = false) => {
     if (!currentSheet) {
       return;
     }
@@ -2067,9 +2079,19 @@ export function LitReview() {
 
     setIsExtracting(true);
 
+    // If specific rowIds are passed, process those (force refresh)
+    // Otherwise, only process rows that are pending or have errors (skip completed)
     const rowsToProcess = rowIds 
       ? currentSheet.rows.filter(r => rowIds.includes(r.id))
-      : currentSheet.rows;
+      : forceRefresh
+        ? currentSheet.rows
+        : currentSheet.rows.filter(r => r.status !== 'completed');
+
+    if (rowsToProcess.length === 0) {
+      alert('All rows are already completed. Use the refresh button on individual rows to re-extract.');
+      setIsExtracting(false);
+      return;
+    }
 
     // Mark rows as processing
     handleUpdateSheet({
