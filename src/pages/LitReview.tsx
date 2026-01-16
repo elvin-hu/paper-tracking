@@ -2040,44 +2040,20 @@ function ConfigPanel({
               </p>
             )}
 
-            {/* Column info card */}
-            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4 mb-4">
-              <div className="flex items-start justify-between mb-2">
+            {/* Value section - PROMINENT (editable) */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4 mb-4 shadow-sm">
+              <div className="flex items-start justify-between mb-3">
                 <h3 className="text-sm font-semibold text-[var(--text-primary)]">{selectedColumn.name}</h3>
                 <span className="text-[10px] px-2 py-0.5 bg-[var(--bg-tertiary)] text-[var(--text-muted)] rounded-full capitalize">
                   {selectedColumn.type}
                 </span>
               </div>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                {selectedColumn.description}
-              </p>
-            </div>
-
-            {/* Source section */}
-            <div className="mb-4">
-              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2">Source</p>
-              <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-3">
-                {selectedCell?.sourceText ? (
-                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">
-                    "{selectedCell.sourceText}"
-                  </p>
-                ) : (
-                  <p className="text-xs text-[var(--text-muted)] italic">
-                    No source text captured
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Value section */}
-            <div className="mb-4">
-              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2">Value</p>
               {selectedColumn.type === 'select' ? (
                 <select
                   value={overrideValue}
                   onChange={(e) => setOverrideValue(e.target.value)}
                   disabled={isPreview}
-                  className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 ${
+                  className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 ${
                     isPreview ? 'opacity-60 cursor-not-allowed' : ''
                   }`}
                 >
@@ -2091,10 +2067,10 @@ function ConfigPanel({
                   <button
                     onClick={() => { setOverrideValue('yes'); }}
                     disabled={isPreview}
-                    className={`flex-1 px-3 py-2 text-sm rounded-xl border transition-colors ${
+                    className={`flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all ${
                       overrideValue.toLowerCase() === 'yes' || overrideValue.toLowerCase() === 'true'
-                        ? 'bg-[var(--accent-green-bg)]/20 border-[var(--accent-green-bg)] text-[var(--accent-green)]'
-                        : 'bg-[var(--bg-card)] border-[var(--border-default)] text-[var(--text-secondary)]'
+                        ? 'bg-[var(--accent-green-bg)]/15 border-[var(--accent-green-bg)] text-[var(--accent-green)]'
+                        : 'bg-[var(--bg-primary)] border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
                     } ${isPreview ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     Yes
@@ -2102,10 +2078,10 @@ function ConfigPanel({
                   <button
                     onClick={() => { setOverrideValue('no'); }}
                     disabled={isPreview}
-                    className={`flex-1 px-3 py-2 text-sm rounded-xl border transition-colors ${
+                    className={`flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all ${
                       overrideValue.toLowerCase() === 'no' || overrideValue.toLowerCase() === 'false'
-                        ? 'bg-[var(--accent-red-bg)]/20 border-[var(--accent-red-bg)] text-[var(--accent-red)]'
-                        : 'bg-[var(--bg-card)] border-[var(--border-default)] text-[var(--text-secondary)]'
+                        ? 'bg-[var(--accent-red-bg)]/15 border-[var(--accent-red-bg)] text-[var(--accent-red)]'
+                        : 'bg-[var(--bg-primary)] border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
                     } ${isPreview ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     No
@@ -2117,11 +2093,33 @@ function ConfigPanel({
                   onChange={(e) => setOverrideValue(e.target.value)}
                   placeholder={selectedColumn.type === 'multiselect' ? 'Comma separated values...' : 'Enter value...'}
                   disabled={isPreview}
-                  className={`w-full min-h-[100px] px-3 py-2.5 text-sm bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 resize-none ${
+                  className={`w-full min-h-[120px] px-3 py-2.5 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 resize-none ${
                     isPreview ? 'opacity-60 cursor-not-allowed' : ''
                   }`}
-                  rows={4}
+                  rows={5}
                 />
+              )}
+            </div>
+
+            {/* Column prompt - subtle (read-only) */}
+            <div className="mb-3">
+              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-1.5">Prompt</p>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                {selectedColumn.description}
+              </p>
+            </div>
+
+            {/* Source section - subtle (read-only) */}
+            <div className="mb-4">
+              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-1.5">Source</p>
+              {selectedCell?.sourceText ? (
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed italic">
+                  "{selectedCell.sourceText}"
+                </p>
+              ) : (
+                <p className="text-xs text-[var(--text-muted)] italic">
+                  No source text captured
+                </p>
               )}
             </div>
 
