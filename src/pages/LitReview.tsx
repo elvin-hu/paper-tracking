@@ -96,7 +96,8 @@ function saveSheetsToStorage(projectId: string, sheets: LitReviewSheet[]): void 
 
 async function extractColumnValue(
   paperText: string,
-  column: LitReviewColumn
+  column: LitReviewColumn,
+  model: ModelId = 'gpt-4o-mini'
 ): Promise<LitReviewCell> {
   const systemPrompt = `You are an expert research paper analyst. Extract specific information from academic papers with high accuracy.
 Your task is to find and extract: "${column.name}"
@@ -127,7 +128,7 @@ Respond in this exact JSON format:
     const data = await callOpenAIWithFallback([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: `Paper text (truncated to first 15000 chars for context):\n\n${paperText.slice(0, 15000)}` },
-    ], { temperature: 0.1 });
+    ], { model, temperature: 0.1 });
 
     const result = JSON.parse(data.choices[0].message.content);
 
@@ -201,20 +202,20 @@ function PaperListPanel({
   const inSheetCount = inSheetPaperIds.size;
 
   return (
-    <div className="flex flex-col h-full bg-[#1a1a1e] border-r border-white/10">
+    <div className="flex flex-col h-full bg-[var(--bg-secondary)] border-r border-[var(--border-color)]">
       {/* Header */}
-      <div className="p-4 border-b border-white/10">
-        <h2 className="text-sm font-semibold text-white/90 mb-3">Papers</h2>
+      <div className="p-4 border-b border-[var(--border-color)]">
+        <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Papers</h2>
         
         {/* Search */}
         <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search papers..."
-            className="w-full pl-10 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+            className="w-full pl-10 pr-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
           />
         </div>
 
@@ -223,7 +224,7 @@ function PaperListPanel({
           <button
             onClick={() => setShowTagFilter(!showTagFilter)}
             className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors ${
-              filterTag ? 'bg-blue-500/20 text-blue-400' : 'bg-white/5 text-white/60 hover:bg-white/10'
+              filterTag ? 'bg-blue-500/20 text-blue-400' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
             }`}
           >
             <Filter className="w-3.5 h-3.5" />
@@ -232,10 +233,10 @@ function PaperListPanel({
           </button>
 
           {showTagFilter && (
-            <div className="absolute top-full left-0 mt-1 w-48 bg-[#252529] border border-white/10 rounded-lg shadow-xl z-10 py-1 max-h-48 overflow-y-auto">
+            <div className="absolute top-full left-0 mt-1 w-48 bg-[#252529] border border-[var(--border-color)] rounded-lg shadow-xl z-10 py-1 max-h-48 overflow-y-auto">
               <button
                 onClick={() => { onFilterTagChange(null); setShowTagFilter(false); }}
-                className="w-full px-3 py-1.5 text-left text-xs text-white/60 hover:bg-white/10"
+                className="w-full px-3 py-1.5 text-left text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]"
               >
                 All papers
               </button>
@@ -243,8 +244,8 @@ function PaperListPanel({
                 <button
                   key={tag}
                   onClick={() => { onFilterTagChange(tag); setShowTagFilter(false); }}
-                  className={`w-full px-3 py-1.5 text-left text-xs hover:bg-white/10 ${
-                    filterTag === tag ? 'text-blue-400' : 'text-white/80'
+                  className={`w-full px-3 py-1.5 text-left text-xs hover:bg-[var(--bg-tertiary)] ${
+                    filterTag === tag ? 'text-blue-400' : 'text-[var(--text-primary)]'
                   }`}
                 >
                   {tag}
@@ -256,8 +257,8 @@ function PaperListPanel({
       </div>
 
       {/* Selection controls */}
-      <div className="flex items-center justify-between px-4 py-2 bg-white/[0.02] border-b border-white/10">
-        <span className="text-xs text-white/50">
+      <div className="flex items-center justify-between px-4 py-2 bg-white/[0.02] border-b border-[var(--border-color)]">
+        <span className="text-xs text-[var(--text-muted)]">
           {inSheetCount} in sheet{stagedCount > 0 && `, ${stagedCount} staged`}
         </span>
         <div className="flex gap-2">
@@ -270,7 +271,7 @@ function PaperListPanel({
           {stagedCount > 0 && (
             <button
               onClick={onClearStaged}
-              className="text-xs text-white/50 hover:text-white/70"
+              className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
             >
               Clear
             </button>
@@ -292,7 +293,7 @@ function PaperListPanel({
                   ? 'bg-green-500/5 cursor-default' 
                   : isStaged 
                     ? 'bg-blue-500/10 cursor-pointer' 
-                    : 'hover:bg-white/5 cursor-pointer'
+                    : 'hover:bg-[var(--bg-tertiary)] cursor-pointer'
               }`}
             >
               <div className={`mt-0.5 w-4 h-4 rounded flex-shrink-0 flex items-center justify-center transition-colors ${
@@ -310,7 +311,7 @@ function PaperListPanel({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm text-white/90 line-clamp-2 leading-snug">
+                  <p className="text-sm text-[var(--text-primary)] line-clamp-2 leading-snug">
                     {paper.title}
                   </p>
                   {isInSheet && (
@@ -320,19 +321,19 @@ function PaperListPanel({
                   )}
                 </div>
                 {paper.authors && (
-                  <p className="text-xs text-white/40 mt-1 truncate">
+                  <p className="text-xs text-[var(--text-muted)] mt-1 truncate">
                     {paper.authors}
                   </p>
                 )}
                 {paper.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {paper.tags.slice(0, 2).map(tag => (
-                      <span key={tag} className="px-1.5 py-0.5 text-[10px] bg-white/10 text-white/50 rounded">
+                      <span key={tag} className="px-1.5 py-0.5 text-[10px] bg-[var(--bg-tertiary)] text-[var(--text-muted)] rounded">
                         {tag}
                       </span>
                     ))}
                     {paper.tags.length > 2 && (
-                      <span className="text-[10px] text-white/40">+{paper.tags.length - 2}</span>
+                      <span className="text-[10px] text-[var(--text-muted)]">+{paper.tags.length - 2}</span>
                     )}
                   </div>
                 )}
@@ -393,10 +394,10 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#1e1e22] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-5 border-b border-white/10">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)]">
           <h3 className="text-lg font-medium text-white">Configure Column</h3>
-          <button onClick={onClose} className="p-1 text-white/50 hover:text-white/80">
+          <button onClick={onClose} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -404,18 +405,18 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
         <div className="p-5 space-y-5">
           {/* Name */}
           <div>
-            <label className="block text-xs font-medium text-white/60 mb-2">Column Name</label>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">Column Name</label>
             <input
               type="text"
               value={localColumn.name}
               onChange={(e) => setLocalColumn({ ...localColumn, name: e.target.value })}
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
             />
           </div>
 
           {/* Type */}
           <div>
-            <label className="block text-xs font-medium text-white/60 mb-2">Data Type</label>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">Data Type</label>
             <select
               value={localColumn.type}
               onChange={(e) => setLocalColumn({ 
@@ -423,7 +424,7 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
                 type: e.target.value as LitReviewColumnType,
                 options: ['select', 'multiselect'].includes(e.target.value) ? localColumn.options || [] : undefined,
               })}
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
             >
               {typeOptions.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -433,15 +434,15 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
 
           {/* Description / AI Prompt */}
           <div>
-            <label className="block text-xs font-medium text-white/60 mb-2">
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">
               Extraction Prompt
-              <span className="text-white/40 font-normal ml-1">(What should AI look for?)</span>
+              <span className="text-[var(--text-muted)] font-normal ml-1">(What should AI look for?)</span>
             </label>
             <textarea
               value={localColumn.description}
               onChange={(e) => setLocalColumn({ ...localColumn, description: e.target.value })}
               rows={3}
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50"
               placeholder="e.g., What type of study was conducted? Look for methodology section."
             />
           </div>
@@ -449,7 +450,7 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
           {/* Options for select/multiselect */}
           {(localColumn.type === 'select' || localColumn.type === 'multiselect') && (
             <div>
-              <label className="block text-xs font-medium text-white/60 mb-2">Options</label>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">Options</label>
               <div className="space-y-2">
                 {localColumn.options?.map((opt) => (
                   <div key={opt.id} className="flex items-center gap-2">
@@ -457,10 +458,10 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
                       className="w-3 h-3 rounded-full flex-shrink-0"
                       style={{ backgroundColor: opt.color }}
                     />
-                    <span className="flex-1 text-sm text-white/80">{opt.label}</span>
+                    <span className="flex-1 text-sm text-[var(--text-primary)]">{opt.label}</span>
                     <button
                       onClick={() => handleRemoveOption(opt.id)}
-                      className="p-1 text-white/40 hover:text-red-400"
+                      className="p-1 text-[var(--text-muted)] hover:text-red-400"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -473,11 +474,11 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
                     onChange={(e) => setNewOption(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddOption()}
                     placeholder="Add option..."
-                    className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="flex-1 px-3 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                   />
                   <button
                     onClick={handleAddOption}
-                    className="px-3 py-1.5 bg-white/10 text-white/80 rounded-lg text-sm hover:bg-white/20"
+                    className="px-3 py-1.5 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-lg text-sm hover:bg-white/20"
                   >
                     Add
                   </button>
@@ -488,20 +489,20 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
 
           {/* Width */}
           <div>
-            <label className="block text-xs font-medium text-white/60 mb-2">Column Width</label>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">Column Width</label>
             <input
               type="number"
               value={localColumn.width}
               onChange={(e) => setLocalColumn({ ...localColumn, width: parseInt(e.target.value) || 150 })}
               min={80}
               max={500}
-              className="w-24 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              className="w-24 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50"
             />
-            <span className="ml-2 text-xs text-white/40">px</span>
+            <span className="ml-2 text-xs text-[var(--text-muted)]">px</span>
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-5 border-t border-white/10">
+        <div className="flex items-center justify-between p-5 border-t border-[var(--border-color)]">
           <button
             onClick={onDelete}
             className="px-4 py-2 text-sm text-red-400 hover:text-red-300"
@@ -511,7 +512,7 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm text-white/60 hover:text-white/80"
+              className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               Cancel
             </button>
@@ -528,19 +529,50 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
   );
 }
 
+// Available OpenAI models with their characteristics
+const OPENAI_MODELS = [
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Fast & affordable', isReasoning: false },
+  { id: 'gpt-4o', name: 'GPT-4o', description: 'Best quality', isReasoning: false },
+  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', description: 'Fast GPT-4', isReasoning: false },
+  { id: 'o1-mini', name: 'o1-mini', description: 'Fast reasoning', isReasoning: true },
+  { id: 'o1', name: 'o1', description: 'Advanced reasoning', isReasoning: true },
+  { id: 'o3-mini', name: 'o3-mini', description: 'Latest reasoning', isReasoning: true },
+] as const;
+
+type ModelId = typeof OPENAI_MODELS[number]['id'];
+
 // Helper to call OpenAI (uses server-side in production, falls back to client-side in dev)
 async function callOpenAIWithFallback(
   messages: { role: string; content: string }[],
-  options: { model?: string; temperature?: number; max_tokens?: number } = {}
+  options: { model?: ModelId; temperature?: number; max_tokens?: number } = {}
 ): Promise<{ choices: { message: { content: string } }[] }> {
   const { model = 'gpt-4o-mini', temperature = 0.3, max_tokens = 2000 } = options;
+  
+  const modelInfo = OPENAI_MODELS.find(m => m.id === model);
+  const isReasoningModel = modelInfo?.isReasoning ?? false;
+  
+  // Reasoning models (o1, o3) need different message format and don't support temperature
+  let apiMessages = messages;
+  let apiParams: Record<string, unknown> = { model, messages: apiMessages, max_tokens };
+  
+  if (isReasoningModel) {
+    // For o1/o3: convert system messages to developer messages, no temperature
+    apiMessages = messages.map(m => ({
+      role: m.role === 'system' ? 'developer' : m.role,
+      content: m.content,
+    }));
+    apiParams = { model, messages: apiMessages, max_completion_tokens: max_tokens };
+  } else {
+    // For GPT-4 models: use standard format with temperature
+    apiParams = { model, messages, temperature, max_tokens };
+  }
   
   // Try server-side API first
   try {
     const response = await fetch('/api/openai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, model, temperature, max_tokens }),
+      body: JSON.stringify(apiParams),
     });
     
     if (response.ok) {
@@ -565,11 +597,13 @@ async function callOpenAIWithFallback(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${localKey}`,
     },
-    body: JSON.stringify({ model, messages, temperature, max_tokens }),
+    body: JSON.stringify(apiParams),
   });
   
   if (!response.ok) {
-    throw new Error('OpenAI API request failed');
+    const errorText = await response.text();
+    console.error('OpenAI API error:', errorText);
+    throw new Error(`OpenAI API request failed: ${response.status}`);
   }
   
   return await response.json();
@@ -848,25 +882,25 @@ function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-[#1e1e22] border border-white/10 rounded-2xl w-full max-w-3xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col my-8">
-        <div className="flex items-center justify-between p-5 border-b border-white/10">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl w-full max-w-3xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col my-8">
+        <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)]">
           <div>
             <h3 className="text-lg font-medium text-white">Add Multiple Columns</h3>
-            <p className="text-sm text-white/50 mt-1">Define columns and let AI generate extraction prompts</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Define columns and let AI generate extraction prompts</p>
           </div>
-          <button onClick={onClose} className="p-1 text-white/50 hover:text-white/80">
+          <button onClick={onClose} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Mode Toggle */}
-        <div className="flex gap-1 p-2 mx-5 mt-5 bg-white/5 rounded-lg w-fit">
+        <div className="flex gap-1 p-2 mx-5 mt-5 bg-[var(--bg-tertiary)] rounded-lg w-fit">
           <button
             onClick={() => setMode('quick')}
             className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
               mode === 'quick' 
-                ? 'bg-white/10 text-white' 
-                : 'text-white/50 hover:text-white/70'
+                ? 'bg-[var(--bg-tertiary)] text-white' 
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
             }`}
           >
             Quick
@@ -875,8 +909,8 @@ function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
             onClick={() => setMode('detailed')}
             className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
               mode === 'detailed' 
-                ? 'bg-white/10 text-white' 
-                : 'text-white/50 hover:text-white/70'
+                ? 'bg-[var(--bg-tertiary)] text-white' 
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
             }`}
           >
             Detailed
@@ -887,7 +921,7 @@ function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
           /* Quick Mode - Natural language descriptions */
           <div className="p-5 space-y-4">
             <div>
-              <label className="block text-sm text-white/70 mb-2">
+              <label className="block text-sm text-[var(--text-secondary)] mb-2">
                 Describe what you want to extract (one per line)
               </label>
               <textarea
@@ -899,9 +933,9 @@ What are the main findings?
 Does the paper include a user study?
 What limitations are mentioned by the authors?`}
                 rows={10}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none"
+                className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none"
               />
-              <p className="text-xs text-white/40 mt-2">
+              <p className="text-xs text-[var(--text-muted)] mt-2">
                 {quickColumnCount} column{quickColumnCount !== 1 ? 's' : ''} • AI will infer column names, types, and extraction prompts
               </p>
             </div>
@@ -912,14 +946,14 @@ What limitations are mentioned by the authors?`}
           {columns.map((column, index) => (
             <div
               key={column.id}
-              className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-3"
+              className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)] space-y-3"
             >
               <div className="flex items-start justify-between">
-                <span className="text-xs font-medium text-white/40">Column {index + 1}</span>
+                <span className="text-xs font-medium text-[var(--text-muted)]">Column {index + 1}</span>
                 {columns.length > 1 && (
                   <button
                     onClick={() => removeColumn(column.id)}
-                    className="p-1 text-white/30 hover:text-red-400 transition-colors"
+                    className="p-1 text-[var(--text-muted)] hover:text-red-400 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -929,19 +963,19 @@ What limitations are mentioned by the authors?`}
               <div className="grid grid-cols-2 gap-3">
                 {/* Name */}
                 <div>
-                  <label className="block text-xs text-white/50 mb-1">Name</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">Name</label>
                   <input
                     type="text"
                     value={column.name}
                     onChange={(e) => updateColumn(column.id, { name: e.target.value })}
                     placeholder="e.g., Study Type"
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                   />
                 </div>
 
                 {/* Type */}
                 <div>
-                  <label className="block text-xs text-white/50 mb-1">Type</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">Type</label>
                   <select
                     value={column.type}
                     onChange={(e) => updateColumn(column.id, { 
@@ -949,7 +983,7 @@ What limitations are mentioned by the authors?`}
                       options: ['select', 'multiselect'].includes(e.target.value) ? column.options : [],
                       optionsText: ['select', 'multiselect'].includes(e.target.value) ? column.optionsText : '',
                     })}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                   >
                     {typeOptions.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -961,7 +995,7 @@ What limitations are mentioned by the authors?`}
               {/* Options for select types */}
               {['select', 'multiselect'].includes(column.type) && (
                 <div>
-                  <label className="block text-xs text-white/50 mb-1">Options (comma-separated)</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">Options (comma-separated)</label>
                   <input
                     type="text"
                     value={column.optionsText}
@@ -970,7 +1004,7 @@ What limitations are mentioned by the authors?`}
                       options: e.target.value.split(',').map(o => o.trim()).filter(o => o),
                     })}
                     placeholder="e.g., Qualitative, Quantitative, Mixed"
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                   />
                 </div>
               )}
@@ -978,7 +1012,7 @@ What limitations are mentioned by the authors?`}
               {/* AI Generated Prompt */}
               {promptsGenerated && column.prompt && (
                 <div>
-                  <label className="block text-xs text-white/50 mb-1">
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">
                     <span className="flex items-center gap-1">
                       <Sparkles className="w-3 h-3 text-purple-400" />
                       AI-Generated Prompt
@@ -988,7 +1022,7 @@ What limitations are mentioned by the authors?`}
                     value={column.prompt}
                     onChange={(e) => updateColumn(column.id, { prompt: e.target.value })}
                     rows={2}
-                    className="w-full px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg text-sm text-white/90 focus:outline-none focus:ring-1 focus:ring-purple-500/50 resize-none"
+                    className="w-full px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-purple-500/50 resize-none"
                   />
                 </div>
               )}
@@ -998,7 +1032,7 @@ What limitations are mentioned by the authors?`}
           {/* Add Column Button */}
           <button
             onClick={addColumn}
-            className="w-full py-3 border-2 border-dashed border-white/10 rounded-xl text-white/50 hover:text-white/70 hover:border-white/20 transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 border-2 border-dashed border-[var(--border-color)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-white/20 transition-colors flex items-center justify-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Add Another Column
@@ -1007,7 +1041,7 @@ What limitations are mentioned by the authors?`}
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-5 border-t border-white/10 bg-[#1a1a1e]">
+        <div className="flex items-center justify-between p-5 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]">
           {mode === 'detailed' && (
             <button
               onClick={handleGeneratePrompts}
@@ -1032,7 +1066,7 @@ What limitations are mentioned by the authors?`}
             <button
               onClick={onClose}
               disabled={isGenerating}
-              className="px-4 py-2 text-sm text-white/60 hover:text-white/80 disabled:opacity-50"
+              className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50"
             >
               Cancel
             </button>
@@ -1264,12 +1298,12 @@ function EditableCell({
   const baseClasses = `min-h-[40px] w-full h-full px-2 py-2 cursor-pointer rounded transition-all ${
     isSelected 
       ? 'ring-2 ring-blue-500 bg-blue-500/10' 
-      : 'hover:bg-white/5'
+      : 'hover:bg-[var(--bg-tertiary)]'
   }`;
 
   const renderValue = () => {
     if (value === null || value === undefined) {
-      return <span className="text-white/30 text-xs italic">Empty - click to edit</span>;
+      return <span className="text-[var(--text-muted)] text-xs italic">Empty - click to edit</span>;
     }
 
     if (column.type === 'boolean') {
@@ -1278,9 +1312,9 @@ function EditableCell({
           {value ? (
             <CheckCircle2 className="w-4 h-4 text-green-400" />
           ) : (
-            <X className="w-4 h-4 text-white/30" />
+            <X className="w-4 h-4 text-[var(--text-muted)]" />
           )}
-          <span className="text-sm text-white/70">{value ? 'Yes' : 'No'}</span>
+          <span className="text-sm text-[var(--text-secondary)]">{value ? 'Yes' : 'No'}</span>
         </div>
       );
     }
@@ -1309,11 +1343,11 @@ function EditableCell({
     }
 
     if (column.type === 'number') {
-      return <span className="text-sm text-white/90 font-mono">{value}</span>;
+      return <span className="text-sm text-[var(--text-primary)] font-mono">{value}</span>;
     }
 
     // Text - no line clamp, show full content
-    return <p className="text-sm text-white/80 whitespace-pre-wrap break-words">{String(value)}</p>;
+    return <p className="text-sm text-[var(--text-primary)] whitespace-pre-wrap break-words">{String(value)}</p>;
   };
 
   return (
@@ -1334,7 +1368,7 @@ function EditableCell({
         )}
       </div>
       {cell?.sourceText && isSelected && (
-        <div className="mt-2 p-2 bg-[#2a2a2e] border border-white/10 rounded text-xs text-white/50 italic">
+        <div className="mt-2 p-2 bg-[#2a2a2e] border border-[var(--border-color)] rounded text-xs text-[var(--text-muted)] italic">
           Source: "{cell.sourceText}"
         </div>
       )}
@@ -1350,9 +1384,11 @@ interface SpreadsheetProps {
   onRunExtraction: (rowIds?: string[], forceRefresh?: boolean) => void;
   onRemoveRow: (rowId: string) => void;
   isExtracting: boolean;
+  selectedModel: ModelId;
+  onModelChange: (model: ModelId) => void;
 }
 
-function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRow, isExtracting }: SpreadsheetProps) {
+function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRow, isExtracting, selectedModel, onModelChange }: SpreadsheetProps) {
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
   const [resizing, setResizing] = useState<{ columnId: string; startX: number; startWidth: number } | null>(null);
   const [showMultiColumnModal, setShowMultiColumnModal] = useState(false);
@@ -1491,13 +1527,13 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
   const totalWidth = 280 + sheet.columns.reduce((sum, c) => sum + c.width, 0) + 50;
 
   return (
-    <div className="flex-1 flex flex-col bg-[#161618] min-w-0 overflow-hidden">
+    <div className="flex-1 flex flex-col bg-[var(--bg-primary)] min-w-0 overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-5 py-3 bg-[#1a1a1e] border-b border-white/10">
+      <div className="flex items-center justify-between px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
         <div className="flex items-center gap-3">
           <button
             onClick={handleAddColumn}
-            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/80 text-sm rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] text-[var(--text-primary)] text-sm rounded-lg transition-colors"
           >
             <Plus className="w-4 h-4" />
             Add Column
@@ -1513,9 +1549,9 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
             onClick={() => onRunExtraction()}
             disabled={isExtracting || sheet.columns.length === 0 || sheet.selectedPaperIds.length === 0}
             className={`flex items-center gap-2 px-4 py-1.5 text-sm rounded-lg transition-all ${
-              isExtracting ? 'bg-blue-500/50 text-white/70' :
+              isExtracting ? 'bg-blue-500/50 text-[var(--text-secondary)]' :
               sheet.columns.length === 0 || sheet.selectedPaperIds.length === 0 
-                ? 'bg-white/5 text-white/30 cursor-not-allowed'
+                ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed'
                 : 'bg-blue-500 hover:bg-blue-600 text-white'
             }`}
           >
@@ -1533,8 +1569,23 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-white/50">
+        <div className="flex items-center gap-3">
+          {/* Model selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[var(--text-secondary)]">Model:</span>
+            <select
+              value={selectedModel}
+              onChange={(e) => onModelChange(e.target.value as ModelId)}
+              className="px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+            >
+              {OPENAI_MODELS.map(model => (
+                <option key={model.id} value={model.id}>
+                  {model.name} ({model.description})
+                </option>
+              ))}
+            </select>
+          </div>
+          <span className="text-xs text-[var(--text-secondary)]">
             {sheet.rows.filter(r => r.status === 'completed').length} / {sheet.rows.length} rows complete
           </span>
         </div>
@@ -1544,12 +1595,12 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
       <div ref={tableRef} className="flex-1 overflow-x-auto overflow-y-auto">
         <div style={{ minWidth: totalWidth }}>
           {/* Header */}
-          <div className="flex sticky top-0 bg-[#1e1e22] z-10 border-b border-white/10">
+          <div className="flex sticky top-0 bg-[var(--bg-card)] z-10 border-b border-[var(--border-color)]">
             {/* Paper title column - fixed */}
-            <div className="sticky left-0 w-[280px] flex-shrink-0 px-4 py-3 bg-[#1e1e22] border-r border-white/10 z-20">
+            <div className="sticky left-0 w-[280px] flex-shrink-0 px-4 py-3 bg-[var(--bg-card)] border-r border-[var(--border-color)] z-20">
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-white/40" />
-                <span className="text-sm font-medium text-white/80">Paper</span>
+                <FileText className="w-4 h-4 text-[var(--text-muted)]" />
+                <span className="text-sm font-medium text-[var(--text-primary)]">Paper</span>
               </div>
             </div>
 
@@ -1562,12 +1613,12 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
               >
                 <button
                   onClick={() => setEditingColumnId(column.id)}
-                  className="flex items-center gap-1.5 text-sm font-medium text-white/80 hover:text-white transition-colors"
+                  className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] hover:text-white transition-colors"
                 >
                   {column.name}
                   <Settings2 className="w-3.5 h-3.5 opacity-0 group-hover:opacity-50" />
                 </button>
-                <p className="text-xs text-white/40 mt-0.5 truncate">{column.description}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">{column.description}</p>
 
                 {/* Resize handle */}
                 <div
@@ -1584,7 +1635,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
             <div className="flex-shrink-0 w-[50px] px-2 py-3 flex items-center justify-center">
               <button
                 onClick={handleAddColumn}
-                className="p-1.5 text-white/30 hover:text-white/60 hover:bg-white/10 rounded transition-colors"
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -1595,8 +1646,8 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
           {sheet.rows.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <FileSpreadsheet className="w-12 h-12 text-white/20 mb-4" />
-              <p className="text-white/60 mb-2">No papers selected</p>
-              <p className="text-sm text-white/40">Select papers from the left panel to add them to this sheet</p>
+              <p className="text-[var(--text-secondary)] mb-2">No papers selected</p>
+              <p className="text-sm text-[var(--text-muted)]">Select papers from the left panel to add them to this sheet</p>
             </div>
           ) : (
             sheet.rows.map((row, rowIndex) => {
@@ -1609,7 +1660,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                   }`}
                 >
                   {/* Paper title - fixed */}
-                  <div className="sticky left-0 w-[280px] flex-shrink-0 px-4 py-3 bg-[#161618] border-r border-white/10 z-10">
+                  <div className="sticky left-0 w-[280px] flex-shrink-0 px-4 py-3 bg-[var(--bg-primary)] border-r border-[var(--border-color)] z-10">
                     <div className="flex items-start gap-2">
                       <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
                         row.status === 'completed' ? 'bg-green-400' :
@@ -1617,9 +1668,9 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                         row.status === 'error' ? 'bg-red-400' : 'bg-white/30'
                       }`} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white/90 line-clamp-2">{row.paperTitle}</p>
+                        <p className="text-sm text-[var(--text-primary)] line-clamp-2">{row.paperTitle}</p>
                         {paper?.metadata?.venue && (
-                          <p className="text-xs text-white/40 mt-0.5">{paper.metadata.venue}</p>
+                          <p className="text-xs text-[var(--text-muted)] mt-0.5">{paper.metadata.venue}</p>
                         )}
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
@@ -1627,7 +1678,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                           href={`/reader/${row.paperId}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1 text-white/30 hover:text-blue-400 rounded transition-colors"
+                          className="p-1 text-[var(--text-muted)] hover:text-blue-400 rounded transition-colors"
                           title="Open paper in new tab"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
@@ -1635,7 +1686,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                         <button
                           onClick={() => onRunExtraction([row.id])}
                           disabled={isExtracting}
-                          className="p-1 text-white/30 hover:text-white/60 rounded transition-colors disabled:opacity-30"
+                          className="p-1 text-[var(--text-muted)] hover:text-[var(--text-secondary)] rounded transition-colors disabled:opacity-30"
                           title="Re-run extraction for this row"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
@@ -1646,7 +1697,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                               onRemoveRow(row.id);
                             }
                           }}
-                          className="p-1 text-white/30 hover:text-red-400 rounded transition-colors"
+                          className="p-1 text-[var(--text-muted)] hover:text-red-400 rounded transition-colors"
                           title="Remove from sheet"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1737,21 +1788,21 @@ function ConfigPanel({
   const [showExport, setShowExport] = useState(false);
 
   return (
-    <div className="flex flex-col h-full bg-[#1a1a1e] border-l border-white/10 overflow-hidden">
+    <div className="flex flex-col h-full bg-[var(--bg-secondary)] border-l border-[var(--border-color)] overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-white/10">
-        <h2 className="text-sm font-semibold text-white/90">Configuration</h2>
+      <div className="p-4 border-b border-[var(--border-color)]">
+        <h2 className="text-sm font-semibold text-[var(--text-primary)]">Configuration</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         {/* Presets section */}
-        <div className="border-b border-white/10">
+        <div className="border-b border-[var(--border-color)]">
           <button
             onClick={() => setShowPresets(!showPresets)}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm text-white/80 hover:bg-white/5"
+            className="w-full flex items-center justify-between px-4 py-3 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
           >
             <div className="flex items-center gap-2">
-              <Columns className="w-4 h-4 text-white/50" />
+              <Columns className="w-4 h-4 text-[var(--text-muted)]" />
               <span>Column Presets</span>
             </div>
             {showPresets ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -1763,13 +1814,13 @@ function ConfigPanel({
                 <button
                   key={preset.id}
                   onClick={() => onApplyPreset(preset)}
-                  className="w-full p-3 text-left bg-white/5 hover:bg-white/10 rounded-lg transition-colors group"
+                  className="w-full p-3 text-left bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors group"
                 >
-                  <p className="text-sm text-white/90 font-medium">{preset.name}</p>
+                  <p className="text-sm text-[var(--text-primary)] font-medium">{preset.name}</p>
                   {preset.description && (
-                    <p className="text-xs text-white/50 mt-1">{preset.description}</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">{preset.description}</p>
                   )}
-                  <p className="text-xs text-white/40 mt-2">
+                  <p className="text-xs text-[var(--text-muted)] mt-2">
                     {preset.columns.length} columns
                   </p>
                 </button>
@@ -1779,16 +1830,16 @@ function ConfigPanel({
         </div>
 
         {/* Version History section */}
-        <div className="border-b border-white/10">
+        <div className="border-b border-[var(--border-color)]">
           <button
             onClick={() => setShowVersions(!showVersions)}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm text-white/80 hover:bg-white/5"
+            className="w-full flex items-center justify-between px-4 py-3 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
           >
             <div className="flex items-center gap-2">
-              <History className="w-4 h-4 text-white/50" />
+              <History className="w-4 h-4 text-[var(--text-muted)]" />
               <span>Version History</span>
               {sheet.versions.length > 0 && (
-                <span className="px-1.5 py-0.5 text-[10px] bg-white/10 text-white/50 rounded">
+                <span className="px-1.5 py-0.5 text-[10px] bg-[var(--bg-tertiary)] text-[var(--text-muted)] rounded">
                   {sheet.versions.length}
                 </span>
               )}
@@ -1807,7 +1858,7 @@ function ConfigPanel({
               </button>
 
               {sheet.versions.length === 0 ? (
-                <p className="text-xs text-white/40 text-center py-4">No saved versions yet</p>
+                <p className="text-xs text-[var(--text-muted)] text-center py-4">No saved versions yet</p>
               ) : (
                 sheet.versions.slice().reverse().map((version) => (
                   <button
@@ -1816,20 +1867,20 @@ function ConfigPanel({
                     className={`w-full p-3 text-left rounded-lg transition-colors ${
                       sheet.currentVersionId === version.id 
                         ? 'bg-blue-500/20 border border-blue-500/30' 
-                        : 'bg-white/5 hover:bg-white/10'
+                        : 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <p className="text-sm text-white/90">{version.name}</p>
+                      <p className="text-sm text-[var(--text-primary)]">{version.name}</p>
                       {sheet.currentVersionId === version.id && (
                         <span className="text-[10px] text-blue-400 uppercase">Current</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-white/40">
+                    <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-muted)]">
                       <Clock className="w-3 h-3" />
                       {version.createdAt.toLocaleDateString()} {version.createdAt.toLocaleTimeString()}
                     </div>
-                    <p className="text-xs text-white/40 mt-1">
+                    <p className="text-xs text-[var(--text-muted)] mt-1">
                       {version.columns.length} columns • {version.rows.length} rows
                     </p>
                   </button>
@@ -1840,13 +1891,13 @@ function ConfigPanel({
         </div>
 
         {/* Export section */}
-        <div className="border-b border-white/10">
+        <div className="border-b border-[var(--border-color)]">
           <button
             onClick={() => setShowExport(!showExport)}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm text-white/80 hover:bg-white/5"
+            className="w-full flex items-center justify-between px-4 py-3 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
           >
             <div className="flex items-center gap-2">
-              <Download className="w-4 h-4 text-white/50" />
+              <Download className="w-4 h-4 text-[var(--text-muted)]" />
               <span>Export</span>
             </div>
             {showExport ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -1856,22 +1907,22 @@ function ConfigPanel({
             <div className="px-4 pb-4 space-y-2">
               <button
                 onClick={onExportExcel}
-                className="w-full flex items-center gap-3 px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
               >
                 <FileSpreadsheet className="w-4 h-4 text-green-400" />
                 <div className="text-left">
-                  <p className="text-sm text-white/90">Download Excel</p>
-                  <p className="text-xs text-white/50">.xlsx format</p>
+                  <p className="text-sm text-[var(--text-primary)]">Download Excel</p>
+                  <p className="text-xs text-[var(--text-muted)]">.xlsx format</p>
                 </div>
               </button>
               <button
                 onClick={onExportCSV}
-                className="w-full flex items-center gap-3 px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
               >
                 <FileText className="w-4 h-4 text-blue-400" />
                 <div className="text-left">
-                  <p className="text-sm text-white/90">Download CSV</p>
-                  <p className="text-xs text-white/50">.csv format</p>
+                  <p className="text-sm text-[var(--text-primary)]">Download CSV</p>
+                  <p className="text-xs text-[var(--text-muted)]">.csv format</p>
                 </div>
               </button>
               <button
@@ -1889,12 +1940,12 @@ function ConfigPanel({
                   });
                   navigator.clipboard.writeText([header, ...rows].join('\n'));
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
               >
                 <Copy className="w-4 h-4 text-purple-400" />
                 <div className="text-left">
-                  <p className="text-sm text-white/90">Copy to Clipboard</p>
-                  <p className="text-xs text-white/50">Paste into Google Sheets</p>
+                  <p className="text-sm text-[var(--text-primary)]">Copy to Clipboard</p>
+                  <p className="text-xs text-[var(--text-muted)]">Paste into Google Sheets</p>
                 </div>
               </button>
             </div>
@@ -1930,6 +1981,15 @@ export function LitReview() {
   const [newSheetName, setNewSheetName] = useState('');
   const [showSheetMenu, setShowSheetMenu] = useState(false);
   const [stagedPaperIds, setStagedPaperIds] = useState<Set<string>>(new Set());
+  const [selectedModel, setSelectedModel] = useState<ModelId>(() => {
+    const saved = localStorage.getItem('litreview-model');
+    return (saved as ModelId) || 'gpt-4o-mini';
+  });
+
+  // Persist model selection
+  useEffect(() => {
+    localStorage.setItem('litreview-model', selectedModel);
+  }, [selectedModel]);
 
   // Load data
   useEffect(() => {
@@ -2223,10 +2283,10 @@ export function LitReview() {
 
         const paperText = await extractTextFromPDF(paperFile.data);
 
-        // Extract each column
+        // Extract each column using selected model
         const cells: Record<string, LitReviewCell> = {};
         for (const column of currentSheet.columns) {
-          const cell = await extractColumnValue(paperText, column);
+          const cell = await extractColumnValue(paperText, column, selectedModel);
           cells[column.id] = cell;
         }
 
@@ -2378,7 +2438,7 @@ export function LitReview() {
       <div className="h-screen bg-[#0d0d0f] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
-          <p className="text-white/60">Loading literature review...</p>
+          <p className="text-[var(--text-secondary)]">Loading literature review...</p>
         </div>
       </div>
     );
@@ -2387,17 +2447,17 @@ export function LitReview() {
   return (
     <div className="h-screen bg-[#0d0d0f] flex flex-col overflow-hidden">
       {/* Top bar */}
-      <header className="flex items-center justify-between px-5 py-3 bg-[#1a1a1e] border-b border-white/10">
+      <header className="flex items-center justify-between px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/')}
-            className="p-2 text-white/60 hover:text-white/90 hover:bg-white/10 rounded-lg transition-colors"
+            className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
             <h1 className="text-lg font-semibold text-white">Literature Review</h1>
-            <p className="text-xs text-white/50">{currentProject?.name}</p>
+            <p className="text-xs text-[var(--text-muted)]">{currentProject?.name}</p>
           </div>
         </div>
 
@@ -2409,8 +2469,8 @@ export function LitReview() {
               onClick={() => setCurrentSheetId(sheet.id)}
               className={`relative flex items-center px-4 py-2 text-sm rounded-lg transition-all cursor-pointer ${
                 currentSheetId === sheet.id
-                  ? 'bg-white/10 text-white'
-                  : 'text-white/60 hover:text-white/80 hover:bg-white/5'
+                  ? 'bg-[var(--bg-tertiary)] text-white'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
               }`}
             >
               {sheet.name}
@@ -2420,7 +2480,7 @@ export function LitReview() {
                     e.stopPropagation();
                     setShowSheetMenu(!showSheetMenu);
                   }}
-                  className="ml-2 p-0.5 hover:bg-white/10 rounded"
+                  className="ml-2 p-0.5 hover:bg-[var(--bg-tertiary)] rounded"
                 >
                   <MoreHorizontal className="w-3.5 h-3.5" />
                 </button>
@@ -2429,7 +2489,7 @@ export function LitReview() {
           ))}
           <button
             onClick={() => setShowNewSheetModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm text-white/60 hover:text-white/80 hover:bg-white/5 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
           >
             <Plus className="w-4 h-4" />
             New Sheet
@@ -2467,6 +2527,8 @@ export function LitReview() {
             onRunExtraction={handleRunExtraction}
             onRemoveRow={handleRemoveRow}
             isExtracting={isExtracting}
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
           />
 
           {/* Right panel - Config */}
@@ -2485,8 +2547,8 @@ export function LitReview() {
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center">
           <FileSpreadsheet className="w-16 h-16 text-white/20 mb-6" />
-          <h2 className="text-xl font-medium text-white/80 mb-2">No sheets yet</h2>
-          <p className="text-white/50 mb-6 text-center max-w-md">
+          <h2 className="text-xl font-medium text-[var(--text-primary)] mb-2">No sheets yet</h2>
+          <p className="text-[var(--text-muted)] mb-6 text-center max-w-md">
             Create a literature review sheet to start extracting structured data from your papers using AI.
           </p>
           <button
@@ -2503,7 +2565,7 @@ export function LitReview() {
       {showSheetMenu && currentSheet && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowSheetMenu(false)} />
-          <div className="fixed top-14 right-1/2 translate-x-1/2 bg-[#252529] border border-white/10 rounded-lg shadow-xl z-50 py-1 min-w-[160px]">
+          <div className="fixed top-14 right-1/2 translate-x-1/2 bg-[#252529] border border-[var(--border-color)] rounded-lg shadow-xl z-50 py-1 min-w-[160px]">
             <button
               onClick={() => {
                 const newName = prompt('Rename sheet:', currentSheet.name);
@@ -2512,7 +2574,7 @@ export function LitReview() {
                 }
                 setShowSheetMenu(false);
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
             >
               <FileText className="w-4 h-4" />
               Rename
@@ -2533,12 +2595,12 @@ export function LitReview() {
                 setCurrentSheetId(duplicated.id);
                 setShowSheetMenu(false);
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
             >
               <Copy className="w-4 h-4" />
               Duplicate
             </button>
-            <div className="border-t border-white/10 my-1" />
+            <div className="border-t border-[var(--border-color)] my-1" />
             <button
               onClick={() => {
                 if (confirm('Delete this sheet? This cannot be undone.')) {
@@ -2558,19 +2620,19 @@ export function LitReview() {
       {/* New sheet modal */}
       {showNewSheetModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1e1e22] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-5 border-b border-white/10">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)]">
               <h3 className="text-lg font-medium text-white">Create New Sheet</h3>
               <button
                 onClick={() => { setShowNewSheetModal(false); setNewSheetName(''); }}
-                className="p-1 text-white/50 hover:text-white/80"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-5">
-              <label className="block text-xs font-medium text-white/60 mb-2">Sheet Name</label>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">Sheet Name</label>
               <input
                 type="text"
                 value={newSheetName}
@@ -2582,14 +2644,14 @@ export function LitReview() {
                 }}
                 placeholder="e.g., HCI Studies 2024"
                 autoFocus
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               />
             </div>
 
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-white/10">
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-[var(--border-color)]">
               <button
                 onClick={() => { setShowNewSheetModal(false); setNewSheetName(''); }}
-                className="px-4 py-2 text-sm text-white/60 hover:text-white/80"
+                className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               >
                 Cancel
               </button>
@@ -2608,34 +2670,34 @@ export function LitReview() {
       {/* Bottom confirmation bar for staged papers */}
       {stagedPaperIds.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-40 animate-in slide-in-from-bottom duration-200">
-          <div className="bg-[#1e1e22] border-t border-white/10 shadow-2xl">
+          <div className="bg-[var(--bg-card)] border-t border-[var(--border-color)] shadow-2xl">
             <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
                     <span className="text-sm font-medium text-blue-400">{stagedPaperIds.size}</span>
                   </div>
-                  <span className="text-sm text-white/80">
+                  <span className="text-sm text-[var(--text-primary)]">
                     paper{stagedPaperIds.size !== 1 ? 's' : ''} selected
                   </span>
                 </div>
-                <div className="h-4 w-px bg-white/10" />
+                <div className="h-4 w-px bg-[var(--bg-tertiary)]" />
                 <div className="flex -space-x-1">
                   {Array.from(stagedPaperIds).slice(0, 3).map(id => {
                     const paper = papers.find(p => p.id === id);
                     return (
                       <div
                         key={id}
-                        className="w-6 h-6 rounded-full bg-white/10 border-2 border-[#1e1e22] flex items-center justify-center"
+                        className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] border-2 border-[#1e1e22] flex items-center justify-center"
                         title={paper?.title}
                       >
-                        <FileText className="w-3 h-3 text-white/50" />
+                        <FileText className="w-3 h-3 text-[var(--text-muted)]" />
                       </div>
                     );
                   })}
                   {stagedPaperIds.size > 3 && (
-                    <div className="w-6 h-6 rounded-full bg-white/10 border-2 border-[#1e1e22] flex items-center justify-center">
-                      <span className="text-[10px] text-white/50">+{stagedPaperIds.size - 3}</span>
+                    <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] border-2 border-[#1e1e22] flex items-center justify-center">
+                      <span className="text-[10px] text-[var(--text-muted)]">+{stagedPaperIds.size - 3}</span>
                     </div>
                   )}
                 </div>
@@ -2644,7 +2706,7 @@ export function LitReview() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleClearStaged}
-                  className="px-4 py-2 text-sm text-white/60 hover:text-white/80 transition-colors"
+                  className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   Cancel
                 </button>
