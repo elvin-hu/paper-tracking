@@ -661,10 +661,13 @@ export async function getAllJournalEntries(projectId?: string): Promise<JournalE
 }
 
 export async function getJournalEntry(date: string): Promise<JournalEntry | undefined> {
+  const targetProjectId = getProjectId();
+  
   const { data, error } = await supabase
     .from('journal_entries')
     .select('*')
     .eq('date', date)
+    .eq('project_id', targetProjectId)
     .single();
 
   if (error) {
