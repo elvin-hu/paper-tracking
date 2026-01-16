@@ -202,9 +202,9 @@ function PaperListPanel({
   const inSheetCount = inSheetPaperIds.size;
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-secondary)] border-r border-[var(--border-color)]">
+    <div className="flex flex-col h-full bg-[var(--bg-secondary)] border-r border-[var(--border-default)]">
       {/* Header */}
-      <div className="p-4 border-b border-[var(--border-color)]">
+      <div className="p-4 border-b border-[var(--border-default)]">
         <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Papers</h2>
         
         {/* Search */}
@@ -215,7 +215,7 @@ function PaperListPanel({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search papers..."
-            className="w-full pl-10 pr-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+            className="w-full pl-10 pr-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
           />
         </div>
 
@@ -233,7 +233,7 @@ function PaperListPanel({
           </button>
 
           {showTagFilter && (
-            <div className="absolute top-full left-0 mt-1 w-48 bg-[#252529] border border-[var(--border-color)] rounded-lg shadow-xl z-10 py-1 max-h-48 overflow-y-auto">
+            <div className="absolute top-full left-0 mt-1 w-48 bg-[#252529] border border-[var(--border-default)] rounded-lg shadow-xl z-10 py-1 max-h-48 overflow-y-auto">
               <button
                 onClick={() => { onFilterTagChange(null); setShowTagFilter(false); }}
                 className="w-full px-3 py-1.5 text-left text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]"
@@ -257,7 +257,7 @@ function PaperListPanel({
       </div>
 
       {/* Selection controls */}
-      <div className="flex items-center justify-between px-4 py-2 bg-white/[0.02] border-b border-[var(--border-color)]">
+      <div className="flex items-center justify-between px-4 py-2 bg-[var(--bg-tertiary)]/50 border-b border-[var(--border-default)]">
         <span className="text-xs text-[var(--text-muted)]">
           {inSheetCount} in sheet{stagedCount > 0 && `, ${stagedCount} staged`}
         </span>
@@ -288,7 +288,7 @@ function PaperListPanel({
             <div
               key={paper.id}
               onClick={() => !isInSheet && onToggleStaged(paper.id)}
-              className={`flex items-start gap-3 px-4 py-3 border-b border-white/5 transition-colors ${
+              className={`flex items-start gap-3 px-4 py-3 border-b border-[var(--border-muted)] transition-colors ${
                 isInSheet 
                   ? 'bg-green-500/5 cursor-default' 
                   : isStaged 
@@ -301,7 +301,7 @@ function PaperListPanel({
                   ? 'bg-green-500/20 text-green-400' 
                   : isStaged 
                     ? 'bg-blue-500 border border-blue-500' 
-                    : 'border border-white/30'
+                    : 'border border-[var(--border-default)]'
               }`}>
                 {isInSheet ? (
                   <Check className="w-3 h-3" />
@@ -394,9 +394,9 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)]">
-          <h3 className="text-lg font-medium text-white">Configure Column</h3>
+      <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between p-5 border-b border-[var(--border-default)]">
+          <h3 className="text-lg font-medium text-[var(--text-primary)]">Configure Column</h3>
           <button onClick={onClose} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
             <X className="w-5 h-5" />
           </button>
@@ -410,7 +410,7 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
               type="text"
               value={localColumn.name}
               onChange={(e) => setLocalColumn({ ...localColumn, name: e.target.value })}
-              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
             />
           </div>
 
@@ -424,7 +424,7 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
                 type: e.target.value as LitReviewColumnType,
                 options: ['select', 'multiselect'].includes(e.target.value) ? localColumn.options || [] : undefined,
               })}
-              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
             >
               {typeOptions.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -442,7 +442,7 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
               value={localColumn.description}
               onChange={(e) => setLocalColumn({ ...localColumn, description: e.target.value })}
               rows={3}
-              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50"
               placeholder="e.g., What type of study was conducted? Look for methodology section."
             />
           </div>
@@ -474,11 +474,11 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
                     onChange={(e) => setNewOption(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddOption()}
                     placeholder="Add option..."
-                    className="flex-1 px-3 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="flex-1 px-3 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                   />
                   <button
                     onClick={handleAddOption}
-                    className="px-3 py-1.5 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-lg text-sm hover:bg-white/20"
+                    className="px-3 py-1.5 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-lg text-sm hover:bg-[var(--bg-tertiary)]"
                   >
                     Add
                   </button>
@@ -496,13 +496,13 @@ function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps
               onChange={(e) => setLocalColumn({ ...localColumn, width: parseInt(e.target.value) || 150 })}
               min={80}
               max={500}
-              className="w-24 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              className="w-24 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50"
             />
             <span className="ml-2 text-xs text-[var(--text-muted)]">px</span>
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-5 border-t border-[var(--border-color)]">
+        <div className="flex items-center justify-between p-5 border-t border-[var(--border-default)]">
           <button
             onClick={onDelete}
             className="px-4 py-2 text-sm text-red-400 hover:text-red-300"
@@ -882,10 +882,10 @@ function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl w-full max-w-3xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col my-8">
-        <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)]">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl w-full max-w-3xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col my-8">
+        <div className="flex items-center justify-between p-5 border-b border-[var(--border-default)]">
           <div>
-            <h3 className="text-lg font-medium text-white">Add Multiple Columns</h3>
+            <h3 className="text-lg font-medium text-[var(--text-primary)]">Add Multiple Columns</h3>
             <p className="text-sm text-[var(--text-muted)] mt-1">Define columns and let AI generate extraction prompts</p>
           </div>
           <button onClick={onClose} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
@@ -899,7 +899,7 @@ function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
             onClick={() => setMode('quick')}
             className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
               mode === 'quick' 
-                ? 'bg-[var(--bg-tertiary)] text-white' 
+                ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]' 
                 : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
             }`}
           >
@@ -909,7 +909,7 @@ function MultiColumnModal({ onAddColumns, onClose }: MultiColumnModalProps) {
             onClick={() => setMode('detailed')}
             className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
               mode === 'detailed' 
-                ? 'bg-[var(--bg-tertiary)] text-white' 
+                ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]' 
                 : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
             }`}
           >
@@ -933,7 +933,7 @@ What are the main findings?
 Does the paper include a user study?
 What limitations are mentioned by the authors?`}
                 rows={10}
-                className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none"
+                className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-xl text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none"
               />
               <p className="text-xs text-[var(--text-muted)] mt-2">
                 {quickColumnCount} column{quickColumnCount !== 1 ? 's' : ''} • AI will infer column names, types, and extraction prompts
@@ -946,7 +946,7 @@ What limitations are mentioned by the authors?`}
           {columns.map((column, index) => (
             <div
               key={column.id}
-              className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-color)] space-y-3"
+              className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-default)] space-y-3"
             >
               <div className="flex items-start justify-between">
                 <span className="text-xs font-medium text-[var(--text-muted)]">Column {index + 1}</span>
@@ -969,7 +969,7 @@ What limitations are mentioned by the authors?`}
                     value={column.name}
                     onChange={(e) => updateColumn(column.id, { name: e.target.value })}
                     placeholder="e.g., Study Type"
-                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                   />
                 </div>
 
@@ -983,7 +983,7 @@ What limitations are mentioned by the authors?`}
                       options: ['select', 'multiselect'].includes(e.target.value) ? column.options : [],
                       optionsText: ['select', 'multiselect'].includes(e.target.value) ? column.optionsText : '',
                     })}
-                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                   >
                     {typeOptions.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -1004,7 +1004,7 @@ What limitations are mentioned by the authors?`}
                       options: e.target.value.split(',').map(o => o.trim()).filter(o => o),
                     })}
                     placeholder="e.g., Qualitative, Quantitative, Mixed"
-                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                   />
                 </div>
               )}
@@ -1032,7 +1032,7 @@ What limitations are mentioned by the authors?`}
           {/* Add Column Button */}
           <button
             onClick={addColumn}
-            className="w-full py-3 border-2 border-dashed border-[var(--border-color)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-white/20 transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 border-2 border-dashed border-[var(--border-default)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-white/20 transition-colors flex items-center justify-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Add Another Column
@@ -1041,7 +1041,7 @@ What limitations are mentioned by the authors?`}
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-5 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]">
+        <div className="flex items-center justify-between p-5 border-t border-[var(--border-default)] bg-[var(--bg-secondary)]">
           {mode === 'detailed' && (
             <button
               onClick={handleGeneratePrompts}
@@ -1250,7 +1250,7 @@ function EditableCell({
           }}
           onBlur={onEndEdit}
           onKeyDown={handleInputKeyDown}
-          className="w-full h-full bg-[#2a2a2e] border border-blue-500 rounded px-2 py-1 text-sm text-white focus:outline-none"
+          className="w-full h-full bg-[var(--bg-tertiary)] border border-blue-500 rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none"
         >
           <option value="yes">Yes</option>
           <option value="no">No</option>
@@ -1269,7 +1269,7 @@ function EditableCell({
           }}
           onBlur={onEndEdit}
           onKeyDown={handleInputKeyDown}
-          className="w-full h-full bg-[#2a2a2e] border border-blue-500 rounded px-2 py-1 text-sm text-white focus:outline-none"
+          className="w-full h-full bg-[var(--bg-tertiary)] border border-blue-500 rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none"
         >
           <option value="">Select...</option>
           {column.options?.map(opt => (
@@ -1288,7 +1288,7 @@ function EditableCell({
         onBlur={saveAndClose}
         onKeyDown={handleInputKeyDown}
         placeholder={column.type === 'multiselect' ? 'Comma separated...' : 'Type here...'}
-        className="w-full min-h-[60px] bg-[#2a2a2e] border border-blue-500 rounded px-2 py-1 text-sm text-white focus:outline-none resize-none"
+        className="w-full min-h-[60px] bg-[var(--bg-tertiary)] border border-blue-500 rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none resize-none"
         rows={3}
       />
     );
@@ -1368,7 +1368,7 @@ function EditableCell({
         )}
       </div>
       {cell?.sourceText && isSelected && (
-        <div className="mt-2 p-2 bg-[#2a2a2e] border border-[var(--border-color)] rounded text-xs text-[var(--text-muted)] italic">
+        <div className="mt-2 p-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded text-xs text-[var(--text-muted)] italic">
           Source: "{cell.sourceText}"
         </div>
       )}
@@ -1529,7 +1529,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
   return (
     <div className="flex-1 flex flex-col bg-[var(--bg-primary)] min-w-0 overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
+      <div className="flex items-center justify-between px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)]">
         <div className="flex items-center gap-3">
           <button
             onClick={handleAddColumn}
@@ -1576,7 +1576,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
             <select
               value={selectedModel}
               onChange={(e) => onModelChange(e.target.value as ModelId)}
-              className="px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+              className="px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
             >
               {OPENAI_MODELS.map(model => (
                 <option key={model.id} value={model.id}>
@@ -1595,9 +1595,9 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
       <div ref={tableRef} className="flex-1 overflow-x-auto overflow-y-auto">
         <div style={{ minWidth: totalWidth }}>
           {/* Header */}
-          <div className="flex sticky top-0 bg-[var(--bg-card)] z-10 border-b border-[var(--border-color)]">
+          <div className="flex sticky top-0 bg-[var(--bg-card)] z-10 border-b border-[var(--border-default)]">
             {/* Paper title column - fixed */}
-            <div className="sticky left-0 w-[280px] flex-shrink-0 px-4 py-3 bg-[var(--bg-card)] border-r border-[var(--border-color)] z-20">
+            <div className="sticky left-0 w-[280px] flex-shrink-0 px-4 py-3 bg-[var(--bg-card)] border-r border-[var(--border-default)] z-20">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-[var(--text-muted)]" />
                 <span className="text-sm font-medium text-[var(--text-primary)]">Paper</span>
@@ -1609,11 +1609,11 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
               <div
                 key={column.id}
                 style={{ width: column.width }}
-                className="flex-shrink-0 px-3 py-3 border-r border-white/5 group relative"
+                className="flex-shrink-0 px-3 py-3 border-r border-[var(--border-muted)] group relative"
               >
                 <button
                   onClick={() => setEditingColumnId(column.id)}
-                  className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] hover:text-white transition-colors"
+                  className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent-primary)] transition-colors"
                 >
                   {column.name}
                   <Settings2 className="w-3.5 h-3.5 opacity-0 group-hover:opacity-50" />
@@ -1645,7 +1645,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
           {/* Rows */}
           {sheet.rows.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <FileSpreadsheet className="w-12 h-12 text-white/20 mb-4" />
+              <FileSpreadsheet className="w-12 h-12 text-[var(--text-muted)] mb-4" />
               <p className="text-[var(--text-secondary)] mb-2">No papers selected</p>
               <p className="text-sm text-[var(--text-muted)]">Select papers from the left panel to add them to this sheet</p>
             </div>
@@ -1655,17 +1655,17 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
               return (
                 <div
                   key={row.id}
-                  className={`group flex border-b border-white/5 hover:bg-white/[0.02] transition-colors ${
-                    rowIndex % 2 === 0 ? 'bg-white/[0.01]' : ''
+                  className={`group flex border-b border-[var(--border-muted)] hover:bg-[var(--accent-primary-muted)] transition-colors ${
+                    rowIndex % 2 === 0 ? 'bg-transparent' : ''
                   }`}
                 >
                   {/* Paper title - fixed */}
-                  <div className="sticky left-0 w-[280px] flex-shrink-0 px-4 py-3 bg-[var(--bg-primary)] border-r border-[var(--border-color)] z-10">
+                  <div className="sticky left-0 w-[280px] flex-shrink-0 px-4 py-3 bg-[var(--bg-primary)] border-r border-[var(--border-default)] z-10">
                     <div className="flex items-start gap-2">
                       <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
                         row.status === 'completed' ? 'bg-green-400' :
                         row.status === 'processing' ? 'bg-blue-400 animate-pulse' :
-                        row.status === 'error' ? 'bg-red-400' : 'bg-white/30'
+                        row.status === 'error' ? 'bg-red-400' : 'bg-[var(--text-muted)]'
                       }`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-[var(--text-primary)] line-clamp-2">{row.paperTitle}</p>
@@ -1711,7 +1711,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRemoveRo
                     <div
                       key={column.id}
                       style={{ width: column.width, minWidth: column.width }}
-                      className="flex-shrink-0 border-r border-white/5"
+                      className="flex-shrink-0 border-r border-[var(--border-muted)]"
                     >
                       <EditableCell
                         cell={row.cells[column.id]}
@@ -1788,15 +1788,15 @@ function ConfigPanel({
   const [showExport, setShowExport] = useState(false);
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-secondary)] border-l border-[var(--border-color)] overflow-hidden">
+    <div className="flex flex-col h-full bg-[var(--bg-secondary)] border-l border-[var(--border-default)] overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-[var(--border-color)]">
+      <div className="p-4 border-b border-[var(--border-default)]">
         <h2 className="text-sm font-semibold text-[var(--text-primary)]">Configuration</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         {/* Presets section */}
-        <div className="border-b border-[var(--border-color)]">
+        <div className="border-b border-[var(--border-default)]">
           <button
             onClick={() => setShowPresets(!showPresets)}
             className="w-full flex items-center justify-between px-4 py-3 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
@@ -1830,7 +1830,7 @@ function ConfigPanel({
         </div>
 
         {/* Version History section */}
-        <div className="border-b border-[var(--border-color)]">
+        <div className="border-b border-[var(--border-default)]">
           <button
             onClick={() => setShowVersions(!showVersions)}
             className="w-full flex items-center justify-between px-4 py-3 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
@@ -1891,7 +1891,7 @@ function ConfigPanel({
         </div>
 
         {/* Export section */}
-        <div className="border-b border-[var(--border-color)]">
+        <div className="border-b border-[var(--border-default)]">
           <button
             onClick={() => setShowExport(!showExport)}
             className="w-full flex items-center justify-between px-4 py-3 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
@@ -2435,7 +2435,7 @@ export function LitReview() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="h-screen bg-[#0d0d0f] flex items-center justify-center">
+      <div className="h-screen bg-[var(--bg-primary)] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
           <p className="text-[var(--text-secondary)]">Loading literature review...</p>
@@ -2445,9 +2445,9 @@ export function LitReview() {
   }
 
   return (
-    <div className="h-screen bg-[#0d0d0f] flex flex-col overflow-hidden">
+    <div className="h-screen bg-[var(--bg-primary)] flex flex-col overflow-hidden">
       {/* Top bar */}
-      <header className="flex items-center justify-between px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
+      <header className="flex items-center justify-between px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)]">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/')}
@@ -2456,7 +2456,7 @@ export function LitReview() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-lg font-semibold text-white">Literature Review</h1>
+            <h1 className="text-lg font-semibold text-[var(--text-primary)]">Literature Review</h1>
             <p className="text-xs text-[var(--text-muted)]">{currentProject?.name}</p>
           </div>
         </div>
@@ -2469,7 +2469,7 @@ export function LitReview() {
               onClick={() => setCurrentSheetId(sheet.id)}
               className={`relative flex items-center px-4 py-2 text-sm rounded-lg transition-all cursor-pointer ${
                 currentSheetId === sheet.id
-                  ? 'bg-[var(--bg-tertiary)] text-white'
+                  ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
               }`}
             >
@@ -2546,7 +2546,7 @@ export function LitReview() {
         </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center">
-          <FileSpreadsheet className="w-16 h-16 text-white/20 mb-6" />
+          <FileSpreadsheet className="w-16 h-16 text-[var(--text-muted)] mb-6" />
           <h2 className="text-xl font-medium text-[var(--text-primary)] mb-2">No sheets yet</h2>
           <p className="text-[var(--text-muted)] mb-6 text-center max-w-md">
             Create a literature review sheet to start extracting structured data from your papers using AI.
@@ -2565,7 +2565,7 @@ export function LitReview() {
       {showSheetMenu && currentSheet && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowSheetMenu(false)} />
-          <div className="fixed top-14 right-1/2 translate-x-1/2 bg-[#252529] border border-[var(--border-color)] rounded-lg shadow-xl z-50 py-1 min-w-[160px]">
+          <div className="fixed top-14 right-1/2 translate-x-1/2 bg-[#252529] border border-[var(--border-default)] rounded-lg shadow-xl z-50 py-1 min-w-[160px]">
             <button
               onClick={() => {
                 const newName = prompt('Rename sheet:', currentSheet.name);
@@ -2600,7 +2600,7 @@ export function LitReview() {
               <Copy className="w-4 h-4" />
               Duplicate
             </button>
-            <div className="border-t border-[var(--border-color)] my-1" />
+            <div className="border-t border-[var(--border-default)] my-1" />
             <button
               onClick={() => {
                 if (confirm('Delete this sheet? This cannot be undone.')) {
@@ -2620,9 +2620,9 @@ export function LitReview() {
       {/* New sheet modal */}
       {showNewSheetModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)]">
-              <h3 className="text-lg font-medium text-white">Create New Sheet</h3>
+          <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-[var(--border-default)]">
+              <h3 className="text-lg font-medium text-[var(--text-primary)]">Create New Sheet</h3>
               <button
                 onClick={() => { setShowNewSheetModal(false); setNewSheetName(''); }}
                 className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -2644,11 +2644,11 @@ export function LitReview() {
                 }}
                 placeholder="e.g., HCI Studies 2024"
                 autoFocus
-                className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl text-white placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               />
             </div>
 
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-[var(--border-color)]">
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-[var(--border-default)]">
               <button
                 onClick={() => { setShowNewSheetModal(false); setNewSheetName(''); }}
                 className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -2670,7 +2670,7 @@ export function LitReview() {
       {/* Bottom confirmation bar for staged papers */}
       {stagedPaperIds.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-40 animate-in slide-in-from-bottom duration-200">
-          <div className="bg-[var(--bg-card)] border-t border-[var(--border-color)] shadow-2xl">
+          <div className="bg-[var(--bg-card)] border-t border-[var(--border-default)] shadow-2xl">
             <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
