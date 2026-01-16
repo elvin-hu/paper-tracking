@@ -9,7 +9,6 @@ import {
   Filter,
   ChevronDown,
   ChevronRight,
-  Play,
   RotateCcw,
   Download,
   History,
@@ -27,7 +26,6 @@ import {
   MoreHorizontal,
   Columns,
   Save,
-  Upload,
 } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import {
@@ -1444,7 +1442,7 @@ export function LitReview() {
   const [papers, setPapers] = useState<Paper[]>([]);
   const [sheets, setSheets] = useState<LitReviewSheet[]>([]);
   const [currentSheetId, setCurrentSheetId] = useState<string | null>(null);
-  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [_settings, setSettings] = useState<AppSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExtracting, setIsExtracting] = useState(false);
   const [useLocalStorage, setUseLocalStorage] = useState(false); // Fallback mode
