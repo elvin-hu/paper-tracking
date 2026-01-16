@@ -509,7 +509,7 @@ async function callOpenAIWithFallback(
   messages: { role: string; content: string }[],
   options: { model?: string; temperature?: number; max_tokens?: number } = {}
 ): Promise<{ choices: { message: { content: string } }[] }> {
-  const { model = 'gpt-4o', temperature = 0.3, max_tokens = 2000 } = options;
+  const { model = 'gpt-4o-mini', temperature = 0.3, max_tokens = 2000 } = options;
   
   // Try server-side API first
   try {
@@ -1808,6 +1808,7 @@ export function LitReview() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExtracting, setIsExtracting] = useState(false);
   const [useLocalStorage, setUseLocalStorage] = useState(false); // Fallback mode
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false); // Guard for localStorage save
 
   // UI state
   const [searchQuery, setSearchQuery] = useState('');
@@ -1856,18 +1857,21 @@ export function LitReview() {
         console.error('Error loading data:', error);
       } finally {
         setIsLoading(false);
+        setHasInitiallyLoaded(true); // Mark as loaded to enable saving
       }
     }
 
     loadData();
   }, [currentProject]);
 
-  // Save to localStorage when in fallback mode
+  // Save to localStorage when in fallback mode (only after initial load)
   useEffect(() => {
-    if (useLocalStorage && currentProject && sheets.length >= 0) {
+    // Guard: Don't save until we've finished the initial load
+    // This prevents overwriting localStorage with empty state on mount
+    if (hasInitiallyLoaded && useLocalStorage && currentProject) {
       saveSheetsToStorage(currentProject.id, sheets);
     }
-  }, [sheets, currentProject, useLocalStorage]);
+  }, [sheets, currentProject, useLocalStorage, hasInitiallyLoaded]);
 
   // Computed values
   const currentSheet = useMemo(() => 
