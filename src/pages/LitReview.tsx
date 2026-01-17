@@ -1257,53 +1257,79 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowId: string; paperId: string } | null>(null);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
-  const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
   // Handle column reorder via drag and drop
   const handleColumnDragStart = (e: React.DragEvent, columnId: string) => {
-    if (isPreview) return;
-    setDraggedColumnId(columnId);
+    if (isPreview) {
+      e.preventDefault();
+      return;
+    }
+    // Set drag image
+    const target = e.currentTarget as HTMLElement;
+    e.dataTransfer.setDragImage(target, target.offsetWidth / 2, 20);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', columnId);
+    // Use setTimeout to set state after drag starts
+    setTimeout(() => {
+      setDraggedColumnId(columnId);
+    }, 0);
   };
 
-  const handleColumnDragOver = (e: React.DragEvent, columnId: string) => {
+  const handleColumnDragOver = (e: React.DragEvent, columnIndex: number) => {
     e.preventDefault();
-    if (draggedColumnId && draggedColumnId !== columnId) {
-      setDragOverColumnId(columnId);
+    e.dataTransfer.dropEffect = 'move';
+    if (!draggedColumnId) return;
+    
+    // Determine if dropping before or after based on mouse position
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midpoint = rect.left + rect.width / 2;
+    const insertIndex = e.clientX < midpoint ? columnIndex : columnIndex + 1;
+    
+    // Don't show indicator if it would result in no change
+    const draggedIndex = sheet.columns.findIndex(c => c.id === draggedColumnId);
+    if (insertIndex === draggedIndex || insertIndex === draggedIndex + 1) {
+      setDropTargetIndex(null);
+    } else {
+      setDropTargetIndex(insertIndex);
     }
   };
 
-  const handleColumnDragLeave = () => {
-    setDragOverColumnId(null);
+  const handleColumnDragLeave = (e: React.DragEvent) => {
+    // Only clear if leaving the header area entirely
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
+      // Keep the target if moving between columns
+    }
   };
 
-  const handleColumnDrop = (e: React.DragEvent, targetColumnId: string) => {
+  const handleColumnDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!draggedColumnId || draggedColumnId === targetColumnId || isPreview) {
+    if (!draggedColumnId || dropTargetIndex === null || isPreview) {
       setDraggedColumnId(null);
-      setDragOverColumnId(null);
+      setDropTargetIndex(null);
       return;
     }
 
     const columns = [...sheet.columns];
     const draggedIndex = columns.findIndex(c => c.id === draggedColumnId);
-    const targetIndex = columns.findIndex(c => c.id === targetColumnId);
 
-    if (draggedIndex !== -1 && targetIndex !== -1) {
+    if (draggedIndex !== -1) {
       const [removed] = columns.splice(draggedIndex, 1);
-      columns.splice(targetIndex, 0, removed);
+      // Adjust insert index if needed after removal
+      const insertAt = dropTargetIndex > draggedIndex ? dropTargetIndex - 1 : dropTargetIndex;
+      columns.splice(insertAt, 0, removed);
       onUpdateSheet({ ...sheet, columns });
     }
 
     setDraggedColumnId(null);
-    setDragOverColumnId(null);
+    setDropTargetIndex(null);
   };
 
   const handleColumnDragEnd = () => {
     setDraggedColumnId(null);
-    setDragOverColumnId(null);
+    setDropTargetIndex(null);
   };
 
   // Close context menu on click outside
@@ -1597,32 +1623,36 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
             </div>
 
             {/* Dynamic columns */}
-            {sheet.columns.map((column) => (
+            {sheet.columns.map((column, colIndex) => (
               <div
                 key={column.id}
                 style={{ width: column.width }}
                 draggable={!isPreview}
                 onDragStart={(e) => handleColumnDragStart(e, column.id)}
-                onDragOver={(e) => handleColumnDragOver(e, column.id)}
+                onDragOver={(e) => handleColumnDragOver(e, colIndex)}
                 onDragLeave={handleColumnDragLeave}
-                onDrop={(e) => handleColumnDrop(e, column.id)}
+                onDrop={handleColumnDrop}
                 onDragEnd={handleColumnDragEnd}
                 onClick={() => {
-                  if (!isPreview) {
+                  if (!isPreview && !draggedColumnId) {
                     // Clear cell selection and select column instead
                     setSelectedCell(null);
                     setSelectedColumnId(selectedColumnId === column.id ? null : column.id);
                   }
                 }}
-                className={`flex-shrink-0 px-3 py-3 border-r border-[var(--border-muted)] group relative cursor-grab transition-all ${
-                  selectedColumnId === column.id ? 'bg-[var(--accent-primary)]/10' : 'hover:bg-[var(--bg-tertiary)]'
-                } ${draggedColumnId === column.id ? 'opacity-50' : ''} ${
-                  dragOverColumnId === column.id ? 'border-l-2 border-l-[var(--accent-primary)]' : ''
-                }`}
+                className={`flex-shrink-0 px-3 py-3 border-r border-[var(--border-muted)] group relative transition-all ${
+                  isPreview ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                } ${selectedColumnId === column.id ? 'bg-[var(--accent-primary)]/10' : 'hover:bg-[var(--bg-tertiary)]'
+                } ${draggedColumnId === column.id ? 'opacity-40 scale-[0.98]' : ''}`}
               >
+                {/* Drop indicator - left side */}
+                {dropTargetIndex === colIndex && draggedColumnId && (
+                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--accent-primary)] z-20" />
+                )}
+                
                 <div className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)]">
-                    <GripVertical className="w-3 h-3 text-[var(--text-muted)] opacity-0 group-hover:opacity-50 flex-shrink-0" />
+                  <span className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] select-none">
+                    <GripVertical className="w-3 h-3 text-[var(--text-muted)] opacity-40 group-hover:opacity-70 flex-shrink-0" />
                     {column.name}
                   </span>
                   <button
@@ -1641,11 +1671,16 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                     <RotateCcw className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">{column.description}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate select-none">{column.description}</p>
+
+                {/* Drop indicator - right side (for last column) */}
+                {dropTargetIndex === colIndex + 1 && draggedColumnId && colIndex === sheet.columns.length - 1 && (
+                  <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-[var(--accent-primary)] z-20" />
+                )}
 
                 {/* Resize handle */}
                 <div
-                  className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--accent-primary)]/50 transition-colors"
+                  className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--accent-primary)]/50 transition-colors z-10"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
