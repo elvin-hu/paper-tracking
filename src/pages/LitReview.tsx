@@ -168,6 +168,105 @@ Respond in this exact JSON format:
   }
 }
 
+// Batched extraction: extract all columns in a single API call per paper
+async function extractAllColumnsForPaper(
+  paperText: string,
+  columns: LitReviewColumn[],
+  model: ModelId = 'gpt-4o-mini'
+): Promise<Record<string, LitReviewCell>> {
+  // Build a schema description for all columns
+  const columnsSchema = columns.map((col, idx) => {
+    let typeHint = '';
+    if (col.type === 'select' && col.options) {
+      typeHint = `Must be exactly one of: ${col.options.map(o => o.label).join(', ')}`;
+    } else if (col.type === 'multiselect' && col.options) {
+      typeHint = `Must be an array of these options: ${col.options.map(o => o.label).join(', ')}`;
+    } else if (col.type === 'number') {
+      typeHint = 'Must be a number (no units). Use null if not found.';
+    } else if (col.type === 'boolean') {
+      typeHint = 'Must be true or false';
+    } else {
+      typeHint = 'Extract as text';
+    }
+    return `${idx + 1}. "${col.name}" (id: ${col.id}): ${col.description}\n   Type: ${typeHint}`;
+  }).join('\n');
+
+  const systemPrompt = `You are an expert research paper analyst. Extract multiple pieces of information from academic papers in a single pass.
+
+Extract ALL of the following fields from the paper:
+${columnsSchema}
+
+Respond with a JSON object where each key is the column ID, and the value is an object with:
+- "value": the extracted value (matching the type specified)
+- "sourceText": brief quote from paper supporting this (max 100 chars)
+
+Example format:
+{
+  "column-id-1": { "value": "extracted text", "sourceText": "quote..." },
+  "column-id-2": { "value": 42, "sourceText": "quote..." },
+  "column-id-3": { "value": ["option1", "option2"], "sourceText": "quote..." }
+}`;
+
+  try {
+    const data = await callOpenAIWithFallback([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Paper text (truncated to first 20000 chars for context):\n\n${paperText.slice(0, 20000)}` },
+    ], { model, temperature: 0.1, max_tokens: 4000 });
+
+    const rawContent = data.choices[0].message.content;
+    const cleanContent = stripMarkdownCodeBlocks(rawContent);
+    const results = JSON.parse(cleanContent);
+
+    // Convert results to LitReviewCell format with type coercion
+    const cells: Record<string, LitReviewCell> = {};
+    for (const column of columns) {
+      const result = results[column.id];
+      if (!result) {
+        cells[column.id] = { value: null, confidence: 0 };
+        continue;
+      }
+
+      let value: LitReviewCell['value'] = result.value;
+      
+      // Type conversion
+      if (column.type === 'number') {
+        const num = typeof result.value === 'number' ? result.value : parseFloat(result.value);
+        value = isNaN(num) ? null : num;
+      } else if (column.type === 'boolean') {
+        if (typeof result.value === 'boolean') {
+          value = result.value;
+        } else {
+          value = String(result.value).toLowerCase() === 'yes' || String(result.value).toLowerCase() === 'true';
+        }
+      } else if (column.type === 'multiselect') {
+        if (Array.isArray(result.value)) {
+          value = result.value;
+        } else if (typeof result.value === 'string') {
+          value = result.value.split(',').map((s: string) => s.trim()).filter(Boolean);
+        } else {
+          value = [];
+        }
+      }
+
+      cells[column.id] = {
+        value,
+        confidence: result.confidence || 0.8,
+        sourceText: result.sourceText,
+      };
+    }
+
+    return cells;
+  } catch (error) {
+    console.error('Batched extraction error:', error);
+    // Return empty cells for all columns on error
+    const cells: Record<string, LitReviewCell> = {};
+    for (const column of columns) {
+      cells[column.id] = { value: null, confidence: 0 };
+    }
+    return cells;
+  }
+}
+
 // ============================================================================
 // Sub-Components
 // ============================================================================
@@ -370,12 +469,8 @@ function PaperListPanel({
 
 // Available OpenAI models with their characteristics
 const OPENAI_MODELS = [
-  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Fast & affordable', isReasoning: false },
-  { id: 'gpt-4o', name: 'GPT-4o', description: 'Best quality', isReasoning: false },
-  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', description: 'Fast GPT-4', isReasoning: false },
-  { id: 'o1-mini', name: 'o1-mini', description: 'Fast reasoning', isReasoning: true },
-  { id: 'o1', name: 'o1', description: 'Advanced reasoning', isReasoning: true },
-  { id: 'o3-mini', name: 'o3-mini', description: 'Latest reasoning', isReasoning: true },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Fast & affordable' },
+  { id: 'gpt-4o', name: 'GPT-4o', description: 'Best quality' },
 ] as const;
 
 type ModelId = typeof OPENAI_MODELS[number]['id'];
@@ -396,32 +491,16 @@ async function callOpenAIWithFallback(
   messages: { role: string; content: string }[],
   options: { model?: ModelId; temperature?: number; max_tokens?: number; retries?: number } = {}
 ): Promise<{ choices: { message: { content: string } }[] }> {
-  const { model = 'gpt-4o-mini', temperature = 0.3, max_tokens = 2000, retries = 3 } = options;
+  const { model = 'gpt-4o-mini', temperature = 0.3, max_tokens = 4000, retries = 3 } = options;
   
-  const modelInfo = OPENAI_MODELS.find(m => m.id === model);
-  const isReasoningModel = modelInfo?.isReasoning ?? false;
-  
-  // Reasoning models (o1, o3) need different message format and don't support temperature
-  let apiMessages = messages;
-  let apiParams: Record<string, unknown> = { model, messages: apiMessages, max_tokens };
-  
-  if (isReasoningModel) {
-    // For o1/o3: convert system messages to developer messages, no temperature
-    apiMessages = messages.map(m => ({
-      role: m.role === 'system' ? 'developer' : m.role,
-      content: m.content,
-    }));
-    apiParams = { model, messages: apiMessages, max_completion_tokens: max_tokens };
-  } else {
-    // For GPT-4 models: use standard format with temperature and JSON mode
-    apiParams = { 
-      model, 
-      messages, 
-      temperature, 
-      max_tokens,
-      response_format: { type: 'json_object' },
-    };
-  }
+  // GPT-4 models: use standard format with temperature and JSON mode
+  const apiParams = { 
+    model, 
+    messages, 
+    temperature, 
+    max_tokens,
+    response_format: { type: 'json_object' },
+  };
   
   let lastError: Error | null = null;
   
@@ -3081,7 +3160,7 @@ export function LitReview() {
       ),
     });
 
-    // Process each row
+    // Process each row - one API call per paper extracts ALL columns
     for (const row of rowsToProcess) {
       try {
         // Get paper PDF text
@@ -3092,11 +3171,13 @@ export function LitReview() {
 
         const paperText = await extractTextFromPDF(paperFile.data);
 
-        // Extract each column using selected model
+        // Extract ALL columns in a single API call
+        const extractedCells = await extractAllColumnsForPaper(paperText, currentSheet.columns, selectedModel);
+        
+        // Add aiValue for each cell (for manual override tracking)
         const cells: Record<string, LitReviewCell> = {};
-        for (const column of currentSheet.columns) {
-          const cell = await extractColumnValue(paperText, column, selectedModel);
-          cells[column.id] = { ...cell, status: undefined, aiValue: cell.value };
+        for (const [colId, cell] of Object.entries(extractedCells)) {
+          cells[colId] = { ...cell, status: undefined, aiValue: cell.value };
         }
 
         // Update row
