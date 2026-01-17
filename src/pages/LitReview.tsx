@@ -9,7 +9,10 @@ import {
   Filter,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   RotateCcw,
+  PanelLeftClose,
+  PanelLeft,
   Download,
   History,
   Settings2,
@@ -33,6 +36,8 @@ import {
   getAllPapers,
   getSettings,
   getPaperFile,
+  getPaper,
+  getHighlights,
   getLitReviewSheets,
   createLitReviewSheet,
   updateLitReviewSheet,
@@ -42,7 +47,7 @@ import {
   saveLitReviewVersion,
 } from '../lib/database';
 import { extractTextFromPDF } from '../lib/openai';
-import type { Paper, AppSettings } from '../types';
+import type { Paper, AppSettings, Highlight } from '../types';
 import type {
   LitReviewSheet,
   LitReviewColumn,
@@ -211,14 +216,15 @@ function PaperListPanel({
         
         {/* Search */}
         <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none z-10" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search papers..."
             disabled={isPreview}
-            className={`w-full pl-10 pr-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30 ${
+            style={{ paddingLeft: '2.5rem' }}
+            className={`w-full pr-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30 ${
               isPreview ? 'opacity-60 cursor-not-allowed' : ''
             }`}
           />
@@ -349,189 +355,6 @@ function PaperListPanel({
             </div>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-// Column configuration component
-interface ColumnConfigProps {
-  column: LitReviewColumn;
-  onUpdate: (column: LitReviewColumn) => void;
-  onDelete: () => void;
-  onClose: () => void;
-}
-
-function ColumnConfig({ column, onUpdate, onDelete, onClose }: ColumnConfigProps) {
-  const [localColumn, setLocalColumn] = useState(column);
-  const [newOption, setNewOption] = useState('');
-
-  const typeOptions: { value: LitReviewColumnType; label: string }[] = [
-    { value: 'text', label: 'Text' },
-    { value: 'select', label: 'Single Select' },
-    { value: 'multiselect', label: 'Multi Select' },
-    { value: 'number', label: 'Number' },
-    { value: 'boolean', label: 'Yes/No' },
-  ];
-
-  const handleAddOption = () => {
-    if (!newOption.trim()) return;
-    const option: LitReviewColumnOption = {
-      id: uuidv4(),
-      label: newOption.trim(),
-      color: `hsl(${Math.random() * 360}, 60%, 50%)`,
-    };
-    setLocalColumn({
-      ...localColumn,
-      options: [...(localColumn.options || []), option],
-    });
-    setNewOption('');
-  };
-
-  const handleRemoveOption = (optionId: string) => {
-    setLocalColumn({
-      ...localColumn,
-      options: localColumn.options?.filter(o => o.id !== optionId),
-    });
-  };
-
-  const handleSave = () => {
-    onUpdate(localColumn);
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-5 border-b border-[var(--border-default)]">
-          <h3 className="text-lg font-medium text-[var(--text-primary)]">Configure Column</h3>
-          <button onClick={onClose} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-5 space-y-5">
-          {/* Name */}
-          <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">Column Name</label>
-            <input
-              type="text"
-              value={localColumn.name}
-              onChange={(e) => setLocalColumn({ ...localColumn, name: e.target.value })}
-              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
-            />
-          </div>
-
-          {/* Type */}
-          <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">Data Type</label>
-            <select
-              value={localColumn.type}
-              onChange={(e) => setLocalColumn({ 
-                ...localColumn, 
-                type: e.target.value as LitReviewColumnType,
-                options: ['select', 'multiselect'].includes(e.target.value) ? localColumn.options || [] : undefined,
-              })}
-              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
-            >
-              {typeOptions.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Description / AI Prompt */}
-          <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">
-              Extraction Prompt
-              <span className="text-[var(--text-muted)] font-normal ml-1">(What should AI look for?)</span>
-            </label>
-            <textarea
-              value={localColumn.description}
-              onChange={(e) => setLocalColumn({ ...localColumn, description: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
-              placeholder="e.g., What type of study was conducted? Look for methodology section."
-            />
-          </div>
-
-          {/* Options for select/multiselect */}
-          {(localColumn.type === 'select' || localColumn.type === 'multiselect') && (
-            <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">Options</label>
-              <div className="space-y-2">
-                {localColumn.options?.map((opt) => (
-                  <div key={opt.id} className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: opt.color }}
-                    />
-                    <span className="flex-1 text-sm text-[var(--text-primary)]">{opt.label}</span>
-                    <button
-                      onClick={() => handleRemoveOption(opt.id)}
-                      className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-red)]"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newOption}
-                    onChange={(e) => setNewOption(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddOption()}
-                    placeholder="Add option..."
-                    className="flex-1 px-3 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
-                  />
-                  <button
-                    onClick={handleAddOption}
-                    className="px-3 py-1.5 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-lg text-sm hover:bg-[var(--bg-tertiary)]"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Width */}
-          <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">Column Width</label>
-            <input
-              type="number"
-              value={localColumn.width}
-              onChange={(e) => setLocalColumn({ ...localColumn, width: parseInt(e.target.value) || 150 })}
-              min={80}
-              max={500}
-              className="w-24 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/30"
-            />
-            <span className="ml-2 text-xs text-[var(--text-muted)]">px</span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between p-5 border-t border-[var(--border-default)]">
-          <button
-            onClick={onDelete}
-            className="px-4 py-2 text-sm text-[var(--accent-red)] hover:text-[var(--accent-red)]"
-          >
-            Delete Column
-          </button>
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-5 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600"
-            >
-              Save
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -1412,10 +1235,11 @@ interface SpreadsheetProps {
   selectedModel: ModelId;
   onModelChange: (model: ModelId) => void;
   onSelectCell: (cell: { rowId: string; columnId: string } | null) => void;
+  onSelectColumn: (columnId: string | null) => void;
+  onOpenPaperInSplit: (paperId: string) => void;
 }
 
-function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColumnExtraction, onRemoveRow, isExtracting, isPreview, selectedModel, onModelChange, onSelectCell }: SpreadsheetProps) {
-  const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColumnExtraction, onRemoveRow, isExtracting, isPreview, selectedModel, onModelChange, onSelectCell, onSelectColumn, onOpenPaperInSplit }: SpreadsheetProps) {
   const [resizing, setResizing] = useState<{ columnId: string; startX: number; startWidth: number } | null>(null);
   const [paperColumnWidth, setPaperColumnWidth] = useState(280);
   const [resizingPaperColumn, setResizingPaperColumn] = useState<{ startX: number; startWidth: number } | null>(null);
@@ -1429,9 +1253,18 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
     startColIndex: number;
     endColIndex: number;
   } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowId: string; paperId: string } | null>(null);
+  const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
-  const editingColumn = editingColumnId ? sheet.columns.find(c => c.id === editingColumnId) : null;
+  // Close context menu on click outside
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null);
+    if (contextMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [contextMenu]);
 
   // Handle cell value update
   const handleCellUpdate = useCallback((rowId: string, columnId: string, value: LitReviewCell['value']) => {
@@ -1562,7 +1395,15 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
 
   useEffect(() => {
     onSelectCell(selectedCell);
+    // If a cell is selected, clear column selection
+    if (selectedCell) {
+      setSelectedColumnId(null);
+    }
   }, [selectedCell, onSelectCell]);
+
+  useEffect(() => {
+    onSelectColumn(selectedColumnId);
+  }, [selectedColumnId, onSelectColumn]);
 
   const handleAddMultipleColumns = (newColumns: LitReviewColumn[]) => {
     if (isPreview) return;
@@ -1585,30 +1426,8 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
       ...sheet,
       columns: [...sheet.columns, newColumn],
     });
-    setEditingColumnId(newColumn.id);
-  };
-
-  const handleUpdateColumn = (column: LitReviewColumn) => {
-    if (isPreview) return;
-    onUpdateSheet({
-      ...sheet,
-      columns: sheet.columns.map(c => c.id === column.id ? column : c),
-    });
-  };
-
-  const handleDeleteColumn = (columnId: string) => {
-    if (isPreview) return;
-    onUpdateSheet({
-      ...sheet,
-      columns: sheet.columns.filter(c => c.id !== columnId),
-      rows: sheet.rows.map(r => ({
-        ...r,
-        cells: Object.fromEntries(
-          Object.entries(r.cells).filter(([key]) => key !== columnId)
-        ),
-      })),
-    });
-    setEditingColumnId(null);
+    // Select the new column for editing in the right panel
+    onSelectColumn(newColumn.id);
   };
 
   const totalWidth = paperColumnWidth + sheet.columns.reduce((sum, c) => sum + c.width, 0) + 50;
@@ -1733,17 +1552,21 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
               <div
                 key={column.id}
                 style={{ width: column.width }}
-                className="flex-shrink-0 px-3 py-3 border-r border-[var(--border-muted)] group relative"
+                onClick={() => {
+                  if (!isPreview) {
+                    // Clear cell selection and select column instead
+                    setSelectedCell(null);
+                    setSelectedColumnId(selectedColumnId === column.id ? null : column.id);
+                  }
+                }}
+                className={`flex-shrink-0 px-3 py-3 border-r border-[var(--border-muted)] group relative cursor-pointer transition-colors ${
+                  selectedColumnId === column.id ? 'bg-[var(--accent-primary)]/10' : 'hover:bg-[var(--bg-tertiary)]'
+                }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => !isPreview && setEditingColumnId(column.id)}
-                    disabled={isPreview}
-                    className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent-primary)] transition-colors"
-                  >
+                  <span className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)]">
                     {column.name}
-                    <Settings2 className="w-3.5 h-3.5 opacity-0 group-hover:opacity-50" />
-                  </button>
+                  </span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1767,6 +1590,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                   className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--accent-primary)]/50 transition-colors"
                   onMouseDown={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     setResizing({ columnId: column.id, startX: e.clientX, startWidth: column.width });
                   }}
                 />
@@ -1803,8 +1627,14 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                 >
                   {/* Paper title - fixed but resizable */}
                   <div 
-                    className="sticky left-0 flex-shrink-0 px-4 py-3 bg-[var(--bg-primary)] border-r border-[var(--border-default)] z-10"
+                    className="sticky left-0 flex-shrink-0 px-4 py-3 bg-[var(--bg-primary)] border-r border-[var(--border-default)] z-10 cursor-default"
                     style={{ width: paperColumnWidth }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      if (!isPreview) {
+                        setContextMenu({ x: e.clientX, y: e.clientY, rowId: row.id, paperId: row.paperId });
+                      }
+                    }}
                   >
                     <div className="flex items-start gap-2">
                       <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
@@ -1817,40 +1647,6 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                         {paper?.metadata?.venue && (
                           <p className="text-xs text-[var(--text-muted)] mt-0.5">{paper.metadata.venue}</p>
                         )}
-                      </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                        <a
-                          href={`/reader/${row.paperId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-primary)] rounded transition-colors"
-                          title="Open paper in new tab"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                        <button
-                          onClick={() => onRunExtraction([row.id])}
-                          disabled={isPreview || isExtracting}
-                          className="p-1 text-[var(--text-muted)] hover:text-[var(--text-secondary)] rounded transition-colors disabled:opacity-30"
-                          title="Re-run extraction for this row"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (isPreview) return;
-                            if (confirm('Remove this paper from the sheet?')) {
-                              onRemoveRow(row.id);
-                            }
-                          }}
-                          disabled={isPreview}
-                          className={`p-1 text-[var(--text-muted)] hover:text-[var(--accent-red)] rounded transition-colors ${
-                            isPreview ? 'opacity-40 cursor-not-allowed' : ''
-                          }`}
-                          title="Remove from sheet"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -1934,16 +1730,6 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
         </div>
       </div>
 
-      {/* Column config modal */}
-      {!isPreview && editingColumn && (
-        <ColumnConfig
-          column={editingColumn}
-          onUpdate={handleUpdateColumn}
-          onDelete={() => handleDeleteColumn(editingColumn.id)}
-          onClose={() => setEditingColumnId(null)}
-        />
-      )}
-
       {/* Multi-column add modal */}
       {!isPreview && showMultiColumnModal && (
         <MultiColumnModal
@@ -1951,6 +1737,228 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
           onClose={() => setShowMultiColumnModal(false)}
         />
       )}
+
+      {/* Context menu for paper rows */}
+      {contextMenu && (
+        <div
+          className="fixed bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg shadow-xl py-1 z-50 min-w-[160px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              onOpenPaperInSplit(contextMenu.paperId);
+              setContextMenu(null);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+          >
+            <FileText className="w-4 h-4 text-[var(--text-muted)]" />
+            View paper
+          </button>
+          <a
+            href={`/reader/${contextMenu.paperId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            onClick={() => setContextMenu(null)}
+          >
+            <ExternalLink className="w-4 h-4 text-[var(--text-muted)]" />
+            Open in new tab
+          </a>
+          <div className="h-px bg-[var(--border-default)] my-1" />
+          <button
+            onClick={() => {
+              onRunExtraction([contextMenu.rowId]);
+              setContextMenu(null);
+            }}
+            disabled={isExtracting}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50"
+          >
+            <RotateCcw className="w-4 h-4 text-[var(--text-muted)]" />
+            Re-run extraction
+          </button>
+          <div className="h-px bg-[var(--border-default)] my-1" />
+          <button
+            onClick={() => {
+              if (confirm('Remove this paper from the sheet?')) {
+                onRemoveRow(contextMenu.rowId);
+              }
+              setContextMenu(null);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--accent-red)] hover:bg-[var(--bg-tertiary)] transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Remove from sheet
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Split-screen PDF Reader
+interface SplitPaperReaderProps {
+  paperId: string;
+  onClose: () => void;
+}
+
+function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
+  const [paper, setPaper] = useState<Paper | null>(null);
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [width, setWidth] = useState(500);
+  const [resizing, setResizing] = useState(false);
+  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadPaper = async () => {
+      setLoading(true);
+      try {
+        const [fetchedPaper, fetchedHighlights] = await Promise.all([
+          getPaper(paperId),
+          getHighlights(paperId),
+        ]);
+        setPaper(fetchedPaper);
+        setHighlights(fetchedHighlights);
+      } catch (error) {
+        console.error('Error loading paper:', error);
+      }
+      setLoading(false);
+    };
+    loadPaper();
+  }, [paperId]);
+
+  // Handle resize
+  useEffect(() => {
+    if (!resizing) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(300, Math.min(800, window.innerWidth - e.clientX));
+      setWidth(newWidth);
+    };
+    const handleMouseUp = () => setResizing(false);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizing]);
+
+  const getHighlightColorClasses = (color: string) => {
+    const colorMap: Record<string, string> = {
+      yellow: 'bg-[var(--highlight-yellow)]',
+      green: 'bg-[var(--highlight-green)]',
+      blue: 'bg-[var(--highlight-blue)]',
+      red: 'bg-[var(--highlight-red)]',
+      purple: 'bg-[var(--highlight-purple)]',
+    };
+    return colorMap[color] || colorMap.yellow;
+  };
+
+  return (
+    <div 
+      className="h-full flex-shrink-0 bg-[var(--bg-secondary)] border-l border-[var(--border-default)] flex flex-col"
+      style={{ width }}
+    >
+      {/* Resize handle */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--accent-primary)]/50 transition-colors z-10"
+        onMouseDown={() => setResizing(true)}
+      />
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-default)]">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <FileText className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
+          <span className="text-sm font-medium text-[var(--text-primary)] truncate">
+            {loading ? 'Loading...' : paper?.title || 'Paper'}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <a
+            href={`/reader/${paperId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+            title="Open in full reader"
+          >
+            <ExternalLink className="w-4 h-4" />
+          </a>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-[var(--text-muted)]">Loading...</div>
+          </div>
+        ) : (
+          <div className="p-4">
+            {/* Paper info */}
+            {paper && (
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">{paper.title}</h2>
+                {paper.metadata?.authors && (
+                  <p className="text-sm text-[var(--text-secondary)] mb-1">{paper.metadata.authors}</p>
+                )}
+                {paper.metadata?.venue && (
+                  <p className="text-xs text-[var(--text-muted)]">{paper.metadata.venue} {paper.metadata.year && `(${paper.metadata.year})`}</p>
+                )}
+              </div>
+            )}
+
+            {/* Highlights section */}
+            <div>
+              <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">
+                Highlights ({highlights.length})
+              </h3>
+              {highlights.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)] italic">No highlights yet</p>
+              ) : (
+                <div className="space-y-3">
+                  {highlights.map((highlight) => (
+                    <div
+                      key={highlight.id}
+                      className="group"
+                    >
+                      <div className={`${getHighlightColorClasses(highlight.color)} rounded-lg p-3`}>
+                        <p className="text-sm text-[var(--text-primary)]">{highlight.text}</p>
+                        {highlight.notes && highlight.notes.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-black/10">
+                            {highlight.notes.map((note) => (
+                              <div key={note.id}>
+                                <button
+                                  onClick={() => setExpandedNoteId(expandedNoteId === note.id ? null : note.id)}
+                                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                                >
+                                  <ChevronRight className={`w-3 h-3 transition-transform ${expandedNoteId === note.id ? 'rotate-90' : ''}`} />
+                                  Note
+                                </button>
+                                {expandedNoteId === note.id && (
+                                  <div className="mt-1 ml-4 p-2 bg-white/50 rounded text-xs text-[var(--text-secondary)]">
+                                    {note.content}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1968,6 +1976,9 @@ interface ConfigPanelProps {
   selectedRow: LitReviewRow | null;
   selectedCell: LitReviewCell | null;
   onOverrideValue: (value: LitReviewCell['value']) => void;
+  editingColumn: LitReviewColumn | null;
+  onUpdateColumn: (column: LitReviewColumn) => void;
+  onDeleteColumn: (columnId: string) => void;
   onExportExcel: () => void;
   onExportCSV: () => void;
 }
@@ -1984,6 +1995,9 @@ function ConfigPanel({
   selectedRow,
   selectedCell,
   onOverrideValue,
+  editingColumn,
+  onUpdateColumn,
+  onDeleteColumn,
   onExportExcel,
   onExportCSV,
 }: ConfigPanelProps) {
@@ -2023,13 +2037,157 @@ function ConfigPanel({
     onOverrideValue(newValue);
   };
 
-  const hasCellSelected = !!selectedColumn;
+  const hasCellSelected = !!selectedColumn && !!selectedRow;
+  const hasColumnSelected = !!editingColumn;
+  const [localColumn, setLocalColumn] = useState<LitReviewColumn | null>(null);
+  const [newOption, setNewOption] = useState('');
+
+  // Sync local column state when editing column changes
+  useEffect(() => {
+    setLocalColumn(editingColumn);
+    setNewOption('');
+  }, [editingColumn]);
+
+  const handleAddOption = () => {
+    if (!newOption.trim() || !localColumn) return;
+    const option: LitReviewColumnOption = {
+      id: uuidv4(),
+      label: newOption.trim(),
+      color: `hsl(${Math.random() * 360}, 60%, 50%)`,
+    };
+    setLocalColumn({
+      ...localColumn,
+      options: [...(localColumn.options || []), option],
+    });
+    setNewOption('');
+  };
+
+  const handleRemoveOption = (optionId: string) => {
+    if (!localColumn) return;
+    setLocalColumn({
+      ...localColumn,
+      options: localColumn.options?.filter(o => o.id !== optionId) || [],
+    });
+  };
+
+  const handleSaveColumn = () => {
+    if (localColumn) {
+      onUpdateColumn(localColumn);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-secondary)] border-l border-[var(--border-default)] overflow-hidden">
       <div className="flex-1 overflow-y-auto">
-        {/* Cell Inspector (Figma-like) - shown when cell is selected */}
-        {hasCellSelected ? (
+        {/* Column Editor - shown when column header is selected */}
+        {hasColumnSelected && localColumn ? (
+          <div className="p-4">
+            <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-3">
+              Edit Column
+            </p>
+
+            {/* Column name and type */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4 mb-4 shadow-sm">
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Name</label>
+                  <input
+                    type="text"
+                    value={localColumn.name}
+                    onChange={(e) => setLocalColumn({ ...localColumn, name: e.target.value })}
+                    className="w-full px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Type</label>
+                  <select
+                    value={localColumn.type}
+                    onChange={(e) => setLocalColumn({ ...localColumn, type: e.target.value as LitReviewColumnType })}
+                    className="w-full px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30"
+                  >
+                    <option value="text">Text</option>
+                    <option value="select">Single Select</option>
+                    <option value="multiselect">Multi Select</option>
+                    <option value="number">Number</option>
+                    <option value="boolean">Yes/No</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Prompt */}
+            <div className="mb-4">
+              <label className="text-xs text-[var(--text-muted)] mb-1.5 block">AI Prompt</label>
+              <textarea
+                value={localColumn.description}
+                onChange={(e) => setLocalColumn({ ...localColumn, description: e.target.value })}
+                placeholder="Describe what the AI should extract..."
+                className="w-full min-h-[100px] px-3 py-2.5 text-sm bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 resize-none"
+                rows={4}
+              />
+            </div>
+
+            {/* Options for select/multiselect */}
+            {(localColumn.type === 'select' || localColumn.type === 'multiselect') && (
+              <div className="mb-4">
+                <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Options</label>
+                <div className="space-y-2 mb-2">
+                  {localColumn.options?.map((opt) => (
+                    <div key={opt.id} className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: opt.color }}
+                      />
+                      <span className="flex-1 text-sm text-[var(--text-primary)]">{opt.label}</span>
+                      <button
+                        onClick={() => handleRemoveOption(opt.id)}
+                        className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-red)]"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newOption}
+                    onChange={(e) => setNewOption(e.target.value)}
+                    placeholder="Add option..."
+                    className="flex-1 px-3 py-1.5 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none"
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddOption()}
+                  />
+                  <button
+                    onClick={handleAddOption}
+                    className="px-3 py-1.5 text-sm bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-tertiary)]/80"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleSaveColumn}
+                className="w-full px-4 py-2.5 text-sm font-medium bg-[var(--accent-primary)] text-[var(--bg-primary)] rounded-xl transition-colors hover:opacity-90"
+              >
+                Save Column
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm('Delete this column? This cannot be undone.')) {
+                    onDeleteColumn(localColumn.id);
+                  }
+                }}
+                className="w-full px-4 py-2.5 text-sm text-[var(--accent-red)] bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl transition-colors hover:bg-[var(--bg-tertiary)]"
+              >
+                Delete Column
+              </button>
+            </div>
+          </div>
+        ) : hasCellSelected ? (
           <div className="p-4">
             {/* Paper name - subtle header */}
             {selectedRow && (
@@ -2360,6 +2518,9 @@ export function LitReview() {
   const [stagedPaperIds, setStagedPaperIds] = useState<Set<string>>(new Set());
   const [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
   const [selectedCell, setSelectedCell] = useState<{ rowId: string; columnId: string } | null>(null);
+  const [selectedColumnForEdit, setSelectedColumnForEdit] = useState<string | null>(null);
+  const [isPaperPanelCollapsed, setIsPaperPanelCollapsed] = useState(false);
+  const [readerPaperId, setReaderPaperId] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelId>(() => {
     const saved = localStorage.getItem('litreview-model');
     return (saved as ModelId) || 'gpt-4o-mini';
@@ -2891,6 +3052,35 @@ export function LitReview() {
     setPreviewVersionId(null);
   };
 
+  // Column editing from right panel
+  const editingColumnData = selectedColumnForEdit 
+    ? currentSheet?.columns.find(c => c.id === selectedColumnForEdit) || null
+    : null;
+
+  const handleUpdateColumnFromPanel = (column: LitReviewColumn) => {
+    if (!currentSheet || isPreviewMode) return;
+    handleUpdateSheet({
+      ...currentSheet,
+      columns: currentSheet.columns.map(c => c.id === column.id ? column : c),
+    });
+    // Clear selection after save
+    setSelectedColumnForEdit(null);
+  };
+
+  const handleDeleteColumnFromPanel = (columnId: string) => {
+    if (!currentSheet || isPreviewMode) return;
+    handleUpdateSheet({
+      ...currentSheet,
+      columns: currentSheet.columns.filter(c => c.id !== columnId),
+      rows: currentSheet.rows.map(r => {
+        const newCells = { ...r.cells };
+        delete newCells[columnId];
+        return { ...r, cells: newCells };
+      }),
+    });
+    setSelectedColumnForEdit(null);
+  };
+
   const handleOverrideValue = (value: LitReviewCell['value']) => {
     if (!currentSheet || !selectedCell || !selectedColumn) return;
     if (isPreviewMode) return;
@@ -3043,22 +3233,47 @@ export function LitReview() {
       {/* Main content */}
       {currentSheet ? (
         <div className="flex-1 flex overflow-hidden min-w-0">
-          {/* Left panel - Papers */}
-          <div className="w-72 flex-shrink-0">
-            <PaperListPanel
-              papers={papers}
-              inSheetPaperIds={inSheetPaperIds}
-              stagedPaperIds={stagedPaperIds}
-              isPreview={isPreviewMode}
-              onToggleStaged={handleToggleStaged}
-              onStageAll={handleStageAll}
-              onClearStaged={handleClearStaged}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
+          {/* Left panel - Papers (collapsible) */}
+          <div 
+            className={`flex-shrink-0 transition-all duration-300 ease-in-out ${
+              isPaperPanelCollapsed ? 'w-10' : 'w-72'
+            }`}
+          >
+            {isPaperPanelCollapsed ? (
+              <div className="h-full flex flex-col items-center py-3 bg-[var(--bg-secondary)] border-r border-[var(--border-default)]">
+                <button
+                  onClick={() => setIsPaperPanelCollapsed(false)}
+                  className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
+                  title="Expand paper list"
+                >
+                  <PanelLeft className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="h-full flex flex-col relative">
+                <button
+                  onClick={() => setIsPaperPanelCollapsed(true)}
+                  className="absolute right-2 top-3 z-10 p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+                  title="Collapse paper list"
+                >
+                  <PanelLeftClose className="w-4 h-4" />
+                </button>
+                <PaperListPanel
+                  papers={papers}
+                  inSheetPaperIds={inSheetPaperIds}
+                  stagedPaperIds={stagedPaperIds}
+                  isPreview={isPreviewMode}
+                  onToggleStaged={handleToggleStaged}
+                  onStageAll={handleStageAll}
+                  onClearStaged={handleClearStaged}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
               filterTag={filterTag}
               onFilterTagChange={setFilterTag}
               allTags={allTags}
             />
+              </div>
+            )}
           </div>
 
           {/* Center - Spreadsheet */}
@@ -3074,6 +3289,8 @@ export function LitReview() {
             selectedModel={selectedModel}
             onModelChange={setSelectedModel}
             onSelectCell={setSelectedCell}
+            onSelectColumn={setSelectedColumnForEdit}
+            onOpenPaperInSplit={setReaderPaperId}
           />
 
           {/* Right panel - Config */}
@@ -3090,10 +3307,21 @@ export function LitReview() {
               selectedRow={selectedRow}
               selectedCell={selectedCellData}
               onOverrideValue={handleOverrideValue}
+              editingColumn={editingColumnData}
+              onUpdateColumn={handleUpdateColumnFromPanel}
+              onDeleteColumn={handleDeleteColumnFromPanel}
               onExportExcel={handleExportExcel}
               onExportCSV={handleExportCSV}
             />
           </div>
+
+          {/* Split-screen paper reader */}
+          {readerPaperId && (
+            <SplitPaperReader
+              paperId={readerPaperId}
+              onClose={() => setReaderPaperId(null)}
+            />
+          )}
         </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center">
