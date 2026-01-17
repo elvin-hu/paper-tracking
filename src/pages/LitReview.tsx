@@ -1975,8 +1975,7 @@ function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
         ]);
         setPaper(fetchedPaper ?? null);
         if (pdfFile) {
-          // Make a copy of the ArrayBuffer to avoid "detached" errors
-          setPdfData(pdfFile.data.slice(0));
+          setPdfData(pdfFile.data);
         }
         // Attach notes to their highlights
         const highlightsData: HighlightWithNotes[] = fetchedHighlights.map(h => ({

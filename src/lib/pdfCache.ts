@@ -60,7 +60,8 @@ export async function getCachedPdf(paperId: string): Promise<ArrayBuffer | undef
                 const result = request.result as CachedPdf | undefined;
                 if (result) {
                     console.log(`[PdfCache] Cache HIT for paper ${paperId}, cached at ${new Date(result.cachedAt).toLocaleString()}`);
-                    resolve(result.data);
+                    // Return a copy to avoid "detached ArrayBuffer" errors when PDF.js transfers to worker
+                    resolve(result.data.slice(0));
                 } else {
                     console.log(`[PdfCache] Cache MISS for paper ${paperId}`);
                     resolve(undefined);
