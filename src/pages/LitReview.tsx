@@ -2386,52 +2386,49 @@ function ConfigPanel({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-secondary)] border-l border-[var(--border-default)] overflow-hidden">
+    <div className="flex flex-col flex-1 bg-[var(--bg-secondary)] overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         {/* Column Editor - shown when column header is selected */}
         {hasColumnSelected && localColumn ? (
           <div className="p-4">
-            <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-3">
-              Edit Column
-            </p>
+            {/* Header */}
+            <h3 className="text-sm font-medium text-[var(--text-primary)] mb-4">Edit Column</h3>
 
-            {/* Column name and type */}
-            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4 mb-4 shadow-sm">
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Name</label>
-                  <input
-                    type="text"
-                    value={localColumn.name}
-                    onChange={(e) => setLocalColumn({ ...localColumn, name: e.target.value })}
-                    className="w-full px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Type</label>
-                  <select
-                    value={localColumn.type}
-                    onChange={(e) => setLocalColumn({ ...localColumn, type: e.target.value as LitReviewColumnType })}
-                    className="w-full px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30"
-                  >
-                    <option value="text">Text</option>
-                    <option value="select">Single Select</option>
-                    <option value="multiselect">Multi Select</option>
-                    <option value="number">Number</option>
-                    <option value="boolean">Yes/No</option>
-                  </select>
-                </div>
-              </div>
+            {/* Column name */}
+            <div className="mb-4">
+              <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Name</label>
+              <input
+                type="text"
+                value={localColumn.name}
+                onChange={(e) => setLocalColumn({ ...localColumn, name: e.target.value })}
+                className="w-full px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30"
+              />
+            </div>
+
+            {/* Column type */}
+            <div className="mb-4">
+              <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Type</label>
+              <select
+                value={localColumn.type}
+                onChange={(e) => setLocalColumn({ ...localColumn, type: e.target.value as LitReviewColumnType })}
+                className="w-full px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30"
+              >
+                <option value="text">Text</option>
+                <option value="select">Single Select</option>
+                <option value="multiselect">Multi Select</option>
+                <option value="number">Number</option>
+                <option value="boolean">Yes/No</option>
+              </select>
             </div>
 
             {/* AI Prompt */}
             <div className="mb-4">
-              <label className="text-xs text-[var(--text-muted)] mb-1.5 block">AI Prompt</label>
+              <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Prompt</label>
               <textarea
                 value={localColumn.description}
                 onChange={(e) => setLocalColumn({ ...localColumn, description: e.target.value })}
                 placeholder="Describe what the AI should extract..."
-                className="w-full min-h-[100px] px-3 py-2.5 text-sm bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 resize-none"
+                className="w-full min-h-[100px] px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 resize-none"
                 rows={4}
               />
             </div>
@@ -2477,10 +2474,10 @@ function ConfigPanel({
             )}
 
             {/* Actions */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 pt-2">
               <button
                 onClick={handleSaveColumn}
-                className="w-full px-4 py-2.5 text-sm font-medium bg-[var(--accent-primary)] text-[var(--bg-primary)] rounded-xl transition-colors hover:opacity-90"
+                className="w-full px-4 py-2.5 text-sm font-medium bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-lg transition-colors hover:opacity-90"
               >
                 Save Column
               </button>
@@ -2490,7 +2487,7 @@ function ConfigPanel({
                     onDeleteColumn(localColumn.id);
                   }
                 }}
-                className="w-full px-4 py-2.5 text-sm text-[var(--accent-red)] bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl transition-colors hover:bg-[var(--bg-tertiary)]"
+                className="w-full px-4 py-2 text-sm text-[var(--accent-red)] hover:text-[var(--accent-red)]/80 transition-colors"
               >
                 Delete Column
               </button>
@@ -2498,29 +2495,32 @@ function ConfigPanel({
           </div>
         ) : hasCellSelected ? (
           <div className="p-4">
-            {/* Paper name - subtle header */}
+            {/* Header with column name and type */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-[var(--text-primary)]">{selectedColumn.name}</h3>
+              <span className="text-[10px] px-2 py-0.5 bg-[var(--bg-tertiary)] text-[var(--text-muted)] rounded-full capitalize">
+                {selectedColumn.type}
+              </span>
+            </div>
+
+            {/* Paper context */}
             {selectedRow && (
-              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-3">
-                {selectedRow.paperTitle.length > 50 
-                  ? selectedRow.paperTitle.slice(0, 50) + '...' 
+              <p className="text-[11px] text-[var(--text-muted)] mb-4 leading-snug">
+                {selectedRow.paperTitle.length > 60 
+                  ? selectedRow.paperTitle.slice(0, 60) + '...' 
                   : selectedRow.paperTitle}
               </p>
             )}
 
-            {/* Value section - PROMINENT (editable) */}
-            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-4 mb-4 shadow-sm">
-              <div className="flex items-start justify-between mb-3">
-                <h3 className="text-sm font-semibold text-[var(--text-primary)]">{selectedColumn.name}</h3>
-                <span className="text-[10px] px-2 py-0.5 bg-[var(--bg-tertiary)] text-[var(--text-muted)] rounded-full capitalize">
-                  {selectedColumn.type}
-                </span>
-              </div>
+            {/* Value section */}
+            <div className="mb-4">
+              <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Value</label>
               {selectedColumn.type === 'select' ? (
                 <select
                   value={overrideValue}
                   onChange={(e) => setOverrideValue(e.target.value)}
                   disabled={isPreview}
-                  className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 ${
+                  className={`w-full px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 ${
                     isPreview ? 'opacity-60 cursor-not-allowed' : ''
                   }`}
                 >
@@ -2534,9 +2534,9 @@ function ConfigPanel({
                   <button
                     onClick={() => { setOverrideValue('yes'); }}
                     disabled={isPreview}
-                    className={`flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all ${
+                    className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-all ${
                       overrideValue.toLowerCase() === 'yes' || overrideValue.toLowerCase() === 'true'
-                        ? 'bg-[var(--accent-green-bg)]/15 border-[var(--accent-green-bg)] text-[var(--accent-green)]'
+                        ? 'bg-[var(--accent-green-bg)]/15 border-[var(--accent-green)] text-[var(--accent-green)]'
                         : 'bg-[var(--bg-primary)] border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
                     } ${isPreview ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
@@ -2545,9 +2545,9 @@ function ConfigPanel({
                   <button
                     onClick={() => { setOverrideValue('no'); }}
                     disabled={isPreview}
-                    className={`flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all ${
+                    className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-all ${
                       overrideValue.toLowerCase() === 'no' || overrideValue.toLowerCase() === 'false'
-                        ? 'bg-[var(--accent-red-bg)]/15 border-[var(--accent-red-bg)] text-[var(--accent-red)]'
+                        ? 'bg-[var(--accent-red-bg)]/15 border-[var(--accent-red)] text-[var(--accent-red)]'
                         : 'bg-[var(--bg-primary)] border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
                     } ${isPreview ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
@@ -2560,42 +2560,38 @@ function ConfigPanel({
                   onChange={(e) => setOverrideValue(e.target.value)}
                   placeholder={selectedColumn.type === 'multiselect' ? 'Comma separated values...' : 'Enter value...'}
                   disabled={isPreview}
-                  className={`w-full min-h-[120px] px-3 py-2.5 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 resize-none ${
+                  className={`w-full min-h-[100px] px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 resize-none ${
                     isPreview ? 'opacity-60 cursor-not-allowed' : ''
                   }`}
-                  rows={5}
+                  rows={4}
                 />
               )}
             </div>
 
-            {/* Column prompt - subtle (read-only) */}
-            <div className="mb-3">
-              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-1.5">Prompt</p>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+            {/* Prompt section - read-only context */}
+            <div className="mb-4">
+              <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Prompt</label>
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg">
                 {selectedColumn.description}
               </p>
             </div>
 
-            {/* Source section - subtle (read-only) */}
-            <div className="mb-4">
-              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-1.5">Source</p>
-              {selectedCell?.sourceText ? (
-                <p className="text-xs text-[var(--text-muted)] leading-relaxed italic">
+            {/* Source section - read-only context */}
+            {selectedCell?.sourceText && (
+              <div className="mb-4">
+                <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Source</label>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed italic px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg">
                   "{selectedCell.sourceText}"
                 </p>
-              ) : (
-                <p className="text-xs text-[var(--text-muted)] italic">
-                  No source text captured
-                </p>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Actions */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 pt-2">
               <button
                 onClick={handleSaveOverride}
                 disabled={isPreview || !selectedColumn}
-                className={`w-full px-4 py-2.5 text-sm font-medium bg-[var(--accent-primary)] text-[var(--bg-primary)] rounded-xl transition-colors ${
+                className={`w-full px-4 py-2.5 text-sm font-medium bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-lg transition-colors ${
                   isPreview ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90'
                 }`}
               >
@@ -2605,8 +2601,8 @@ function ConfigPanel({
                 <button
                   onClick={() => onOverrideValue(selectedCell.aiValue ?? null)}
                   disabled={isPreview}
-                  className={`w-full px-4 py-2.5 text-sm bg-[var(--bg-card)] border border-[var(--border-default)] text-[var(--text-primary)] rounded-xl transition-colors ${
-                    isPreview ? 'opacity-60 cursor-not-allowed' : 'hover:bg-[var(--bg-tertiary)]'
+                  className={`w-full px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors ${
+                    isPreview ? 'opacity-60 cursor-not-allowed' : ''
                   }`}
                 >
                   Revert to AI value
@@ -3632,7 +3628,7 @@ export function LitReview() {
                 </div>
               </div>
             ) : (
-              <div className="h-full flex flex-col">
+              <div className="h-full flex flex-col border-l border-[var(--border-default)]">
                 <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-default)] bg-[var(--bg-secondary)]">
                   <span className="text-xs font-medium text-[var(--text-secondary)]">Inspector</span>
                   <button
