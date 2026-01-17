@@ -35,6 +35,7 @@ import {
   Save,
   ExternalLink,
   GripVertical,
+  Settings2,
 } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import {
@@ -2828,6 +2829,7 @@ export function LitReview() {
   const [selectedCell, setSelectedCell] = useState<{ rowId: string; columnId: string } | null>(null);
   const [selectedColumnForEdit, setSelectedColumnForEdit] = useState<string | null>(null);
   const [isPaperPanelCollapsed, setIsPaperPanelCollapsed] = useState(false);
+  const [isConfigPanelCollapsed, setIsConfigPanelCollapsed] = useState(false);
   const [readerPaperId, setReaderPaperId] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelId>(() => {
     const saved = localStorage.getItem('litreview-model');
@@ -3611,25 +3613,56 @@ export function LitReview() {
           />
 
           {/* Right panel - Config */}
-          <div className="w-72 flex-shrink-0">
-            <ConfigPanel
-              sheet={currentSheet}
-              onApplyPreset={handleApplyPreset}
-              onSaveVersion={handleSaveVersion}
-              onPreviewVersion={handlePreviewVersion}
-              onExitPreview={handleExitPreview}
-              isPreview={isPreviewMode}
-              previewVersionId={previewVersionId}
-              selectedColumn={selectedColumn}
-              selectedRow={selectedRow}
-              selectedCell={selectedCellData}
-              onOverrideValue={handleOverrideValue}
-              editingColumn={editingColumnData}
-              onUpdateColumn={handleUpdateColumnFromPanel}
-              onDeleteColumn={handleDeleteColumnFromPanel}
-              onExportExcel={handleExportExcel}
-              onExportCSV={handleExportCSV}
-            />
+          <div 
+            className={`flex-shrink-0 transition-all duration-300 ease-in-out ${
+              isConfigPanelCollapsed ? 'w-10' : 'w-72'
+            }`}
+          >
+            {isConfigPanelCollapsed ? (
+              <div className="h-full flex flex-col items-center py-3 bg-[var(--bg-secondary)] border-l border-[var(--border-default)]">
+                <button
+                  onClick={() => setIsConfigPanelCollapsed(false)}
+                  className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
+                  title="Expand panel"
+                >
+                  <ChevronRight className="w-4 h-4 rotate-180" />
+                </button>
+                <div className="mt-3 flex flex-col items-center gap-2">
+                  <Settings2 className="w-4 h-4 text-[var(--text-muted)]" />
+                </div>
+              </div>
+            ) : (
+              <div className="h-full flex flex-col">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-default)] bg-[var(--bg-secondary)]">
+                  <span className="text-xs font-medium text-[var(--text-secondary)]">Inspector</span>
+                  <button
+                    onClick={() => setIsConfigPanelCollapsed(true)}
+                    className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+                    title="Collapse panel"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+                <ConfigPanel
+                  sheet={currentSheet}
+                  onApplyPreset={handleApplyPreset}
+                  onSaveVersion={handleSaveVersion}
+                  onPreviewVersion={handlePreviewVersion}
+                  onExitPreview={handleExitPreview}
+                  isPreview={isPreviewMode}
+                  previewVersionId={previewVersionId}
+                  selectedColumn={selectedColumn}
+                  selectedRow={selectedRow}
+                  selectedCell={selectedCellData}
+                  onOverrideValue={handleOverrideValue}
+                  editingColumn={editingColumnData}
+                  onUpdateColumn={handleUpdateColumnFromPanel}
+                  onDeleteColumn={handleDeleteColumnFromPanel}
+                  onExportExcel={handleExportExcel}
+                  onExportCSV={handleExportCSV}
+                />
+              </div>
+            )}
           </div>
 
           {/* Split-screen paper reader */}
