@@ -9,13 +9,11 @@ import {
   Filter,
   ChevronDown,
   ChevronRight,
-  ChevronLeft,
   RotateCcw,
   PanelLeftClose,
   PanelLeft,
   Download,
   History,
-  Settings2,
   Trash2,
   Check,
   X,
@@ -38,7 +36,8 @@ import {
   getSettings,
   getPaperFile,
   getPaper,
-  getHighlights,
+  getHighlightsByPaper,
+  getNotesByPaper,
   getLitReviewSheets,
   createLitReviewSheet,
   updateLitReviewSheet,
@@ -48,7 +47,7 @@ import {
   saveLitReviewVersion,
 } from '../lib/database';
 import { extractTextFromPDF } from '../lib/openai';
-import type { Paper, AppSettings, Highlight } from '../types';
+import type { Paper, AppSettings, Highlight, Note } from '../types';
 import type {
   LitReviewSheet,
   LitReviewColumn,
@@ -1895,9 +1894,13 @@ interface SplitPaperReaderProps {
   onClose: () => void;
 }
 
+interface HighlightWithNotes extends Highlight {
+  notesForHighlight: Note[];
+}
+
 function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
   const [paper, setPaper] = useState<Paper | null>(null);
-  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [highlightsWithNotes, setHighlightsWithNotes] = useState<HighlightWithNotes[]>([]);
   const [loading, setLoading] = useState(true);
   const [width, setWidth] = useState(500);
   const [resizing, setResizing] = useState(false);
@@ -1907,12 +1910,18 @@ function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
     const loadPaper = async () => {
       setLoading(true);
       try {
-        const [fetchedPaper, fetchedHighlights] = await Promise.all([
+        const [fetchedPaper, fetchedHighlights, fetchedNotes] = await Promise.all([
           getPaper(paperId),
-          getHighlights(paperId),
+          getHighlightsByPaper(paperId),
+          getNotesByPaper(paperId),
         ]);
         setPaper(fetchedPaper);
-        setHighlights(fetchedHighlights);
+        // Attach notes to their highlights
+        const highlightsData: HighlightWithNotes[] = fetchedHighlights.map(h => ({
+          ...h,
+          notesForHighlight: fetchedNotes.filter(n => n.highlightId === h.id),
+        }));
+        setHighlightsWithNotes(highlightsData);
       } catch (error) {
         console.error('Error loading paper:', error);
       }
@@ -1998,11 +2007,11 @@ function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
             {paper && (
               <div className="mb-6">
                 <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">{paper.title}</h2>
-                {paper.metadata?.authors && (
-                  <p className="text-sm text-[var(--text-secondary)] mb-1">{paper.metadata.authors}</p>
+                {paper.metadata?.firstAuthor && (
+                  <p className="text-sm text-[var(--text-secondary)] mb-1">{paper.metadata.firstAuthor}</p>
                 )}
                 {paper.metadata?.venue && (
-                  <p className="text-xs text-[var(--text-muted)]">{paper.metadata.venue} {paper.metadata.year && `(${paper.metadata.year})`}</p>
+                  <p className="text-xs text-[var(--text-muted)]">{paper.metadata.venue} {paper.metadata.date && `(${paper.metadata.date})`}</p>
                 )}
               </div>
             )}
@@ -2010,22 +2019,22 @@ function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
             {/* Highlights section */}
             <div>
               <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">
-                Highlights ({highlights.length})
+                Highlights ({highlightsWithNotes.length})
               </h3>
-              {highlights.length === 0 ? (
+              {highlightsWithNotes.length === 0 ? (
                 <p className="text-sm text-[var(--text-muted)] italic">No highlights yet</p>
               ) : (
                 <div className="space-y-3">
-                  {highlights.map((highlight) => (
+                  {highlightsWithNotes.map((highlight) => (
                     <div
                       key={highlight.id}
                       className="group"
                     >
                       <div className={`${getHighlightColorClasses(highlight.color)} rounded-lg p-3`}>
                         <p className="text-sm text-[var(--text-primary)]">{highlight.text}</p>
-                        {highlight.notes && highlight.notes.length > 0 && (
+                        {highlight.notesForHighlight.length > 0 && (
                           <div className="mt-2 pt-2 border-t border-black/10">
-                            {highlight.notes.map((note) => (
+                            {highlight.notesForHighlight.map((note) => (
                               <div key={note.id}>
                                 <button
                                   onClick={() => setExpandedNoteId(expandedNoteId === note.id ? null : note.id)}
