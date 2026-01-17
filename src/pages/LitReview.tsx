@@ -30,6 +30,7 @@ import {
   Columns,
   Save,
   ExternalLink,
+  GripVertical,
 } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import {
@@ -1255,7 +1256,55 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
   } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowId: string; paperId: string } | null>(null);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
+  const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
+  const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
+
+  // Handle column reorder via drag and drop
+  const handleColumnDragStart = (e: React.DragEvent, columnId: string) => {
+    if (isPreview) return;
+    setDraggedColumnId(columnId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', columnId);
+  };
+
+  const handleColumnDragOver = (e: React.DragEvent, columnId: string) => {
+    e.preventDefault();
+    if (draggedColumnId && draggedColumnId !== columnId) {
+      setDragOverColumnId(columnId);
+    }
+  };
+
+  const handleColumnDragLeave = () => {
+    setDragOverColumnId(null);
+  };
+
+  const handleColumnDrop = (e: React.DragEvent, targetColumnId: string) => {
+    e.preventDefault();
+    if (!draggedColumnId || draggedColumnId === targetColumnId || isPreview) {
+      setDraggedColumnId(null);
+      setDragOverColumnId(null);
+      return;
+    }
+
+    const columns = [...sheet.columns];
+    const draggedIndex = columns.findIndex(c => c.id === draggedColumnId);
+    const targetIndex = columns.findIndex(c => c.id === targetColumnId);
+
+    if (draggedIndex !== -1 && targetIndex !== -1) {
+      const [removed] = columns.splice(draggedIndex, 1);
+      columns.splice(targetIndex, 0, removed);
+      onUpdateSheet({ ...sheet, columns });
+    }
+
+    setDraggedColumnId(null);
+    setDragOverColumnId(null);
+  };
+
+  const handleColumnDragEnd = () => {
+    setDraggedColumnId(null);
+    setDragOverColumnId(null);
+  };
 
   // Close context menu on click outside
   useEffect(() => {
@@ -1552,6 +1601,12 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
               <div
                 key={column.id}
                 style={{ width: column.width }}
+                draggable={!isPreview}
+                onDragStart={(e) => handleColumnDragStart(e, column.id)}
+                onDragOver={(e) => handleColumnDragOver(e, column.id)}
+                onDragLeave={handleColumnDragLeave}
+                onDrop={(e) => handleColumnDrop(e, column.id)}
+                onDragEnd={handleColumnDragEnd}
                 onClick={() => {
                   if (!isPreview) {
                     // Clear cell selection and select column instead
@@ -1559,12 +1614,15 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                     setSelectedColumnId(selectedColumnId === column.id ? null : column.id);
                   }
                 }}
-                className={`flex-shrink-0 px-3 py-3 border-r border-[var(--border-muted)] group relative cursor-pointer transition-colors ${
+                className={`flex-shrink-0 px-3 py-3 border-r border-[var(--border-muted)] group relative cursor-grab transition-all ${
                   selectedColumnId === column.id ? 'bg-[var(--accent-primary)]/10' : 'hover:bg-[var(--bg-tertiary)]'
+                } ${draggedColumnId === column.id ? 'opacity-50' : ''} ${
+                  dragOverColumnId === column.id ? 'border-l-2 border-l-[var(--accent-primary)]' : ''
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)]">
+                    <GripVertical className="w-3 h-3 text-[var(--text-muted)] opacity-0 group-hover:opacity-50 flex-shrink-0" />
                     {column.name}
                   </span>
                   <button
