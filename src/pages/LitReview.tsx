@@ -1915,7 +1915,7 @@ function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
           getHighlightsByPaper(paperId),
           getNotesByPaper(paperId),
         ]);
-        setPaper(fetchedPaper);
+        setPaper(fetchedPaper ?? null);
         // Attach notes to their highlights
         const highlightsData: HighlightWithNotes[] = fetchedHighlights.map(h => ({
           ...h,
