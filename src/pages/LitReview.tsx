@@ -491,7 +491,7 @@ async function callOpenAIWithFallback(
   messages: { role: string; content: string }[],
   options: { model?: ModelId; temperature?: number; max_tokens?: number; retries?: number } = {}
 ): Promise<{ choices: { message: { content: string } }[] }> {
-  const { model = 'gpt-4o-mini', temperature = 0.3, max_tokens = 4000, retries = 3 } = options;
+  const { model = 'gpt-4o-mini', temperature = 0.3, max_tokens = 4000, retries = 5 } = options;
   
   // GPT-4 models: use standard format with temperature and JSON mode
   const apiParams = { 
@@ -520,8 +520,8 @@ async function callOpenAIWithFallback(
       // Check if rate limited
       if (response.status === 429) {
         const retryAfter = response.headers.get('Retry-After');
-        const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : (attempt + 1) * 2000;
-        console.warn(`Rate limited, waiting ${waitTime}ms before retry...`);
+        const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : Math.min(30000, 3000 * Math.pow(2, attempt));
+        console.warn(`Rate limited, waiting ${waitTime}ms before retry (attempt ${attempt + 1}/${retries})...`);
         await delay(waitTime);
         continue;
       }
@@ -555,8 +555,8 @@ async function callOpenAIWithFallback(
       // Check if rate limited
       if (response.status === 429) {
         const errorData = await response.json().catch(() => ({}));
-        const waitTime = (attempt + 1) * 3000; // Exponential backoff
-        console.warn(`Rate limited (${response.status}), waiting ${waitTime}ms...`, errorData);
+        const waitTime = Math.min(30000, 3000 * Math.pow(2, attempt)); // Exponential backoff up to 30s
+        console.warn(`Rate limited (${response.status}), waiting ${waitTime}ms (attempt ${attempt + 1}/${retries})...`, errorData);
         await delay(waitTime);
         continue;
       }
@@ -3161,7 +3161,14 @@ export function LitReview() {
     });
 
     // Process each row - one API call per paper extracts ALL columns
-    for (const row of rowsToProcess) {
+    for (let i = 0; i < rowsToProcess.length; i++) {
+      const row = rowsToProcess[i];
+      
+      // Add delay between papers to avoid rate limits (except for first paper)
+      if (i > 0) {
+        await delay(1500); // 1.5 second delay between papers
+      }
+      
       try {
         // Get paper PDF text
         const paperFile = await getPaperFile(row.paperId);
