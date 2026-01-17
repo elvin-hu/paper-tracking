@@ -1953,7 +1953,7 @@ interface HighlightWithNotes extends Highlight {
 
 function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
   const [paper, setPaper] = useState<Paper | null>(null);
-  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [highlightsWithNotes, setHighlightsWithNotes] = useState<HighlightWithNotes[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1964,6 +1964,8 @@ function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let blobUrl: string | null = null;
+    
     const loadPaper = async () => {
       setLoading(true);
       try {
@@ -1975,7 +1977,10 @@ function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
         ]);
         setPaper(fetchedPaper ?? null);
         if (pdfFile) {
-          setPdfData(pdfFile.data);
+          // Create a Blob URL to avoid ArrayBuffer transfer/detachment issues
+          const blob = new Blob([pdfFile.data], { type: 'application/pdf' });
+          blobUrl = URL.createObjectURL(blob);
+          setPdfUrl(blobUrl);
         }
         // Attach notes to their highlights
         const highlightsData: HighlightWithNotes[] = fetchedHighlights.map(h => ({
@@ -1989,6 +1994,13 @@ function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
       setLoading(false);
     };
     loadPaper();
+    
+    // Cleanup blob URL when paperId changes or component unmounts
+    return () => {
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
   }, [paperId]);
 
   // Handle resize
@@ -2087,9 +2099,9 @@ function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
           </div>
         ) : viewMode === 'pdf' ? (
           <div className="p-2">
-            {pdfData ? (
+            {pdfUrl ? (
               <Document
-                file={{ data: pdfData }}
+                file={pdfUrl}
                 onLoadSuccess={({ numPages: n }) => setNumPages(n)}
                 loading={
                   <div className="flex items-center justify-center py-8">
