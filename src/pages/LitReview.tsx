@@ -135,7 +135,9 @@ Respond in this exact JSON format:
       { role: 'user', content: `Paper text (truncated to first 15000 chars for context):\n\n${paperText.slice(0, 15000)}` },
     ], { model, temperature: 0.1 });
 
-    const result = JSON.parse(data.choices[0].message.content);
+    const rawContent = data.choices[0].message.content;
+    const cleanContent = stripMarkdownCodeBlocks(rawContent);
+    const result = JSON.parse(cleanContent);
 
     let value: LitReviewCell['value'] = result.value;
     
@@ -372,12 +374,23 @@ const OPENAI_MODELS = [
 
 type ModelId = typeof OPENAI_MODELS[number]['id'];
 
+// Helper to strip markdown code blocks from JSON responses
+function stripMarkdownCodeBlocks(text: string): string {
+  // Remove ```json ... ``` or ``` ... ``` wrappers
+  return text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+}
+
+// Helper to delay for rate limiting
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Helper to call OpenAI (uses server-side in production, falls back to client-side in dev)
 async function callOpenAIWithFallback(
   messages: { role: string; content: string }[],
-  options: { model?: ModelId; temperature?: number; max_tokens?: number } = {}
+  options: { model?: ModelId; temperature?: number; max_tokens?: number; retries?: number } = {}
 ): Promise<{ choices: { message: { content: string } }[] }> {
-  const { model = 'gpt-4o-mini', temperature = 0.3, max_tokens = 2000 } = options;
+  const { model = 'gpt-4o-mini', temperature = 0.3, max_tokens = 2000, retries = 3 } = options;
   
   const modelInfo = OPENAI_MODELS.find(m => m.id === model);
   const isReasoningModel = modelInfo?.isReasoning ?? false;
@@ -394,50 +407,84 @@ async function callOpenAIWithFallback(
     }));
     apiParams = { model, messages: apiMessages, max_completion_tokens: max_tokens };
   } else {
-    // For GPT-4 models: use standard format with temperature
-    apiParams = { model, messages, temperature, max_tokens };
+    // For GPT-4 models: use standard format with temperature and JSON mode
+    apiParams = { 
+      model, 
+      messages, 
+      temperature, 
+      max_tokens,
+      response_format: { type: 'json_object' },
+    };
   }
   
-  // Try server-side API first
-  try {
-    const response = await fetch('/api/openai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(apiParams),
-    });
-    
-    if (response.ok) {
-      return await response.json();
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < retries; attempt++) {
+    // Try server-side API first
+    try {
+      const response = await fetch('/api/openai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(apiParams),
+      });
+      
+      if (response.ok) {
+        return await response.json();
+      }
+      
+      // Check if rate limited
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After');
+        const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : (attempt + 1) * 2000;
+        console.warn(`Rate limited, waiting ${waitTime}ms before retry...`);
+        await delay(waitTime);
+        continue;
+      }
+      
+      // If server-side fails, check for client-side key
+      console.warn('Server-side API failed, trying client-side fallback...');
+    } catch (error) {
+      console.warn('Server-side API error, trying client-side fallback...', error);
     }
     
-    // If server-side fails, check for client-side key
-    console.warn('Server-side API failed, trying client-side fallback...');
-  } catch (error) {
-    console.warn('Server-side API error, trying client-side fallback...', error);
+    // Fallback: Try to use client-side API key from localStorage
+    const localKey = localStorage.getItem('paper-tracking-openai-key');
+    if (!localKey) {
+      throw new Error('No API key available. In development, set your OpenAI key in Settings. In production, ensure OPENAI_API_KEY is set on Vercel.');
+    }
+    
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localKey}`,
+        },
+        body: JSON.stringify(apiParams),
+      });
+      
+      if (response.ok) {
+        return await response.json();
+      }
+      
+      // Check if rate limited
+      if (response.status === 429) {
+        const errorData = await response.json().catch(() => ({}));
+        const waitTime = (attempt + 1) * 3000; // Exponential backoff
+        console.warn(`Rate limited (${response.status}), waiting ${waitTime}ms...`, errorData);
+        await delay(waitTime);
+        continue;
+      }
+      
+      const errorText = await response.text();
+      console.error('OpenAI API error:', errorText);
+      lastError = new Error(`OpenAI API request failed: ${response.status}`);
+    } catch (error) {
+      lastError = error as Error;
+    }
   }
   
-  // Fallback: Try to use client-side API key from localStorage
-  const localKey = localStorage.getItem('paper-tracking-openai-key');
-  if (!localKey) {
-    throw new Error('No API key available. In development, set your OpenAI key in Settings. In production, ensure OPENAI_API_KEY is set on Vercel.');
-  }
-  
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localKey}`,
-    },
-    body: JSON.stringify(apiParams),
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('OpenAI API error:', errorText);
-    throw new Error(`OpenAI API request failed: ${response.status}`);
-  }
-  
-  return await response.json();
+  throw lastError || new Error('OpenAI API request failed after retries');
 }
 
 // AI Prompt Generation for Multiple Columns (uses server-side API key)
