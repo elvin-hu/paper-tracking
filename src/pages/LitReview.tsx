@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Document, Page, pdfjs } from 'react-pdf';
 import { v4 as uuidv4 } from 'uuid';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+
+// Set up PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 import {
   ArrowLeft,
   Plus,
@@ -1947,22 +1953,30 @@ interface HighlightWithNotes extends Highlight {
 
 function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
   const [paper, setPaper] = useState<Paper | null>(null);
+  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+  const [numPages, setNumPages] = useState(0);
   const [highlightsWithNotes, setHighlightsWithNotes] = useState<HighlightWithNotes[]>([]);
   const [loading, setLoading] = useState(true);
-  const [width, setWidth] = useState(500);
+  const [width, setWidth] = useState(600);
   const [resizing, setResizing] = useState(false);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'pdf' | 'highlights'>('pdf');
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadPaper = async () => {
       setLoading(true);
       try {
-        const [fetchedPaper, fetchedHighlights, fetchedNotes] = await Promise.all([
+        const [fetchedPaper, fetchedHighlights, fetchedNotes, pdfFile] = await Promise.all([
           getPaper(paperId),
           getHighlightsByPaper(paperId),
           getNotesByPaper(paperId),
+          getPaperFile(paperId),
         ]);
         setPaper(fetchedPaper ?? null);
+        if (pdfFile) {
+          setPdfData(pdfFile.data);
+        }
         // Attach notes to their highlights
         const highlightsData: HighlightWithNotes[] = fetchedHighlights.map(h => ({
           ...h,
@@ -2016,9 +2030,8 @@ function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-default)]">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-default)]">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <FileText className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
           <span className="text-sm font-medium text-[var(--text-primary)] truncate">
             {loading ? 'Loading...' : paper?.title || 'Paper'}
           </span>
@@ -2042,11 +2055,69 @@ function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
         </div>
       </div>
 
+      {/* View mode tabs */}
+      <div className="flex px-3 py-2 gap-1 border-b border-[var(--border-default)]">
+        <button
+          onClick={() => setViewMode('pdf')}
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+            viewMode === 'pdf' 
+              ? 'bg-[var(--accent-primary)] text-white' 
+              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+          }`}
+        >
+          PDF
+        </button>
+        <button
+          onClick={() => setViewMode('highlights')}
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+            viewMode === 'highlights' 
+              ? 'bg-[var(--accent-primary)] text-white' 
+              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+          }`}
+        >
+          Highlights ({highlightsWithNotes.length})
+        </button>
+      </div>
+
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={containerRef} className="flex-1 overflow-y-auto bg-[var(--bg-tertiary)]">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-[var(--text-muted)]">Loading...</div>
+            <Loader2 className="w-6 h-6 text-[var(--text-muted)] animate-spin" />
+          </div>
+        ) : viewMode === 'pdf' ? (
+          <div className="p-2">
+            {pdfData ? (
+              <Document
+                file={{ data: pdfData }}
+                onLoadSuccess={({ numPages: n }) => setNumPages(n)}
+                loading={
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 text-[var(--text-muted)] animate-spin" />
+                  </div>
+                }
+                error={
+                  <div className="flex items-center justify-center py-8 text-[var(--text-muted)]">
+                    Failed to load PDF
+                  </div>
+                }
+              >
+                {Array.from({ length: numPages }, (_, i) => (
+                  <Page
+                    key={i + 1}
+                    pageNumber={i + 1}
+                    width={width - 20}
+                    className="mb-2 shadow-md"
+                    renderTextLayer={true}
+                    renderAnnotationLayer={false}
+                  />
+                ))}
+              </Document>
+            ) : (
+              <div className="flex items-center justify-center h-full text-[var(--text-muted)]">
+                PDF not available
+              </div>
+            )}
           </div>
         ) : (
           <div className="p-4">
@@ -2065,9 +2136,6 @@ function SplitPaperReader({ paperId, onClose }: SplitPaperReaderProps) {
 
             {/* Highlights section */}
             <div>
-              <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">
-                Highlights ({highlightsWithNotes.length})
-              </h3>
               {highlightsWithNotes.length === 0 ? (
                 <p className="text-sm text-[var(--text-muted)] italic">No highlights yet</p>
               ) : (
