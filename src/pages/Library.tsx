@@ -181,6 +181,7 @@ export function Library() {
   const [aiSuggestionInput, setAiSuggestionInput] = useState('');
   const [aiTagPlan, setAiTagPlan] = useState<{ paperId: string; title: string; currentTags: string[]; suggestedTags: string[] }[]>([]);
   const [isLoadingAISuggestions, setIsLoadingAISuggestions] = useState(false);
+  const [showAITagTableModal, setShowAITagTableModal] = useState(false);
 
   // Modal close handlers with exit animations
   const handleCloseUploadModal = () => {
@@ -847,6 +848,7 @@ export function Library() {
     setShowAISuggestions(false);
     setAiSuggestionInput('');
     setAiTagPlan([]);
+    setShowAITagTableModal(false);
     setShowBatchEditModal(true);
   };
 
@@ -880,10 +882,6 @@ export function Library() {
         batches.push(selectedPapersList.slice(i, i + BATCH_SIZE));
       }
       
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:generateAITagSuggestions',message:'Starting batched AI calls',data:{totalPapers:selectedPapersList.length,batchCount:batches.length,batchSize:BATCH_SIZE},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
-      
       const existingTagsSample = allTags.slice(0, 30).join(', ');
       const allResults: { paperId: string; title: string; currentTags: string[]; suggestedTags: string[] }[] = [];
       
@@ -896,11 +894,6 @@ ${existingTagsSample ? `Existing tags: ${existingTagsSample}` : ''}
 ${aiSuggestionInput.trim() ? `User's guidance: "${aiSuggestionInput.trim()}"` : ''}
 Respond with JSON: { "papers": [{ "index": 0, "tags": ["tag1", "tag2"] }] }`;
 
-        // #region agent log
-        const batchStart = Date.now();
-        fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:batch',message:`Batch ${batchIdx+1}/${batches.length} starting`,data:{batchSize:batch.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-        // #endregion
-        
         const response = await callOpenAI({
           model: 'gpt-4o-mini',
           messages: [
@@ -910,10 +903,6 @@ Respond with JSON: { "papers": [{ "index": 0, "tags": ["tag1", "tag2"] }] }`;
           temperature: 0.7,
           max_tokens: 1500,
         });
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:batch',message:`Batch ${batchIdx+1}/${batches.length} completed`,data:{durationMs:Date.now()-batchStart},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-        // #endregion
         
         const content = response.choices[0].message.content;
         const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -935,15 +924,54 @@ Respond with JSON: { "papers": [{ "index": 0, "tags": ["tag1", "tag2"] }] }`;
         }
       }
       
-      setAiTagPlan(allResults);
+      // Consolidation step: identify rare tags (< 3 papers) and ask AI to suggest replacements
+      const tagCounts: Record<string, number> = {};
+      for (const result of allResults) {
+        for (const tag of result.suggestedTags) {
+          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        }
+      }
       
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:generateAITagSuggestions',message:'All batches completed',data:{totalResults:allResults.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
+      const rareTags = Object.entries(tagCounts).filter(([, count]) => count < 3).map(([tag]) => tag);
+      const commonTags = Object.entries(tagCounts).filter(([, count]) => count >= 3).map(([tag]) => tag);
+      
+      if (rareTags.length > 0 && commonTags.length > 0) {
+        // Ask AI to suggest consolidations for rare tags
+        const consolidationPrompt = `Given these common tags: ${commonTags.join(', ')}
+And these rare tags (used by < 3 papers): ${rareTags.join(', ')}
+Suggest which rare tags should be replaced with common tags, or kept as-is if they're unique.
+Respond with JSON: { "replacements": { "rare_tag": "common_tag_or_null" } }
+Use null if the rare tag should be kept.`;
+
+        try {
+          const consolidationResponse = await callOpenAI({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: consolidationPrompt }],
+            temperature: 0.3,
+            max_tokens: 1000,
+          });
+          
+          const consMatch = consolidationResponse.choices[0].message.content.match(/\{[\s\S]*\}/);
+          if (consMatch) {
+            const consResult = JSON.parse(consMatch[0]);
+            if (consResult.replacements) {
+              // Apply replacements
+              for (const result of allResults) {
+                result.suggestedTags = result.suggestedTags.map(tag => {
+                  const replacement = consResult.replacements[tag];
+                  return replacement && replacement !== 'null' ? replacement : tag;
+                }).filter((tag, idx, arr) => arr.indexOf(tag) === idx); // Remove duplicates
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Tag consolidation failed, using original tags:', e);
+        }
+      }
+      
+      setAiTagPlan(allResults);
+      setShowAITagTableModal(true);
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:generateAITagSuggestions:catch',message:'AI call failed',data:{error:String(error),errorName:(error as Error)?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-H4'})}).catch(()=>{});
-      // #endregion
       console.error('Error generating AI tag suggestions:', error);
       alert('Failed to generate AI suggestions. Please try again.');
     } finally {
@@ -2477,75 +2505,17 @@ Respond with JSON: { "papers": [{ "index": 0, "tags": ["tag1", "tag2"] }] }`;
                           </button>
                         </>
                       ) : (
-                        <>
-                          <p className="text-xs text-[var(--text-muted)]">
-                            Review and edit suggested tags for each paper:
+                        <div className="text-center py-3">
+                          <p className="text-sm text-[var(--accent-green)] mb-3">
+                            ✓ Generated tags for {aiTagPlan.length} papers
                           </p>
-                          <div className="max-h-64 overflow-y-auto border border-[var(--border-default)] rounded-lg">
-                            {aiTagPlan.map((item, idx) => (
-                              <div 
-                                key={item.paperId}
-                                className={`p-3 ${idx !== aiTagPlan.length - 1 ? 'border-b border-[var(--border-default)]' : ''}`}
-                              >
-                                <p className="text-sm text-[var(--text-primary)] font-medium mb-2 line-clamp-1">
-                                  {item.title}
-                                </p>
-                                {item.currentTags.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 mb-2">
-                                    {item.currentTags.map(tag => (
-                                      <span key={tag} className="tag text-[10px] opacity-50">
-                                        {tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                                <div className="flex flex-wrap gap-1.5">
-                                  {item.suggestedTags.map(tag => (
-                                    <span 
-                                      key={tag} 
-                                      className="tag active flex items-center gap-1 text-xs"
-                                    >
-                                      <Sparkles className="w-2.5 h-2.5" />
-                                      {tag}
-                                      <button
-                                        onClick={() => removeTagFromPlan(item.paperId, tag)}
-                                        className="hover:text-[var(--accent-red)] ml-0.5"
-                                      >
-                                        <X className="w-2.5 h-2.5" />
-                                      </button>
-                                    </span>
-                                  ))}
-                                  <input
-                                    type="text"
-                                    placeholder="+ add"
-                                    className="w-16 text-xs px-2 py-0.5 bg-transparent border border-dashed border-[var(--border-default)] rounded focus:border-[var(--accent-primary)] focus:outline-none"
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        addTagToPlan(item.paperId, (e.target as HTMLInputElement).value);
-                                        (e.target as HTMLInputElement).value = '';
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setAiTagPlan([])}
-                              className="btn-secondary flex-1 text-sm"
-                            >
-                              Reset
-                            </button>
-                            <button
-                              onClick={applyAITagPlan}
-                              className="btn-primary flex-1 text-sm flex items-center justify-center gap-2"
-                            >
-                              <Check className="w-4 h-4" />
-                              Apply Tags
-                            </button>
-                          </div>
-                        </>
+                          <button
+                            onClick={() => setShowAITagTableModal(true)}
+                            className="btn-primary text-sm px-4 py-2"
+                          >
+                            Review & Edit in Table
+                          </button>
+                        </div>
                       )}
                     </div>
                   )}
@@ -2594,6 +2564,138 @@ Respond with JSON: { "papers": [{ "index": 0, "tags": ["tag1", "tag2"] }] }`;
           </div>
         )
       }
+
+      {/* AI Tag Table Modal - Large table view for reviewing suggestions */}
+      {showAITagTableModal && aiTagPlan.length > 0 && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowAITagTableModal(false)}
+          />
+          <div className="relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-default)]">
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                  AI Tag Suggestions
+                </h2>
+                <p className="text-sm text-[var(--text-muted)] mt-0.5">
+                  {aiTagPlan.length} papers • Review and edit before applying
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAITagTableModal(false)}
+                className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Table */}
+            <div className="flex-1 overflow-auto">
+              <table className="w-full">
+                <thead className="sticky top-0 bg-[var(--bg-secondary)] z-10">
+                  <tr>
+                    <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 border-b border-[var(--border-default)]" style={{ width: '50%' }}>
+                      Paper
+                    </th>
+                    <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 border-b border-[var(--border-default)]" style={{ width: '25%' }}>
+                      Current Tags
+                    </th>
+                    <th className="text-left text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider px-4 py-3 border-b border-[var(--border-default)]" style={{ width: '25%' }}>
+                      Suggested Tags
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aiTagPlan.map((item, idx) => (
+                    <tr 
+                      key={item.paperId}
+                      className={`${idx % 2 === 0 ? 'bg-[var(--bg-primary)]' : 'bg-[var(--bg-secondary)]/50'} hover:bg-[var(--bg-tertiary)]/50`}
+                    >
+                      <td className="px-4 py-3 border-b border-[var(--border-default)]">
+                        <p className="text-sm text-[var(--text-primary)] line-clamp-2">{item.title}</p>
+                      </td>
+                      <td className="px-4 py-3 border-b border-[var(--border-default)]">
+                        <div className="flex flex-wrap gap-1">
+                          {item.currentTags.length > 0 ? (
+                            item.currentTags.map(tag => (
+                              <span key={tag} className="tag text-xs opacity-60">{tag}</span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-[var(--text-muted)] italic">None</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 border-b border-[var(--border-default)]">
+                        <div className="flex flex-wrap gap-1">
+                          {item.suggestedTags.map(tag => (
+                            <span 
+                              key={tag}
+                              className="tag active text-xs flex items-center gap-1"
+                            >
+                              {tag}
+                              <button
+                                onClick={() => removeTagFromPlan(item.paperId, tag)}
+                                className="hover:text-[var(--accent-red)]"
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </span>
+                          ))}
+                          <input
+                            type="text"
+                            placeholder="+"
+                            className="w-8 text-xs px-1.5 py-0.5 bg-transparent border border-dashed border-[var(--border-default)] rounded text-center focus:border-[var(--accent-primary)] focus:outline-none focus:w-20 transition-all"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                addTagToPlan(item.paperId, (e.target as HTMLInputElement).value);
+                                (e.target as HTMLInputElement).value = '';
+                              }
+                            }}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Footer */}
+            <div className="flex items-center justify-between px-5 py-4 border-t border-[var(--border-default)] bg-[var(--bg-secondary)]">
+              <div className="text-sm text-[var(--text-muted)]">
+                {(() => {
+                  const allTags = aiTagPlan.flatMap(p => p.suggestedTags);
+                  const uniqueTags = [...new Set(allTags)];
+                  return `${uniqueTags.length} unique tags across ${aiTagPlan.length} papers`;
+                })()}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setAiTagPlan([]);
+                    setShowAITagTableModal(false);
+                  }}
+                  className="btn-secondary px-4 py-2 text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    applyAITagPlan();
+                    setShowAITagTableModal(false);
+                  }}
+                  className="btn-primary px-5 py-2 text-sm flex items-center gap-2"
+                >
+                  <Check className="w-4 h-4" />
+                  Apply All Tags
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 }
