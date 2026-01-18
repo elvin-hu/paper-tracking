@@ -1469,6 +1469,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
 
   // Handle cell value update
   const handleCellUpdate = useCallback((rowId: string, columnId: string, value: LitReviewCell['value']) => {
+    console.log('[LitReview] handleCellUpdate called:', { rowId, columnId, value });
     onUpdateSheet({
       ...sheet,
       rows: sheet.rows.map(r => 
@@ -3437,18 +3438,23 @@ export function LitReview() {
     // Save to database if not using localStorage fallback
     if (!useLocalStorage) {
       try {
+        console.log('[LitReview] Saving sheet to database:', sheetWithTimestamp.id, 'rows:', sheetWithTimestamp.rows.length);
         // Save sheet metadata (columns, name, etc.)
         await updateLitReviewSheet(sheetWithTimestamp);
         
         // Also save all rows (cell data is stored in rows)
         await Promise.all(
-          sheetWithTimestamp.rows.map(row => 
-            upsertLitReviewRow(sheetWithTimestamp.id, row)
-          )
+          sheetWithTimestamp.rows.map(row => {
+            console.log('[LitReview] Saving row:', row.id, 'cells:', Object.keys(row.cells).length);
+            return upsertLitReviewRow(sheetWithTimestamp.id, row);
+          })
         );
+        console.log('[LitReview] Save complete');
       } catch (error) {
-        console.error('Error saving sheet:', error);
+        console.error('[LitReview] Error saving sheet:', error);
       }
+    } else {
+      console.log('[LitReview] Using localStorage fallback');
     }
   }, [useLocalStorage]);
 
