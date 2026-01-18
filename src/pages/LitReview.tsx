@@ -36,6 +36,7 @@ import {
   ExternalLink,
   GripVertical,
   Settings2,
+  Pencil,
 } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import {
@@ -1362,6 +1363,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
     endColIndex: number;
   } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowId: string; paperId: string } | null>(null);
+  const [columnContextMenu, setColumnContextMenu] = useState<{ x: number; y: number; columnId: string; columnIndex: number } | null>(null);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
@@ -1439,14 +1441,17 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
     setDropTargetIndex(null);
   };
 
-  // Close context menu on click outside
+  // Close context menus on click outside
   useEffect(() => {
-    const handleClickOutside = () => setContextMenu(null);
-    if (contextMenu) {
+    const handleClickOutside = () => {
+      setContextMenu(null);
+      setColumnContextMenu(null);
+    };
+    if (contextMenu || columnContextMenu) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [contextMenu]);
+  }, [contextMenu, columnContextMenu]);
 
   // Handle cell value update
   const handleCellUpdate = useCallback((rowId: string, columnId: string, value: LitReviewCell['value']) => {
@@ -1658,6 +1663,40 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
     onSelectColumn(newColumn.id);
   };
 
+  const handleInsertColumn = (atIndex: number) => {
+    if (isPreview) return;
+    const newColumn: LitReviewColumn = {
+      id: uuidv4(),
+      name: 'New Column',
+      type: 'text',
+      description: 'Describe what to extract...',
+      width: 200,
+    };
+    const newColumns = [...sheet.columns];
+    newColumns.splice(atIndex, 0, newColumn);
+    onUpdateSheet({
+      ...sheet,
+      columns: newColumns,
+    });
+    // Select the new column for editing in the right panel
+    onSelectColumn(newColumn.id);
+  };
+
+  const handleDeleteColumn = (columnId: string) => {
+    if (isPreview) return;
+    onUpdateSheet({
+      ...sheet,
+      columns: sheet.columns.filter(c => c.id !== columnId),
+      // Also remove cell data for this column
+      rows: sheet.rows.map(row => {
+        const newCells = { ...row.cells };
+        delete newCells[columnId];
+        return { ...row, cells: newCells };
+      }),
+    });
+    setColumnContextMenu(null);
+  };
+
   const totalWidth = paperColumnWidth + sheet.columns.reduce((sum, c) => sum + c.width, 0) + 50;
 
   // Clear selection when clicking on empty toolbar area
@@ -1791,6 +1830,12 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                     // Clear cell selection and select column instead
                     setSelectedCell(null);
                     setSelectedColumnId(selectedColumnId === column.id ? null : column.id);
+                  }
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  if (!isPreview) {
+                    setColumnContextMenu({ x: e.clientX, y: e.clientY, columnId: column.id, columnIndex: colIndex });
                   }
                 }}
                 className={`flex-shrink-0 px-3 py-3 border-r border-[var(--border-muted)] group relative transition-all ${
@@ -2036,6 +2081,74 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
           >
             <Trash2 className="w-4 h-4" />
             Remove from sheet
+          </button>
+        </div>
+      )}
+
+      {/* Context menu for column headers */}
+      {columnContextMenu && (
+        <div
+          className="fixed bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg shadow-xl py-1 z-50 min-w-[180px]"
+          style={{ left: columnContextMenu.x, top: columnContextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              handleInsertColumn(columnContextMenu.columnIndex);
+              setColumnContextMenu(null);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+          >
+            <Plus className="w-4 h-4 text-[var(--text-muted)]" />
+            Insert column left
+          </button>
+          <button
+            onClick={() => {
+              handleInsertColumn(columnContextMenu.columnIndex + 1);
+              setColumnContextMenu(null);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+          >
+            <Plus className="w-4 h-4 text-[var(--text-muted)]" />
+            Insert column right
+          </button>
+          <div className="h-px bg-[var(--border-default)] my-1" />
+          <button
+            onClick={() => {
+              onRunColumnExtraction(columnContextMenu.columnId);
+              setColumnContextMenu(null);
+            }}
+            disabled={isExtracting}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50"
+          >
+            <RotateCcw className="w-4 h-4 text-[var(--text-muted)]" />
+            Re-run column extraction
+          </button>
+          <button
+            onClick={() => {
+              // Select column for editing in right panel
+              setSelectedCell(null);
+              setSelectedColumnId(columnContextMenu.columnId);
+              onSelectColumn(columnContextMenu.columnId);
+              setColumnContextMenu(null);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+          >
+            <Pencil className="w-4 h-4 text-[var(--text-muted)]" />
+            Edit column settings
+          </button>
+          <div className="h-px bg-[var(--border-default)] my-1" />
+          <button
+            onClick={() => {
+              if (confirm('Delete this column and all its data?')) {
+                handleDeleteColumn(columnContextMenu.columnId);
+              }
+              setColumnContextMenu(null);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--accent-red)] hover:bg-[var(--bg-tertiary)] transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete column
           </button>
         </div>
       )}
