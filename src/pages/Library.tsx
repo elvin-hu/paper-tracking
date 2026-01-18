@@ -1028,17 +1028,17 @@ Respond with JSON: { "replacements": { "rare_tag": "common_tag_or_null" } }`;
         const paper = papers.find(p => p.id === planItem.paperId);
         if (!paper) continue;
         
-        // Merge current tags with suggested tags (no duplicates)
-        const mergedTags = [...new Set([...paper.tags, ...planItem.suggestedTags])];
+        // REPLACE existing tags with AI-suggested tags (not merge)
+        const newTags = [...planItem.suggestedTags];
         
-        if (JSON.stringify(mergedTags.sort()) !== JSON.stringify(paper.tags.sort())) {
-          papersToUpdate.push({ ...paper, tags: mergedTags });
+        if (JSON.stringify(newTags.sort()) !== JSON.stringify(paper.tags.sort())) {
+          papersToUpdate.push({ ...paper, tags: newTags });
         }
       }
       
       if (papersToUpdate.length > 0) {
         await updatePapersBatch(papersToUpdate);
-        console.log(`[Library] Applied AI tags to ${papersToUpdate.length} paper(s)`);
+        console.log(`[Library] Replaced tags on ${papersToUpdate.length} paper(s)`);
       }
       
       // Reset state
@@ -2694,7 +2694,7 @@ Respond with JSON: { "replacements": { "rare_tag": "common_tag_or_null" } }`;
                 {(() => {
                   const allTags = aiTagPlan.flatMap(p => p.suggestedTags);
                   const uniqueTags = [...new Set(allTags)];
-                  return `${uniqueTags.length} unique tags across ${aiTagPlan.length} papers`;
+                  return `${uniqueTags.length} unique tags will replace existing tags on ${aiTagPlan.length} papers`;
                 })()}
               </div>
               <div className="flex gap-3">
@@ -2715,7 +2715,7 @@ Respond with JSON: { "replacements": { "rare_tag": "common_tag_or_null" } }`;
                   className="btn-primary px-5 py-2 text-sm flex items-center gap-2"
                 >
                   <Check className="w-4 h-4" />
-                  Apply All Tags
+                  Replace Tags
                 </button>
               </div>
             </div>
