@@ -37,6 +37,7 @@ import {
   GripVertical,
   Settings2,
   Pencil,
+  Highlighter,
 } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import {
@@ -65,6 +66,7 @@ import type {
   LitReviewPreset,
   LitReviewColumnType,
   LitReviewColumnOption,
+  CellHighlightColor,
 } from '../types/litreview';
 import { DEFAULT_PRESETS, LITREVIEW_STORAGE_KEY } from '../types/litreview';
 
@@ -1367,7 +1369,18 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const [isHighlightMode, setIsHighlightMode] = useState(false);
+  const [highlightPopup, setHighlightPopup] = useState<{ x: number; y: number; rowId: string; columnId: string } | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
+
+  // Highlight colors for cells
+  const CELL_HIGHLIGHT_COLORS: { color: CellHighlightColor; bg: string; label: string }[] = [
+    { color: 'yellow', bg: 'var(--highlight-yellow)', label: 'Yellow' },
+    { color: 'green', bg: 'var(--highlight-green)', label: 'Green' },
+    { color: 'blue', bg: 'var(--highlight-blue)', label: 'Blue' },
+    { color: 'red', bg: 'var(--highlight-red)', label: 'Red' },
+    { color: 'purple', bg: 'var(--highlight-purple)', label: 'Purple' },
+  ];
 
   // Handle column reorder via drag and drop
   const handleColumnDragStart = (e: React.DragEvent, columnId: string) => {
@@ -1441,17 +1454,18 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
     setDropTargetIndex(null);
   };
 
-  // Close context menus on click outside
+  // Close context menus and popups on click outside
   useEffect(() => {
     const handleClickOutside = () => {
       setContextMenu(null);
       setColumnContextMenu(null);
+      setHighlightPopup(null);
     };
-    if (contextMenu || columnContextMenu) {
+    if (contextMenu || columnContextMenu || highlightPopup) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [contextMenu, columnContextMenu]);
+  }, [contextMenu, columnContextMenu, highlightPopup]);
 
   // Handle cell value update
   const handleCellUpdate = useCallback((rowId: string, columnId: string, value: LitReviewCell['value']) => {
@@ -1476,6 +1490,28 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
           : r
       ),
     });
+  }, [sheet, onUpdateSheet]);
+
+  // Handle cell highlight
+  const handleCellHighlight = useCallback((rowId: string, columnId: string, color: CellHighlightColor | null) => {
+    onUpdateSheet({
+      ...sheet,
+      rows: sheet.rows.map(r => 
+        r.id === rowId 
+          ? { 
+              ...r, 
+              cells: { 
+                ...r.cells, 
+                [columnId]: { 
+                  ...r.cells[columnId],
+                  highlightColor: color ?? undefined,
+                } 
+              } 
+            } 
+          : r
+      ),
+    });
+    setHighlightPopup(null);
   }, [sheet, onUpdateSheet]);
 
   // Handle keyboard navigation
@@ -1804,6 +1840,21 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
               </>
             )}
           </button>
+          
+          {/* Highlight mode toggle */}
+          <button
+            onClick={() => setIsHighlightMode(!isHighlightMode)}
+            disabled={isPreview}
+            className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all ${
+              isHighlightMode
+                ? 'bg-[var(--highlight-yellow)] text-[var(--text-primary)] shadow-sm'
+                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+            } ${isPreview ? 'opacity-60 cursor-not-allowed' : ''}`}
+            title={isHighlightMode ? 'Exit highlight mode' : 'Enter highlight mode to mark cells'}
+          >
+            <Highlighter className="w-4 h-4" />
+            {isHighlightMode ? 'Highlighting' : 'Highlight'}
+          </button>
         </div>
 
         <div className="flex items-center gap-3">
@@ -1996,12 +2047,34 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                         columnIndex >= selectionRange.startColIndex &&
                         columnIndex <= selectionRange.endColIndex
                       : false;
+                    const cellHighlight = row.cells[column.id]?.highlightColor;
+                    const highlightBg = cellHighlight 
+                      ? CELL_HIGHLIGHT_COLORS.find(c => c.color === cellHighlight)?.bg 
+                      : undefined;
                     return (
                     <div
                       key={column.id}
                       data-cell-id={`${row.id}-${column.id}`}
-                      style={{ width: column.width, minWidth: column.width }}
-                      className="flex-shrink-0 border-r border-[var(--border-muted)] overflow-visible"
+                      style={{ 
+                        width: column.width, 
+                        minWidth: column.width,
+                        backgroundColor: highlightBg,
+                      }}
+                      className={`flex-shrink-0 border-r border-[var(--border-muted)] overflow-visible ${
+                        isHighlightMode ? 'cursor-crosshair' : ''
+                      }`}
+                      onClick={(e) => {
+                        // In highlight mode, show color picker instead of selecting
+                        if (isHighlightMode && !isPreview) {
+                          e.stopPropagation();
+                          setHighlightPopup({ 
+                            x: e.clientX, 
+                            y: e.clientY, 
+                            rowId: row.id, 
+                            columnId: column.id 
+                          });
+                        }
+                      }}
                     >
                       <EditableCell
                         cell={row.cells[column.id]}
@@ -2011,6 +2084,9 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                         isInRange={isInRange}
                         isEditing={editingCell?.rowId === row.id && editingCell?.columnId === column.id}
                         onSelect={(options) => {
+                          // In highlight mode, don't select cells normally
+                          if (isHighlightMode) return;
+                          
                           // If clicking the same cell that's already selected, deselect
                           if (selectedCell?.rowId === row.id && selectedCell?.columnId === column.id && !options?.shiftKey) {
                             setSelectedCell(null);
@@ -2044,7 +2120,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                           }
                         }}
                         onStartEdit={() => {
-                          if (isPreview) return;
+                          if (isPreview || isHighlightMode) return;
                           setSelectedCell({ rowId: row.id, columnId: column.id });
                           setEditingCell({ rowId: row.id, columnId: column.id });
                           setSelectionAnchor({ rowId: row.id, columnId: column.id });
@@ -2053,7 +2129,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                         onEndEdit={() => setEditingCell(null)}
                         onUpdateValue={(value) => handleCellUpdate(row.id, column.id, value)}
                         onNavigate={handleNavigate}
-                        isReadOnly={isPreview}
+                        isReadOnly={isPreview || isHighlightMode}
                       />
                     </div>
                   )})}
@@ -2196,6 +2272,49 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
             <Trash2 className="w-4 h-4" />
             Delete column
           </button>
+        </div>
+      )}
+
+      {/* Highlight color picker popup */}
+      {highlightPopup && (
+        <div
+          className="fixed bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl shadow-2xl p-3 z-50"
+          style={{ left: highlightPopup.x, top: highlightPopup.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Highlighter className="w-4 h-4 text-[var(--text-muted)]" />
+            <span className="text-xs font-medium text-[var(--text-secondary)]">Highlight cell</span>
+          </div>
+          <div className="flex gap-2">
+            {CELL_HIGHLIGHT_COLORS.map(({ color, bg }) => {
+              const currentHighlight = sheet.rows
+                .find(r => r.id === highlightPopup.rowId)
+                ?.cells[highlightPopup.columnId]?.highlightColor;
+              const isActive = currentHighlight === color;
+              return (
+                <button
+                  key={color}
+                  onClick={() => handleCellHighlight(highlightPopup.rowId, highlightPopup.columnId, color)}
+                  className={`w-7 h-7 rounded-full transition-all hover:scale-110 ${
+                    isActive ? 'ring-2 ring-offset-2 ring-[var(--text-primary)] ring-offset-[var(--bg-card)]' : ''
+                  }`}
+                  style={{ backgroundColor: bg }}
+                  title={color.charAt(0).toUpperCase() + color.slice(1)}
+                />
+              );
+            })}
+            {/* Clear highlight button */}
+            {sheet.rows.find(r => r.id === highlightPopup.rowId)?.cells[highlightPopup.columnId]?.highlightColor && (
+              <button
+                onClick={() => handleCellHighlight(highlightPopup.rowId, highlightPopup.columnId, null)}
+                className="w-7 h-7 rounded-full border-2 border-dashed border-[var(--border-default)] flex items-center justify-center hover:border-[var(--accent-red)] hover:text-[var(--accent-red)] transition-colors"
+                title="Remove highlight"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

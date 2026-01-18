@@ -19,6 +19,8 @@ export interface LitReviewColumn {
   isRequired?: boolean;
 }
 
+export type CellHighlightColor = 'yellow' | 'green' | 'blue' | 'red' | 'purple';
+
 export interface LitReviewCell {
   value: string | string[] | number | boolean | null;
   confidence?: number; // 0-1 AI confidence score
@@ -26,6 +28,7 @@ export interface LitReviewCell {
   sourcePageNumber?: number;
   status?: 'processing' | 'error';
   aiValue?: string | string[] | number | boolean | null;
+  highlightColor?: CellHighlightColor; // Cell highlight color
 }
 
 export interface LitReviewRow {
