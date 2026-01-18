@@ -944,12 +944,6 @@ Example:
     }
   };
 
-  const updateTagPlan = (paperId: string, newTags: string[]) => {
-    setAiTagPlan(prev => prev.map(item => 
-      item.paperId === paperId ? { ...item, suggestedTags: newTags } : item
-    ));
-  };
-
   const addTagToPlan = (paperId: string, tag: string) => {
     const trimmed = tag.trim().toLowerCase();
     if (!trimmed) return;
