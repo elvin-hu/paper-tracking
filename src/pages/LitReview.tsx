@@ -2860,6 +2860,11 @@ export function LitReview() {
     return (saved as ModelId) || 'gpt-4o-mini';
   });
 
+  // Undo/Redo state
+  const [undoStack, setUndoStack] = useState<LitReviewSheet[]>([]);
+  const [redoStack, setRedoStack] = useState<LitReviewSheet[]>([]);
+  const MAX_UNDO_HISTORY = 50;
+
   // Persist model selection
   useEffect(() => {
     localStorage.setItem('litreview-model', selectedModel);
@@ -3135,7 +3140,19 @@ export function LitReview() {
     }
   };
 
-  const handleUpdateSheet = useCallback(async (updatedSheet: LitReviewSheet) => {
+  const handleUpdateSheet = useCallback(async (updatedSheet: LitReviewSheet, skipUndo = false) => {
+    // Push current state to undo stack before updating (unless this is an undo/redo operation)
+    if (!skipUndo) {
+      setSheets(prev => {
+        const currentSheet = prev.find(s => s.id === updatedSheet.id);
+        if (currentSheet) {
+          setUndoStack(stack => [...stack.slice(-MAX_UNDO_HISTORY + 1), currentSheet]);
+          setRedoStack([]); // Clear redo stack on new changes
+        }
+        return prev;
+      });
+    }
+
     const sheetWithTimestamp = { ...updatedSheet, updatedAt: new Date() };
     setSheets(prev => prev.map(s => s.id === updatedSheet.id ? sheetWithTimestamp : s));
     
@@ -3148,6 +3165,49 @@ export function LitReview() {
       }
     }
   }, [useLocalStorage]);
+
+  // Undo: restore previous sheet state
+  const handleUndo = useCallback(() => {
+    if (undoStack.length === 0 || !currentSheet) return;
+    
+    const previousState = undoStack[undoStack.length - 1];
+    setUndoStack(prev => prev.slice(0, -1));
+    setRedoStack(prev => [...prev, currentSheet]);
+    
+    // Update without pushing to undo stack
+    handleUpdateSheet(previousState, true);
+  }, [undoStack, currentSheet, handleUpdateSheet]);
+
+  // Redo: restore state that was undone
+  const handleRedo = useCallback(() => {
+    if (redoStack.length === 0) return;
+    
+    const nextState = redoStack[redoStack.length - 1];
+    setRedoStack(prev => prev.slice(0, -1));
+    if (currentSheet) {
+      setUndoStack(prev => [...prev, currentSheet]);
+    }
+    
+    // Update without pushing to undo stack
+    handleUpdateSheet(nextState, true);
+  }, [redoStack, currentSheet, handleUpdateSheet]);
+
+  // Global keyboard handler for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
 
   const handleApplyPreset = (preset: LitReviewPreset) => {
     if (!currentSheet) return;
