@@ -3437,7 +3437,15 @@ export function LitReview() {
     // Save to database if not using localStorage fallback
     if (!useLocalStorage) {
       try {
+        // Save sheet metadata (columns, name, etc.)
         await updateLitReviewSheet(sheetWithTimestamp);
+        
+        // Also save all rows (cell data is stored in rows)
+        await Promise.all(
+          sheetWithTimestamp.rows.map(row => 
+            upsertLitReviewRow(sheetWithTimestamp.id, row)
+          )
+        );
       } catch (error) {
         console.error('Error saving sheet:', error);
       }
