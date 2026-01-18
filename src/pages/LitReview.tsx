@@ -1251,8 +1251,8 @@ function EditableCell({
           onBlur={saveAndClose}
           onKeyDown={handleInputKeyDown}
           placeholder={column.type === 'multiselect' ? 'Comma separated...' : 'Type here...'}
-          className="w-full h-full bg-transparent text-sm text-[var(--text-primary)] focus:outline-none resize-none leading-normal"
-          style={{ minHeight: '1.5em' }}
+          className="w-full h-full bg-transparent text-sm text-[var(--text-primary)] focus:outline-none resize-none"
+          style={{ lineHeight: 'inherit' }}
         />
       </div>
     );
@@ -1313,8 +1313,8 @@ function EditableCell({
       return <span className="text-sm text-[var(--text-primary)] font-mono">{value}</span>;
     }
 
-    // Text - no line clamp, show full content
-    return <p className="text-sm text-[var(--text-primary)] whitespace-pre-wrap break-words">{String(value)}</p>;
+    // Text - no line clamp, show full content (use span to avoid p margins)
+    return <span className="text-sm text-[var(--text-primary)] whitespace-pre-wrap break-words block">{String(value)}</span>;
   };
 
   return (
@@ -1326,9 +1326,7 @@ function EditableCell({
       tabIndex={isSelected ? 0 : -1}
       role="gridcell"
     >
-      <div className="relative">
-        {renderValue()}
-      </div>
+      {renderValue()}
     </div>
   );
 }
