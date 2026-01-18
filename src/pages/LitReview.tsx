@@ -1281,10 +1281,11 @@ function EditableCell({
     );
   }
 
-  // Display mode
+  // Display mode - use outline with negative offset to keep selection inside cell
+  // This prevents z-index issues with frozen cells
   const baseClasses = `min-h-[40px] w-full h-full px-2 py-2 cursor-pointer rounded transition-all relative ${
     isSelected 
-      ? 'z-10 ring-2 ring-[var(--accent-primary)] bg-[var(--accent-primary)]/10' 
+      ? 'outline outline-2 -outline-offset-2 outline-[var(--accent-primary)] bg-[var(--accent-primary)]/10' 
       : isInRange
         ? 'bg-[var(--accent-primary)]/5'
         : 'hover:bg-[var(--bg-tertiary)]'
@@ -1612,6 +1613,34 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
     onSelectColumn(selectedColumnId);
   }, [selectedColumnId, onSelectColumn]);
 
+  // Global keyboard handler for arrow key navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle if we have a selection and not editing
+      if (!selectedCell || editingCell) return;
+      
+      // Don't interfere if user is typing in an input
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
+        return;
+      }
+
+      const direction = 
+        e.key === 'ArrowUp' ? 'up' :
+        e.key === 'ArrowDown' ? 'down' :
+        e.key === 'ArrowLeft' ? 'left' :
+        e.key === 'ArrowRight' ? 'right' : null;
+      
+      if (direction) {
+        e.preventDefault();
+        handleNavigate(direction, { shiftKey: e.shiftKey });
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedCell, editingCell, handleNavigate]);
+
   const handleAddMultipleColumns = (newColumns: LitReviewColumn[]) => {
     if (isPreview) return;
     onUpdateSheet({
@@ -1733,11 +1762,11 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
       {/* Table */}
       <div ref={tableRef} className="flex-1 overflow-x-auto overflow-y-auto">
         <div style={{ minWidth: totalWidth }}>
-          {/* Header */}
-          <div className="flex sticky top-0 bg-[var(--bg-card)] z-10 border-b border-[var(--border-default)]">
-            {/* Paper title column - fixed but resizable */}
+          {/* Header - z-20 so it stays above left column (z-10) */}
+          <div className="flex sticky top-0 bg-[var(--bg-card)] z-20 border-b border-[var(--border-default)]">
+            {/* Paper title column header - z-30 (highest, top-left corner) */}
             <div 
-              className="sticky left-0 flex-shrink-0 px-4 py-3 bg-[var(--bg-card)] border-r border-[var(--border-default)] z-20 relative"
+              className="sticky left-0 flex-shrink-0 px-4 py-3 bg-[var(--bg-card)] border-r border-[var(--border-default)] z-30 relative"
               style={{ width: paperColumnWidth }}
             >
               <div className="flex items-center gap-2">
