@@ -1701,6 +1701,52 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
 
   const totalWidth = paperColumnWidth + sheet.columns.reduce((sum, c) => sum + c.width, 0) + 50;
 
+  // Persist scroll position
+  const scrollPositionKey = `litreview-scroll-${sheet.id}`;
+  
+  // Save scroll position on scroll (debounced)
+  useEffect(() => {
+    const container = tableRef.current;
+    if (!container) return;
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const handleScroll = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        localStorage.setItem(scrollPositionKey, JSON.stringify({
+          scrollLeft: container.scrollLeft,
+          scrollTop: container.scrollTop,
+        }));
+      }, 150); // Debounce to avoid excessive writes
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      clearTimeout(timeoutId);
+    };
+  }, [scrollPositionKey]);
+
+  // Restore scroll position on mount
+  useEffect(() => {
+    const container = tableRef.current;
+    if (!container) return;
+
+    const saved = localStorage.getItem(scrollPositionKey);
+    if (saved) {
+      try {
+        const { scrollLeft, scrollTop } = JSON.parse(saved);
+        // Use requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+          container.scrollLeft = scrollLeft;
+          container.scrollTop = scrollTop;
+        });
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+  }, [scrollPositionKey]);
+
   // Clear selection when clicking on empty toolbar area
   const handleToolbarClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
