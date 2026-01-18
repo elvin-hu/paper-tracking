@@ -873,55 +873,77 @@ export function Library() {
     try {
       const selectedPapersList = papers.filter(p => selectedPapers.has(p.id));
       
-      // Send only titles (indexed by position) to minimize payload
-      const titles = selectedPapersList.map((p, i) => `${i}: ${p.title}`).join('\n');
+      // Process in batches to avoid Vercel timeout (10s limit)
+      const BATCH_SIZE = 30;
+      const batches: Paper[][] = [];
+      for (let i = 0; i < selectedPapersList.length; i += BATCH_SIZE) {
+        batches.push(selectedPapersList.slice(i, i + BATCH_SIZE));
+      }
       
-      // Keep existing tags list short
-      const existingTagsSample = allTags.slice(0, 50).join(', ');
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:generateAITagSuggestions',message:'Starting batched AI calls',data:{totalPapers:selectedPapersList.length,batchCount:batches.length,batchSize:BATCH_SIZE},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       
-      const systemPrompt = `You are a research librarian. Suggest 2-4 tags for each paper based on its title.
-
-${existingTagsSample ? `Existing tags (reuse when appropriate): ${existingTagsSample}` : ''}
+      const existingTagsSample = allTags.slice(0, 30).join(', ');
+      const allResults: { paperId: string; title: string; currentTags: string[]; suggestedTags: string[] }[] = [];
+      
+      for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+        const batch = batches[batchIdx];
+        const titles = batch.map((p, i) => `${i}: ${p.title}`).join('\n');
+        
+        const systemPrompt = `You are a research librarian. Suggest 2-4 tags for each paper.
+${existingTagsSample ? `Existing tags: ${existingTagsSample}` : ''}
 ${aiSuggestionInput.trim() ? `User's guidance: "${aiSuggestionInput.trim()}"` : ''}
+Respond with JSON: { "papers": [{ "index": 0, "tags": ["tag1", "tag2"] }] }`;
 
-Respond with JSON: { "papers": [{ "index": 0, "tags": ["tag1", "tag2"] }, { "index": 1, "tags": ["tag3"] }] }
-Tags should be lowercase, 1-3 words. Include ALL papers in your response.`;
-
-      const userMessage = titles;
-      
-      const response = await callOpenAI({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage },
-        ],
-        temperature: 0.7,
-        max_tokens: 4000,
-      });
-      
-      const content = response.choices[0].message.content;
-      // Parse the JSON response
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(parsed.papers)) {
-          const plan = parsed.papers
-            .filter((item: { index: number; tags: string[] }) => 
-              item.index >= 0 && item.index < selectedPapersList.length
-            )
-            .map((item: { index: number; tags: string[] }) => {
-              const paper = selectedPapersList[item.index];
-              return {
-                paperId: paper.id,
-                title: paper.title,
-                currentTags: paper.tags || [],
-                suggestedTags: (item.tags || []).map((t: string) => t.toLowerCase().trim()),
-              };
-            });
-          setAiTagPlan(plan);
+        // #region agent log
+        const batchStart = Date.now();
+        fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:batch',message:`Batch ${batchIdx+1}/${batches.length} starting`,data:{batchSize:batch.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
+        
+        const response = await callOpenAI({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: titles },
+          ],
+          temperature: 0.7,
+          max_tokens: 1500,
+        });
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:batch',message:`Batch ${batchIdx+1}/${batches.length} completed`,data:{durationMs:Date.now()-batchStart},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
+        
+        const content = response.choices[0].message.content;
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(parsed.papers)) {
+            for (const item of parsed.papers) {
+              if (item.index >= 0 && item.index < batch.length) {
+                const paper = batch[item.index];
+                allResults.push({
+                  paperId: paper.id,
+                  title: paper.title,
+                  currentTags: paper.tags || [],
+                  suggestedTags: (item.tags || []).map((t: string) => t.toLowerCase().trim()),
+                });
+              }
+            }
+          }
         }
       }
+      
+      setAiTagPlan(allResults);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:generateAITagSuggestions',message:'All batches completed',data:{totalResults:allResults.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:generateAITagSuggestions:catch',message:'AI call failed',data:{error:String(error),errorName:(error as Error)?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-H4'})}).catch(()=>{});
+      // #endregion
       console.error('Error generating AI tag suggestions:', error);
       alert('Failed to generate AI suggestions. Please try again.');
     } finally {
