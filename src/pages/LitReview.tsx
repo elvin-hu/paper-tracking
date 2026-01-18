@@ -1125,40 +1125,14 @@ function EditableCell({
     }
   }, [isEditing, cell?.value]);
 
+  // Note: Arrow key navigation is handled by the global keyboard handler in Spreadsheet
+  // This handler only handles cell-specific actions like Enter to edit
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isEditing) {
-      if (isReadOnly) {
-        if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          onNavigate('up', { shiftKey: e.shiftKey });
-        } else if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          onNavigate('down', { shiftKey: e.shiftKey });
-        } else if (e.key === 'ArrowLeft') {
-          e.preventDefault();
-          onNavigate('left', { shiftKey: e.shiftKey });
-        } else if (e.key === 'ArrowRight' || e.key === 'Tab') {
-          e.preventDefault();
-          onNavigate('right', { shiftKey: e.shiftKey });
-        }
-        return;
-      }
-      // Navigation when selected but not editing
+    if (!isEditing && !isReadOnly) {
+      // Enter or F2 to start editing
       if (e.key === 'Enter' || e.key === 'F2') {
         e.preventDefault();
         onStartEdit();
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        onNavigate('up', { shiftKey: e.shiftKey });
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        onNavigate('down', { shiftKey: e.shiftKey });
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        onNavigate('left', { shiftKey: e.shiftKey });
-      } else if (e.key === 'ArrowRight' || e.key === 'Tab') {
-        e.preventDefault();
-        onNavigate('right', { shiftKey: e.shiftKey });
       } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
         // Start typing to edit
         onStartEdit();
@@ -1621,7 +1595,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
     onSelectColumn(selectedColumnId);
   }, [selectedColumnId, onSelectColumn]);
 
-  // Global keyboard handler for arrow key navigation
+  // Global keyboard handler for navigation and cell editing
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only handle if we have a selection and not editing
@@ -1633,15 +1607,17 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
         return;
       }
 
+      // Arrow keys and Tab for navigation
       const direction = 
         e.key === 'ArrowUp' ? 'up' :
         e.key === 'ArrowDown' ? 'down' :
         e.key === 'ArrowLeft' ? 'left' :
-        e.key === 'ArrowRight' ? 'right' : null;
+        e.key === 'ArrowRight' ? 'right' :
+        e.key === 'Tab' ? (e.shiftKey ? 'left' : 'right') : null;
       
       if (direction) {
         e.preventDefault();
-        handleNavigate(direction, { shiftKey: e.shiftKey });
+        handleNavigate(direction, { shiftKey: e.shiftKey && e.key !== 'Tab' });
       }
     };
 
