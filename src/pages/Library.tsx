@@ -179,7 +179,7 @@ export function Library() {
   // AI tag suggestion state
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [aiSuggestionInput, setAiSuggestionInput] = useState('');
-  const [aiSuggestedTags, setAiSuggestedTags] = useState<string[]>([]);
+  const [aiTagPlan, setAiTagPlan] = useState<{ paperId: string; title: string; currentTags: string[]; suggestedTags: string[] }[]>([]);
   const [isLoadingAISuggestions, setIsLoadingAISuggestions] = useState(false);
 
   // Modal close handlers with exit animations
@@ -846,7 +846,7 @@ export function Library() {
     setBatchNewTagInput('');
     setShowAISuggestions(false);
     setAiSuggestionInput('');
-    setAiSuggestedTags([]);
+    setAiTagPlan([]);
     setShowBatchEditModal(true);
   };
 
@@ -868,22 +868,23 @@ export function Library() {
     if (selectedPapers.size === 0) return;
     
     setIsLoadingAISuggestions(true);
-    setAiSuggestedTags([]);
+    setAiTagPlan([]);
     
     try {
       const selectedPapersList = papers.filter(p => selectedPapers.has(p.id));
       
       // Prepare paper info for the AI
       const paperInfo = selectedPapersList.map(p => ({
+        id: p.id,
         title: p.title,
         authors: p.authors,
-        abstract: p.abstract?.slice(0, 500),
+        abstract: p.abstract?.slice(0, 300),
         currentTags: p.tags,
       }));
       
       const systemPrompt = `You are an expert research librarian helping organize academic papers.
 
-Your task is to suggest relevant tags for categorizing these papers. Consider:
+Your task is to suggest relevant tags for EACH paper individually. Consider:
 1. Research themes and topics
 2. Methodologies used
 3. Application domains
@@ -891,9 +892,19 @@ Your task is to suggest relevant tags for categorizing these papers. Consider:
 
 ${allTags.length > 0 ? `Existing tags in this library (prefer reusing these when appropriate): ${allTags.join(', ')}` : 'No existing tags yet.'}
 
-${aiSuggestionInput.trim() ? `User's guidance: "${aiSuggestionInput.trim()}"` : ''}
+${aiSuggestionInput.trim() ? `User's grouping ideas: "${aiSuggestionInput.trim()}"` : ''}
 
-Respond with a JSON object containing a "tags" array of 5-10 suggested tag strings. Tags should be lowercase, concise (1-3 words), and reusable across papers.`;
+Respond with a JSON object containing a "papers" array. Each item should have:
+- "id": the paper id from input
+- "suggestedTags": array of 2-5 lowercase tag strings for this specific paper
+
+Example:
+{
+  "papers": [
+    { "id": "abc123", "suggestedTags": ["machine learning", "healthcare", "empirical study"] },
+    { "id": "def456", "suggestedTags": ["nlp", "survey", "transformers"] }
+  ]
+}`;
 
       const userMessage = `Papers to tag:\n${JSON.stringify(paperInfo, null, 2)}`;
       
@@ -904,7 +915,7 @@ Respond with a JSON object containing a "tags" array of 5-10 suggested tag strin
           { role: 'user', content: userMessage },
         ],
         temperature: 0.7,
-        max_tokens: 500,
+        max_tokens: 2000,
       });
       
       const content = response.choices[0].message.content;
@@ -912,8 +923,17 @@ Respond with a JSON object containing a "tags" array of 5-10 suggested tag strin
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(parsed.tags)) {
-          setAiSuggestedTags(parsed.tags.map((t: string) => t.toLowerCase().trim()));
+        if (Array.isArray(parsed.papers)) {
+          const plan = parsed.papers.map((item: { id: string; suggestedTags: string[] }) => {
+            const paper = selectedPapersList.find(p => p.id === item.id);
+            return {
+              paperId: item.id,
+              title: paper?.title || 'Unknown',
+              currentTags: paper?.tags || [],
+              suggestedTags: item.suggestedTags.map((t: string) => t.toLowerCase().trim()),
+            };
+          });
+          setAiTagPlan(plan);
         }
       }
     } catch (error) {
@@ -921,6 +941,66 @@ Respond with a JSON object containing a "tags" array of 5-10 suggested tag strin
       alert('Failed to generate AI suggestions. Please try again.');
     } finally {
       setIsLoadingAISuggestions(false);
+    }
+  };
+
+  const updateTagPlan = (paperId: string, newTags: string[]) => {
+    setAiTagPlan(prev => prev.map(item => 
+      item.paperId === paperId ? { ...item, suggestedTags: newTags } : item
+    ));
+  };
+
+  const addTagToPlan = (paperId: string, tag: string) => {
+    const trimmed = tag.trim().toLowerCase();
+    if (!trimmed) return;
+    setAiTagPlan(prev => prev.map(item => 
+      item.paperId === paperId && !item.suggestedTags.includes(trimmed)
+        ? { ...item, suggestedTags: [...item.suggestedTags, trimmed] }
+        : item
+    ));
+  };
+
+  const removeTagFromPlan = (paperId: string, tag: string) => {
+    setAiTagPlan(prev => prev.map(item => 
+      item.paperId === paperId
+        ? { ...item, suggestedTags: item.suggestedTags.filter(t => t !== tag) }
+        : item
+    ));
+  };
+
+  const applyAITagPlan = async () => {
+    if (aiTagPlan.length === 0) return;
+    
+    try {
+      const papersToUpdate: Paper[] = [];
+      
+      for (const planItem of aiTagPlan) {
+        const paper = papers.find(p => p.id === planItem.paperId);
+        if (!paper) continue;
+        
+        // Merge current tags with suggested tags (no duplicates)
+        const mergedTags = [...new Set([...paper.tags, ...planItem.suggestedTags])];
+        
+        if (JSON.stringify(mergedTags.sort()) !== JSON.stringify(paper.tags.sort())) {
+          papersToUpdate.push({ ...paper, tags: mergedTags });
+        }
+      }
+      
+      if (papersToUpdate.length > 0) {
+        await updatePapersBatch(papersToUpdate);
+        console.log(`[Library] Applied AI tags to ${papersToUpdate.length} paper(s)`);
+      }
+      
+      // Reset state
+      setShowBatchEditModal(false);
+      setAiTagPlan([]);
+      setAiSuggestionInput('');
+      setShowAISuggestions(false);
+      clearSelection();
+      await loadData();
+    } catch (error) {
+      console.error('Error applying AI tag plan:', error);
+      alert('Failed to apply tags. Please try again.');
     }
   };
 
@@ -964,7 +1044,7 @@ Respond with a JSON object containing a "tags" array of 5-10 suggested tag strin
         setBatchAddTags([]);
         setBatchRemoveTags([]);
         setBatchNewTagInput('');
-        setAiSuggestedTags([]);
+        setAiTagPlan([]);
         setAiSuggestionInput('');
         setShowAISuggestions(false);
         clearSelection();
@@ -980,7 +1060,7 @@ Respond with a JSON object containing a "tags" array of 5-10 suggested tag strin
       setBatchAddTags([]);
       setBatchRemoveTags([]);
       setBatchNewTagInput('');
-      setAiSuggestedTags([]);
+      setAiTagPlan([]);
       setAiSuggestionInput('');
       setShowAISuggestions(false);
       clearSelection();
@@ -2249,7 +2329,9 @@ Respond with a JSON object containing a "tags" array of 5-10 suggested tag strin
               onClick={handleCloseBatchEditModal}
             />
             <div 
-              className={`relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-md shadow-xl ${isBatchEditModalClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
+              className={`relative bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 w-full shadow-xl transition-all ${
+                aiTagPlan.length > 0 ? 'max-w-xl' : 'max-w-md'
+              } ${isBatchEditModalClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
               onAnimationEnd={handleBatchEditModalAnimationEnd}
             >
               <div className="flex items-center justify-between mb-5">
@@ -2361,59 +2443,108 @@ Respond with a JSON object containing a "tags" array of 5-10 suggested tag strin
                   
                   {showAISuggestions && (
                     <div className="mt-3 space-y-3">
-                      <div>
-                        <textarea
-                          value={aiSuggestionInput}
-                          onChange={(e) => setAiSuggestionInput(e.target.value)}
-                          placeholder="Give the AI some guidance (optional)... e.g., 'focus on methodology types' or 'categorize by application domain'"
-                          className="w-full text-sm resize-none"
-                          rows={2}
-                        />
-                      </div>
-                      <button
-                        onClick={generateAITagSuggestions}
-                        disabled={isLoadingAISuggestions}
-                        className="btn-secondary w-full text-sm flex items-center justify-center gap-2"
-                      >
-                        {isLoadingAISuggestions ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Generating...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-4 h-4" />
-                            Generate Suggestions
-                          </>
-                        )}
-                      </button>
-                      
-                      {aiSuggestedTags.length > 0 && (
-                        <div>
-                          <p className="text-xs text-[var(--text-muted)] mb-2">Click to add:</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {aiSuggestedTags.map((tag) => (
-                              <button
-                                key={tag}
-                                onClick={() => {
-                                  if (!batchAddTags.includes(tag)) {
-                                    setBatchAddTags(prev => [...prev, tag]);
-                                  }
-                                  setAiSuggestedTags(prev => prev.filter(t => t !== tag));
-                                }}
-                                disabled={batchAddTags.includes(tag)}
-                                className={`tag transition-all ${
-                                  batchAddTags.includes(tag)
-                                    ? 'opacity-50 cursor-not-allowed'
-                                    : 'hover:bg-[var(--accent-primary)]/20 hover:text-[var(--accent-primary)]'
-                                }`}
+                      {aiTagPlan.length === 0 ? (
+                        <>
+                          <div>
+                            <label className="text-xs text-[var(--text-muted)] mb-1.5 block">
+                              How should papers be grouped?
+                            </label>
+                            <textarea
+                              value={aiSuggestionInput}
+                              onChange={(e) => setAiSuggestionInput(e.target.value)}
+                              placeholder="e.g., 'group by research method (qualitative, quantitative, mixed)', 'categorize by domain (healthcare, education, finance)', 'tag by paper type and main contribution'"
+                              className="w-full text-sm resize-none"
+                              rows={3}
+                            />
+                          </div>
+                          <button
+                            onClick={generateAITagSuggestions}
+                            disabled={isLoadingAISuggestions}
+                            className="btn-secondary w-full text-sm flex items-center justify-center gap-2"
+                          >
+                            {isLoadingAISuggestions ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Analyzing {selectedPapers.size} papers...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-4 h-4" />
+                                Generate Tag Plan
+                              </>
+                            )}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs text-[var(--text-muted)]">
+                            Review and edit suggested tags for each paper:
+                          </p>
+                          <div className="max-h-64 overflow-y-auto border border-[var(--border-default)] rounded-lg">
+                            {aiTagPlan.map((item, idx) => (
+                              <div 
+                                key={item.paperId}
+                                className={`p-3 ${idx !== aiTagPlan.length - 1 ? 'border-b border-[var(--border-default)]' : ''}`}
                               >
-                                <Sparkles className="w-3 h-3 mr-1 inline" />
-                                {tag}
-                              </button>
+                                <p className="text-sm text-[var(--text-primary)] font-medium mb-2 line-clamp-1">
+                                  {item.title}
+                                </p>
+                                {item.currentTags.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mb-2">
+                                    {item.currentTags.map(tag => (
+                                      <span key={tag} className="tag text-[10px] opacity-50">
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                <div className="flex flex-wrap gap-1.5">
+                                  {item.suggestedTags.map(tag => (
+                                    <span 
+                                      key={tag} 
+                                      className="tag active flex items-center gap-1 text-xs"
+                                    >
+                                      <Sparkles className="w-2.5 h-2.5" />
+                                      {tag}
+                                      <button
+                                        onClick={() => removeTagFromPlan(item.paperId, tag)}
+                                        className="hover:text-[var(--accent-red)] ml-0.5"
+                                      >
+                                        <X className="w-2.5 h-2.5" />
+                                      </button>
+                                    </span>
+                                  ))}
+                                  <input
+                                    type="text"
+                                    placeholder="+ add"
+                                    className="w-16 text-xs px-2 py-0.5 bg-transparent border border-dashed border-[var(--border-default)] rounded focus:border-[var(--accent-primary)] focus:outline-none"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        addTagToPlan(item.paperId, (e.target as HTMLInputElement).value);
+                                        (e.target as HTMLInputElement).value = '';
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              </div>
                             ))}
                           </div>
-                        </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setAiTagPlan([])}
+                              className="btn-secondary flex-1 text-sm"
+                            >
+                              Reset
+                            </button>
+                            <button
+                              onClick={applyAITagPlan}
+                              className="btn-primary flex-1 text-sm flex items-center justify-center gap-2"
+                            >
+                              <Check className="w-4 h-4" />
+                              Apply Tags
+                            </button>
+                          </div>
+                        </>
                       )}
                     </div>
                   )}
