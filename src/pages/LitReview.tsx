@@ -1592,14 +1592,8 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
       requestAnimationFrame(() => {
         const selector = `[data-cell-id="${selectedCell.rowId}-${selectedCell.columnId}"] [role="gridcell"]`;
         const cellEl = tableRef.current?.querySelector(selector) as HTMLElement;
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LitReview.tsx:focus',message:'Focus attempt',data:{selector,foundElement:!!cellEl,tableRefExists:!!tableRef.current,activeElementBefore:document.activeElement?.tagName},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-        // #endregion
         if (cellEl) {
           cellEl.focus();
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/635252aa-b51b-47b2-a389-0d1028999aae',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LitReview.tsx:focus-after',message:'Focus called',data:{activeElementAfter:document.activeElement?.tagName,isSameElement:document.activeElement===cellEl},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-          // #endregion
         }
       });
     }
