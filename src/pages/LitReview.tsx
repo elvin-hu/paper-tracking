@@ -1775,7 +1775,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
             {/* Paper title column header - z-30 (highest, top-left corner) */}
             <div 
               className="sticky left-0 flex-shrink-0 px-4 py-3 bg-[var(--bg-card)] border-r border-[var(--border-default)] z-30 relative"
-              style={{ width: paperColumnWidth }}
+              style={{ width: paperColumnWidth, minWidth: paperColumnWidth }}
             >
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-[var(--text-muted)]" />
@@ -1795,7 +1795,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
             {sheet.columns.map((column, colIndex) => (
               <div
                 key={column.id}
-                style={{ width: column.width }}
+                style={{ width: column.width, minWidth: column.width }}
                 draggable={!isPreview}
                 onDragStart={(e) => handleColumnDragStart(e, column.id)}
                 onDragOver={(e) => handleColumnDragOver(e, colIndex)}
@@ -1890,7 +1890,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                   {/* Paper title - fixed but resizable */}
                   <div 
                     className="sticky left-0 flex-shrink-0 px-4 py-3 bg-[var(--bg-primary)] border-r border-[var(--border-default)] z-10 cursor-default"
-                    style={{ width: paperColumnWidth }}
+                    style={{ width: paperColumnWidth, minWidth: paperColumnWidth }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       if (!isPreview) {
