@@ -1193,11 +1193,13 @@ function EditableCell({
 
   const value = cell?.value;
 
-  // Editing mode
+  // Editing mode - use same padding as display mode to prevent text jumping
+  const editBaseClasses = "relative h-full min-h-[40px] px-2 py-2 rounded outline outline-2 -outline-offset-2 outline-[var(--accent-primary)] bg-[var(--accent-primary)]/10";
+  
   if (isEditing) {
     if (column.type === 'boolean') {
       return (
-        <div className="relative h-full min-h-[40px]">
+        <div className={editBaseClasses}>
           <select
             ref={inputRef as React.RefObject<HTMLSelectElement>}
             value={editValue.toLowerCase() === 'yes' || editValue.toLowerCase() === 'true' || editValue === '1' ? 'yes' : 'no'}
@@ -1207,7 +1209,7 @@ function EditableCell({
             }}
             onBlur={onEndEdit}
             onKeyDown={handleInputKeyDown}
-            className="absolute inset-0 w-full h-full bg-[var(--bg-tertiary)] border border-[var(--accent-primary)] rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none"
+            className="w-full bg-transparent text-sm text-[var(--text-primary)] focus:outline-none cursor-pointer"
           >
             <option value="yes">Yes</option>
             <option value="no">No</option>
@@ -1218,7 +1220,7 @@ function EditableCell({
 
     if (column.type === 'select') {
       return (
-        <div className="relative h-full min-h-[40px]">
+        <div className={editBaseClasses}>
           <select
             ref={inputRef as React.RefObject<HTMLSelectElement>}
             value={editValue}
@@ -1228,7 +1230,7 @@ function EditableCell({
             }}
             onBlur={onEndEdit}
             onKeyDown={handleInputKeyDown}
-            className="absolute inset-0 w-full h-full bg-[var(--bg-tertiary)] border border-[var(--accent-primary)] rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none"
+            className="w-full bg-transparent text-sm text-[var(--text-primary)] focus:outline-none cursor-pointer"
           >
             <option value="">Select...</option>
             {column.options?.map(opt => (
@@ -1241,7 +1243,7 @@ function EditableCell({
 
     // Text / Number / Multiselect - use textarea for multiline
     return (
-      <div className="relative h-full min-h-[60px]">
+      <div className={editBaseClasses}>
         <textarea
           ref={inputRef as React.RefObject<HTMLTextAreaElement>}
           value={editValue}
@@ -1249,8 +1251,8 @@ function EditableCell({
           onBlur={saveAndClose}
           onKeyDown={handleInputKeyDown}
           placeholder={column.type === 'multiselect' ? 'Comma separated...' : 'Type here...'}
-          className="absolute inset-0 w-full h-full bg-[var(--bg-tertiary)] border border-[var(--accent-primary)] rounded px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none resize-none"
-          rows={3}
+          className="w-full h-full bg-transparent text-sm text-[var(--text-primary)] focus:outline-none resize-none leading-normal"
+          style={{ minHeight: '1.5em' }}
         />
       </div>
     );
