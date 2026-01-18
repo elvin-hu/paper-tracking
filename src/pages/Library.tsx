@@ -867,46 +867,38 @@ export function Library() {
   const generateAITagSuggestions = async () => {
     if (selectedPapers.size === 0) return;
     
+    // Limit to 20 papers max to avoid timeouts
+    const MAX_PAPERS = 20;
+    if (selectedPapers.size > MAX_PAPERS) {
+      alert(`Please select at most ${MAX_PAPERS} papers for AI tagging to avoid timeouts.`);
+      return;
+    }
+    
     setIsLoadingAISuggestions(true);
     setAiTagPlan([]);
     
     try {
       const selectedPapersList = papers.filter(p => selectedPapers.has(p.id));
       
-      // Prepare paper info for the AI
+      // Prepare compact paper info for the AI (minimize payload)
       const paperInfo = selectedPapersList.map(p => ({
         id: p.id,
-        title: p.title,
-        authors: p.authors,
-        abstract: p.abstract?.slice(0, 300),
-        currentTags: p.tags,
+        title: p.title.slice(0, 150),
+        tags: p.tags.slice(0, 5),
       }));
       
-      const systemPrompt = `You are an expert research librarian helping organize academic papers.
+      // Keep existing tags list short
+      const existingTagsSample = allTags.slice(0, 30).join(', ');
+      
+      const systemPrompt = `You are a research librarian. Suggest 2-4 tags for each paper.
 
-Your task is to suggest relevant tags for EACH paper individually. Consider:
-1. Research themes and topics
-2. Methodologies used
-3. Application domains
-4. Paper types (e.g., survey, empirical study, system, etc.)
+${existingTagsSample ? `Existing tags (reuse when appropriate): ${existingTagsSample}` : ''}
+${aiSuggestionInput.trim() ? `User's guidance: "${aiSuggestionInput.trim()}"` : ''}
 
-${allTags.length > 0 ? `Existing tags in this library (prefer reusing these when appropriate): ${allTags.join(', ')}` : 'No existing tags yet.'}
+Respond with JSON: { "papers": [{ "id": "...", "suggestedTags": ["tag1", "tag2"] }] }
+Tags should be lowercase, 1-3 words.`;
 
-${aiSuggestionInput.trim() ? `User's grouping ideas: "${aiSuggestionInput.trim()}"` : ''}
-
-Respond with a JSON object containing a "papers" array. Each item should have:
-- "id": the paper id from input
-- "suggestedTags": array of 2-5 lowercase tag strings for this specific paper
-
-Example:
-{
-  "papers": [
-    { "id": "abc123", "suggestedTags": ["machine learning", "healthcare", "empirical study"] },
-    { "id": "def456", "suggestedTags": ["nlp", "survey", "transformers"] }
-  ]
-}`;
-
-      const userMessage = `Papers to tag:\n${JSON.stringify(paperInfo, null, 2)}`;
+      const userMessage = JSON.stringify(paperInfo);
       
       const response = await callOpenAI({
         model: 'gpt-4o-mini',
