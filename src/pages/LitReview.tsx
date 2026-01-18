@@ -1585,9 +1585,18 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
 
   useEffect(() => {
     onSelectCell(selectedCell);
-    // If a cell is selected, clear column selection
+    // If a cell is selected, clear column selection and focus it
     if (selectedCell) {
       setSelectedColumnId(null);
+      // Focus the newly selected cell so it receives keyboard events
+      requestAnimationFrame(() => {
+        const cellEl = tableRef.current?.querySelector(
+          `[data-cell-id="${selectedCell.rowId}-${selectedCell.columnId}"] [role="gridcell"]`
+        ) as HTMLElement;
+        if (cellEl) {
+          cellEl.focus();
+        }
+      });
     }
   }, [selectedCell, onSelectCell]);
 
