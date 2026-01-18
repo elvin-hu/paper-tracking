@@ -1552,6 +1552,14 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
           setSelectionAnchor({ rowId: newRow.id, columnId: newCol.id });
           setSelectionRange(null);
         }
+        
+        // Scroll cell into view after navigation
+        requestAnimationFrame(() => {
+          const cellEl = tableRef.current?.querySelector(`[data-cell-id="${newRow.id}-${newCol.id}"]`);
+          if (cellEl) {
+            cellEl.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+          }
+        });
       }
     }
   }, [selectedCell, sheet.rows, sheet.columns, selectionAnchor]);
@@ -1916,6 +1924,7 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
                     return (
                     <div
                       key={column.id}
+                      data-cell-id={`${row.id}-${column.id}`}
                       style={{ width: column.width, minWidth: column.width }}
                       className="flex-shrink-0 border-r border-[var(--border-muted)] overflow-visible"
                     >
@@ -2853,8 +2862,14 @@ export function LitReview() {
   const [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
   const [selectedCell, setSelectedCell] = useState<{ rowId: string; columnId: string } | null>(null);
   const [selectedColumnForEdit, setSelectedColumnForEdit] = useState<string | null>(null);
-  const [isPaperPanelCollapsed, setIsPaperPanelCollapsed] = useState(false);
-  const [isConfigPanelCollapsed, setIsConfigPanelCollapsed] = useState(false);
+  const [isPaperPanelCollapsed, setIsPaperPanelCollapsed] = useState(() => {
+    const saved = localStorage.getItem('litreview-paper-panel-collapsed');
+    return saved === 'true';
+  });
+  const [isConfigPanelCollapsed, setIsConfigPanelCollapsed] = useState(() => {
+    const saved = localStorage.getItem('litreview-config-panel-collapsed');
+    return saved === 'true';
+  });
   const [readerPaperId, setReaderPaperId] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelId>(() => {
     const saved = localStorage.getItem('litreview-model');
@@ -2865,6 +2880,15 @@ export function LitReview() {
   useEffect(() => {
     localStorage.setItem('litreview-model', selectedModel);
   }, [selectedModel]);
+
+  // Persist panel layout preferences
+  useEffect(() => {
+    localStorage.setItem('litreview-paper-panel-collapsed', String(isPaperPanelCollapsed));
+  }, [isPaperPanelCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem('litreview-config-panel-collapsed', String(isConfigPanelCollapsed));
+  }, [isConfigPanelCollapsed]);
 
   // Load data
   useEffect(() => {
