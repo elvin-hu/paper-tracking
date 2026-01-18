@@ -867,38 +867,27 @@ export function Library() {
   const generateAITagSuggestions = async () => {
     if (selectedPapers.size === 0) return;
     
-    // Limit to 20 papers max to avoid timeouts
-    const MAX_PAPERS = 20;
-    if (selectedPapers.size > MAX_PAPERS) {
-      alert(`Please select at most ${MAX_PAPERS} papers for AI tagging to avoid timeouts.`);
-      return;
-    }
-    
     setIsLoadingAISuggestions(true);
     setAiTagPlan([]);
     
     try {
       const selectedPapersList = papers.filter(p => selectedPapers.has(p.id));
       
-      // Prepare compact paper info for the AI (minimize payload)
-      const paperInfo = selectedPapersList.map(p => ({
-        id: p.id,
-        title: p.title.slice(0, 150),
-        tags: p.tags.slice(0, 5),
-      }));
+      // Send only titles (indexed by position) to minimize payload
+      const titles = selectedPapersList.map((p, i) => `${i}: ${p.title}`).join('\n');
       
       // Keep existing tags list short
-      const existingTagsSample = allTags.slice(0, 30).join(', ');
+      const existingTagsSample = allTags.slice(0, 50).join(', ');
       
-      const systemPrompt = `You are a research librarian. Suggest 2-4 tags for each paper.
+      const systemPrompt = `You are a research librarian. Suggest 2-4 tags for each paper based on its title.
 
 ${existingTagsSample ? `Existing tags (reuse when appropriate): ${existingTagsSample}` : ''}
 ${aiSuggestionInput.trim() ? `User's guidance: "${aiSuggestionInput.trim()}"` : ''}
 
-Respond with JSON: { "papers": [{ "id": "...", "suggestedTags": ["tag1", "tag2"] }] }
-Tags should be lowercase, 1-3 words.`;
+Respond with JSON: { "papers": [{ "index": 0, "tags": ["tag1", "tag2"] }, { "index": 1, "tags": ["tag3"] }] }
+Tags should be lowercase, 1-3 words. Include ALL papers in your response.`;
 
-      const userMessage = JSON.stringify(paperInfo);
+      const userMessage = titles;
       
       const response = await callOpenAI({
         model: 'gpt-4o-mini',
@@ -907,7 +896,7 @@ Tags should be lowercase, 1-3 words.`;
           { role: 'user', content: userMessage },
         ],
         temperature: 0.7,
-        max_tokens: 2000,
+        max_tokens: 4000,
       });
       
       const content = response.choices[0].message.content;
@@ -916,15 +905,19 @@ Tags should be lowercase, 1-3 words.`;
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         if (Array.isArray(parsed.papers)) {
-          const plan = parsed.papers.map((item: { id: string; suggestedTags: string[] }) => {
-            const paper = selectedPapersList.find(p => p.id === item.id);
-            return {
-              paperId: item.id,
-              title: paper?.title || 'Unknown',
-              currentTags: paper?.tags || [],
-              suggestedTags: item.suggestedTags.map((t: string) => t.toLowerCase().trim()),
-            };
-          });
+          const plan = parsed.papers
+            .filter((item: { index: number; tags: string[] }) => 
+              item.index >= 0 && item.index < selectedPapersList.length
+            )
+            .map((item: { index: number; tags: string[] }) => {
+              const paper = selectedPapersList[item.index];
+              return {
+                paperId: paper.id,
+                title: paper.title,
+                currentTags: paper.tags || [],
+                suggestedTags: (item.tags || []).map((t: string) => t.toLowerCase().trim()),
+              };
+            });
           setAiTagPlan(plan);
         }
       }
