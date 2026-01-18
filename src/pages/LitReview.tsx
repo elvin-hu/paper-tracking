@@ -353,7 +353,7 @@ function PaperListPanel({
           </button>
 
           {showTagFilter && (
-            <div className="absolute top-full left-0 mt-1 w-48 bg-[#252529] border border-[var(--border-default)] rounded-lg shadow-xl z-10 py-1 max-h-48 overflow-y-auto">
+            <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg shadow-xl z-10 py-1 max-h-48 overflow-y-auto">
               <button
                 onClick={() => { onFilterTagChange(null); setShowTagFilter(false); }}
                 className="w-full px-3 py-1.5 text-left text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]"
@@ -2512,7 +2512,7 @@ function ConfigPanel({
               </p>
             )}
 
-            {/* Value section */}
+            {/* Value section (editable - prominent styling) */}
             <div className="mb-4">
               <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Value</label>
               {selectedColumn.type === 'select' ? (
@@ -2520,7 +2520,7 @@ function ConfigPanel({
                   value={overrideValue}
                   onChange={(e) => setOverrideValue(e.target.value)}
                   disabled={isPreview}
-                  className={`w-full px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 ${
+                  className={`w-full px-3 py-2 text-sm bg-[var(--bg-card)] border-2 border-[var(--border-strong)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 focus:border-[var(--accent-primary)] ${
                     isPreview ? 'opacity-60 cursor-not-allowed' : ''
                   }`}
                 >
@@ -2534,10 +2534,10 @@ function ConfigPanel({
                   <button
                     onClick={() => { setOverrideValue('yes'); }}
                     disabled={isPreview}
-                    className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-all ${
+                    className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border-2 transition-all ${
                       overrideValue.toLowerCase() === 'yes' || overrideValue.toLowerCase() === 'true'
                         ? 'bg-[var(--accent-green-bg)]/15 border-[var(--accent-green)] text-[var(--accent-green)]'
-                        : 'bg-[var(--bg-primary)] border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
+                        : 'bg-[var(--bg-card)] border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)]'
                     } ${isPreview ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     Yes
@@ -2545,10 +2545,10 @@ function ConfigPanel({
                   <button
                     onClick={() => { setOverrideValue('no'); }}
                     disabled={isPreview}
-                    className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-all ${
+                    className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border-2 transition-all ${
                       overrideValue.toLowerCase() === 'no' || overrideValue.toLowerCase() === 'false'
                         ? 'bg-[var(--accent-red-bg)]/15 border-[var(--accent-red)] text-[var(--accent-red)]'
-                        : 'bg-[var(--bg-primary)] border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
+                        : 'bg-[var(--bg-card)] border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)]'
                     } ${isPreview ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     No
@@ -2560,7 +2560,7 @@ function ConfigPanel({
                   onChange={(e) => setOverrideValue(e.target.value)}
                   placeholder={selectedColumn.type === 'multiselect' ? 'Comma separated values...' : 'Enter value...'}
                   disabled={isPreview}
-                  className={`w-full min-h-[100px] px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 resize-none ${
+                  className={`w-full min-h-[100px] px-3 py-2 text-sm bg-[var(--bg-card)] border-2 border-[var(--border-strong)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 focus:border-[var(--accent-primary)] resize-none ${
                     isPreview ? 'opacity-60 cursor-not-allowed' : ''
                   }`}
                   rows={4}
@@ -2568,19 +2568,19 @@ function ConfigPanel({
               )}
             </div>
 
-            {/* Prompt section - read-only context */}
+            {/* Prompt section - read-only context (subdued styling) */}
             <div className="mb-4">
               <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Prompt</label>
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg">
+              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
                 {selectedColumn.description}
               </p>
             </div>
 
-            {/* Source section - read-only context */}
+            {/* Source section - read-only context (subdued styling) */}
             {selectedCell?.sourceText && (
               <div className="mb-4">
                 <label className="text-xs text-[var(--text-muted)] mb-1.5 block">Source</label>
-                <p className="text-sm text-[var(--text-muted)] leading-relaxed italic px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg">
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed italic">
                   "{selectedCell.sourceText}"
                 </p>
               </div>

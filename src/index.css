@@ -60,6 +60,7 @@
 
   --border-default: rgba(0, 0, 0, 0.08);
   --border-muted: rgba(0, 0, 0, 0.04);
+  --border-strong: rgba(0, 0, 0, 0.20);
 
   /* Highlight colors - more vibrant for light mode */
   --highlight-yellow: rgba(255, 230, 0, 0.45);
@@ -106,6 +107,7 @@
 
     --border-default: rgba(255, 255, 255, 0.08);
     --border-muted: rgba(255, 255, 255, 0.04);
+    --border-strong: rgba(255, 255, 255, 0.25);
 
     /* Highlight colors */
     --highlight-yellow: rgba(255, 214, 10, 0.4);
