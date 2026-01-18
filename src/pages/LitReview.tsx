@@ -32,7 +32,6 @@ import {
   Copy,
   MoreHorizontal,
   Columns,
-  Save,
   ExternalLink,
   GripVertical,
   Settings2,
@@ -1469,7 +1468,6 @@ function Spreadsheet({ sheet, papers, onUpdateSheet, onRunExtraction, onRunColum
 
   // Handle cell value update
   const handleCellUpdate = useCallback((rowId: string, columnId: string, value: LitReviewCell['value']) => {
-    console.log('[LitReview] handleCellUpdate called:', { rowId, columnId, value });
     onUpdateSheet({
       ...sheet,
       rows: sheet.rows.map(r => 
@@ -2819,7 +2817,11 @@ function ConfigPanel({
               {selectedColumn.type === 'select' ? (
                 <select
                   value={overrideValue}
-                  onChange={(e) => setOverrideValue(e.target.value)}
+                  onChange={(e) => {
+                    setOverrideValue(e.target.value);
+                    // Auto-save on change for select
+                    onOverrideValue(e.target.value);
+                  }}
                   disabled={isPreview}
                   className={`w-full px-3 py-2 text-sm bg-[var(--bg-card)] border-2 border-[var(--border-strong)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 focus:border-[var(--accent-primary)] ${
                     isPreview ? 'opacity-60 cursor-not-allowed' : ''
@@ -2833,7 +2835,11 @@ function ConfigPanel({
               ) : selectedColumn.type === 'boolean' ? (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => { setOverrideValue('yes'); }}
+                    onClick={() => { 
+                      setOverrideValue('yes'); 
+                      // Auto-save on click for boolean
+                      onOverrideValue(true);
+                    }}
                     disabled={isPreview}
                     className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border-2 transition-all ${
                       overrideValue.toLowerCase() === 'yes' || overrideValue.toLowerCase() === 'true'
@@ -2844,7 +2850,11 @@ function ConfigPanel({
                     Yes
                   </button>
                   <button
-                    onClick={() => { setOverrideValue('no'); }}
+                    onClick={() => { 
+                      setOverrideValue('no'); 
+                      // Auto-save on click for boolean
+                      onOverrideValue(false);
+                    }}
                     disabled={isPreview}
                     className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border-2 transition-all ${
                       overrideValue.toLowerCase() === 'no' || overrideValue.toLowerCase() === 'false'
@@ -2859,6 +2869,7 @@ function ConfigPanel({
                 <textarea
                   value={overrideValue}
                   onChange={(e) => setOverrideValue(e.target.value)}
+                  onBlur={handleSaveOverride}
                   placeholder={selectedColumn.type === 'multiselect' ? 'Comma separated values...' : 'Enter value...'}
                   disabled={isPreview}
                   className={`w-full min-h-[100px] px-3 py-2 text-sm bg-[var(--bg-card)] border-2 border-[var(--border-strong)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 focus:border-[var(--accent-primary)] resize-none ${
@@ -2887,18 +2898,9 @@ function ConfigPanel({
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex flex-col gap-2 pt-2">
-              <button
-                onClick={handleSaveOverride}
-                disabled={isPreview || !selectedColumn}
-                className={`w-full px-4 py-2.5 text-sm font-medium bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-lg transition-colors ${
-                  isPreview ? 'opacity-60 cursor-not-allowed' : 'hover:opacity-90'
-                }`}
-              >
-                Save
-              </button>
-              {selectedCell?.aiValue !== undefined && selectedCell?.aiValue !== selectedCell?.value && (
+            {/* Actions - only show revert if AI value differs */}
+            {selectedCell?.aiValue !== undefined && selectedCell?.aiValue !== selectedCell?.value && (
+              <div className="pt-2">
                 <button
                   onClick={() => onOverrideValue(selectedCell.aiValue ?? null)}
                   disabled={isPreview}
@@ -2908,8 +2910,8 @@ function ConfigPanel({
                 >
                   Revert to AI value
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         ) : (
           /* Default state - Sheet setup */
@@ -3438,23 +3440,18 @@ export function LitReview() {
     // Save to database if not using localStorage fallback
     if (!useLocalStorage) {
       try {
-        console.log('[LitReview] Saving sheet to database:', sheetWithTimestamp.id, 'rows:', sheetWithTimestamp.rows.length);
         // Save sheet metadata (columns, name, etc.)
         await updateLitReviewSheet(sheetWithTimestamp);
         
         // Also save all rows (cell data is stored in rows)
         await Promise.all(
-          sheetWithTimestamp.rows.map(row => {
-            console.log('[LitReview] Saving row:', row.id, 'cells:', Object.keys(row.cells).length);
-            return upsertLitReviewRow(sheetWithTimestamp.id, row);
-          })
+          sheetWithTimestamp.rows.map(row => 
+            upsertLitReviewRow(sheetWithTimestamp.id, row)
+          )
         );
-        console.log('[LitReview] Save complete');
       } catch (error) {
-        console.error('[LitReview] Error saving sheet:', error);
+        console.error('Error saving sheet:', error);
       }
-    } else {
-      console.log('[LitReview] Using localStorage fallback');
     }
   }, [useLocalStorage]);
 
