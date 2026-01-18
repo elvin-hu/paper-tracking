@@ -29,6 +29,8 @@ import {
   XCircle,
   Download,
   Table2,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 import type { Paper, SortOption, Note } from '../types';
 import { getAllPapers, addPaper, addPaperFile, deletePaper, getAllTags, updatePaper, updatePapersBatch, getSettings, updateSettings, getAllNotes, archivePaper } from '../lib/database';
@@ -36,6 +38,7 @@ import { EditPaperModal } from '../components/EditPaperModal';
 import { ProjectSelector } from '../components/ProjectSelector';
 import { useProject } from '../contexts/ProjectContext';
 import { useComposingEnabled } from '../contexts/FeatureFlagContext';
+import { callOpenAI } from '../lib/openai';
 
 // Setup pdfjs worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -172,6 +175,12 @@ export function Library() {
   const [showBatchTagSuggestions, setShowBatchTagSuggestions] = useState(false);
   const batchTagInputRef = useRef<HTMLInputElement>(null);
   const batchTagSuggestionsRef = useRef<HTMLDivElement>(null);
+  
+  // AI tag suggestion state
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
+  const [aiSuggestionInput, setAiSuggestionInput] = useState('');
+  const [aiSuggestedTags, setAiSuggestedTags] = useState<string[]>([]);
+  const [isLoadingAISuggestions, setIsLoadingAISuggestions] = useState(false);
 
   // Modal close handlers with exit animations
   const handleCloseUploadModal = () => {
@@ -835,6 +844,9 @@ export function Library() {
     setBatchAddTags([]);
     setBatchRemoveTags([]);
     setBatchNewTagInput('');
+    setShowAISuggestions(false);
+    setAiSuggestionInput('');
+    setAiSuggestedTags([]);
     setShowBatchEditModal(true);
   };
 
@@ -850,6 +862,66 @@ export function Library() {
     setBatchRemoveTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
+  };
+
+  const generateAITagSuggestions = async () => {
+    if (selectedPapers.size === 0) return;
+    
+    setIsLoadingAISuggestions(true);
+    setAiSuggestedTags([]);
+    
+    try {
+      const selectedPapersList = papers.filter(p => selectedPapers.has(p.id));
+      
+      // Prepare paper info for the AI
+      const paperInfo = selectedPapersList.map(p => ({
+        title: p.title,
+        authors: p.authors,
+        abstract: p.abstract?.slice(0, 500),
+        currentTags: p.tags,
+      }));
+      
+      const systemPrompt = `You are an expert research librarian helping organize academic papers.
+
+Your task is to suggest relevant tags for categorizing these papers. Consider:
+1. Research themes and topics
+2. Methodologies used
+3. Application domains
+4. Paper types (e.g., survey, empirical study, system, etc.)
+
+${allTags.length > 0 ? `Existing tags in this library (prefer reusing these when appropriate): ${allTags.join(', ')}` : 'No existing tags yet.'}
+
+${aiSuggestionInput.trim() ? `User's guidance: "${aiSuggestionInput.trim()}"` : ''}
+
+Respond with a JSON object containing a "tags" array of 5-10 suggested tag strings. Tags should be lowercase, concise (1-3 words), and reusable across papers.`;
+
+      const userMessage = `Papers to tag:\n${JSON.stringify(paperInfo, null, 2)}`;
+      
+      const response = await callOpenAI({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+        temperature: 0.7,
+        max_tokens: 500,
+      });
+      
+      const content = response.choices[0].message.content;
+      // Parse the JSON response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (Array.isArray(parsed.tags)) {
+          setAiSuggestedTags(parsed.tags.map((t: string) => t.toLowerCase().trim()));
+        }
+      }
+    } catch (error) {
+      console.error('Error generating AI tag suggestions:', error);
+      alert('Failed to generate AI suggestions. Please try again.');
+    } finally {
+      setIsLoadingAISuggestions(false);
+    }
   };
 
   const applyBatchEdit = async () => {
@@ -892,6 +964,9 @@ export function Library() {
         setBatchAddTags([]);
         setBatchRemoveTags([]);
         setBatchNewTagInput('');
+        setAiSuggestedTags([]);
+        setAiSuggestionInput('');
+        setShowAISuggestions(false);
         clearSelection();
         return;
       }
@@ -905,6 +980,9 @@ export function Library() {
       setBatchAddTags([]);
       setBatchRemoveTags([]);
       setBatchNewTagInput('');
+      setAiSuggestedTags([]);
+      setAiSuggestionInput('');
+      setShowAISuggestions(false);
       clearSelection();
 
       // Reload data to reflect changes
@@ -2268,6 +2346,77 @@ export function Library() {
                       ) : null;
                     })()}
                   </div>
+                </div>
+
+                {/* AI Tag Suggestions */}
+                <div className="border-t border-[var(--border-default)] pt-4">
+                  <button
+                    onClick={() => setShowAISuggestions(!showAISuggestions)}
+                    className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    AI Tag Suggestions
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAISuggestions ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {showAISuggestions && (
+                    <div className="mt-3 space-y-3">
+                      <div>
+                        <textarea
+                          value={aiSuggestionInput}
+                          onChange={(e) => setAiSuggestionInput(e.target.value)}
+                          placeholder="Give the AI some guidance (optional)... e.g., 'focus on methodology types' or 'categorize by application domain'"
+                          className="w-full text-sm resize-none"
+                          rows={2}
+                        />
+                      </div>
+                      <button
+                        onClick={generateAITagSuggestions}
+                        disabled={isLoadingAISuggestions}
+                        className="btn-secondary w-full text-sm flex items-center justify-center gap-2"
+                      >
+                        {isLoadingAISuggestions ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4" />
+                            Generate Suggestions
+                          </>
+                        )}
+                      </button>
+                      
+                      {aiSuggestedTags.length > 0 && (
+                        <div>
+                          <p className="text-xs text-[var(--text-muted)] mb-2">Click to add:</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {aiSuggestedTags.map((tag) => (
+                              <button
+                                key={tag}
+                                onClick={() => {
+                                  if (!batchAddTags.includes(tag)) {
+                                    setBatchAddTags(prev => [...prev, tag]);
+                                  }
+                                  setAiSuggestedTags(prev => prev.filter(t => t !== tag));
+                                }}
+                                disabled={batchAddTags.includes(tag)}
+                                className={`tag transition-all ${
+                                  batchAddTags.includes(tag)
+                                    ? 'opacity-50 cursor-not-allowed'
+                                    : 'hover:bg-[var(--accent-primary)]/20 hover:text-[var(--accent-primary)]'
+                                }`}
+                              >
+                                <Sparkles className="w-3 h-3 mr-1 inline" />
+                                {tag}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Remove Tags */}
