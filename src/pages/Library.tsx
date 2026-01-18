@@ -889,9 +889,12 @@ export function Library() {
         const batch = batches[batchIdx];
         const titles = batch.map((p, i) => `${i}: ${p.title}`).join('\n');
         
-        const systemPrompt = `You are a research librarian. Suggest 2-4 tags for each paper.
-${existingTagsSample ? `Existing tags: ${existingTagsSample}` : ''}
+        const systemPrompt = `You are a research librarian. Suggest 1-3 BROAD tags for each paper.
+
+IMPORTANT: Reuse the same tags across papers. Prefer broad categories over specific terms.
+${existingTagsSample ? `Existing tags (STRONGLY prefer these): ${existingTagsSample}` : ''}
 ${aiSuggestionInput.trim() ? `User's guidance: "${aiSuggestionInput.trim()}"` : ''}
+
 Respond with JSON: { "papers": [{ "index": 0, "tags": ["tag1", "tag2"] }] }`;
 
         const response = await callOpenAI({
@@ -924,7 +927,7 @@ Respond with JSON: { "papers": [{ "index": 0, "tags": ["tag1", "tag2"] }] }`;
         }
       }
       
-      // Consolidation step: identify rare tags (< 3 papers) and ask AI to suggest replacements
+      // Consolidation step: be aggressive about reducing tag count
       const tagCounts: Record<string, number> = {};
       for (const result of allResults) {
         for (const tag of result.suggestedTags) {
@@ -932,35 +935,53 @@ Respond with JSON: { "papers": [{ "index": 0, "tags": ["tag1", "tag2"] }] }`;
         }
       }
       
-      const rareTags = Object.entries(tagCounts).filter(([, count]) => count < 3).map(([tag]) => tag);
-      const commonTags = Object.entries(tagCounts).filter(([, count]) => count >= 3).map(([tag]) => tag);
+      const totalPapers = allResults.length;
+      const minTagUsage = Math.max(3, Math.floor(totalPapers * 0.05)); // At least 5% of papers or 3
+      
+      const rareTags = Object.entries(tagCounts).filter(([, count]) => count < minTagUsage).map(([tag]) => tag);
+      const commonTags = Object.entries(tagCounts)
+        .filter(([, count]) => count >= minTagUsage)
+        .sort((a, b) => b[1] - a[1]) // Sort by frequency
+        .slice(0, 30) // Limit to top 30 common tags
+        .map(([tag]) => tag);
       
       if (rareTags.length > 0 && commonTags.length > 0) {
-        // Ask AI to suggest consolidations for rare tags
-        const consolidationPrompt = `Given these common tags: ${commonTags.join(', ')}
-And these rare tags (used by < 3 papers): ${rareTags.join(', ')}
-Suggest which rare tags should be replaced with common tags, or kept as-is if they're unique.
-Respond with JSON: { "replacements": { "rare_tag": "common_tag_or_null" } }
-Use null if the rare tag should be kept.`;
+        // Ask AI to aggressively consolidate rare tags
+        const consolidationPrompt = `You must consolidate tags aggressively. We want FEWER, BROADER tags.
+
+Common tags (keep these): ${commonTags.join(', ')}
+Rare tags (MUST replace or remove): ${rareTags.slice(0, 100).join(', ')}${rareTags.length > 100 ? ` (and ${rareTags.length - 100} more)` : ''}
+
+Rules:
+1. Replace each rare tag with the MOST SIMILAR common tag
+2. If no good match, use null to REMOVE the tag entirely
+3. Be aggressive - it's better to have fewer broad tags than many specific ones
+4. Similar concepts should use the same tag (e.g., "fmri" and "functional mri" → pick one)
+
+Respond with JSON: { "replacements": { "rare_tag": "common_tag_or_null" } }`;
 
         try {
           const consolidationResponse = await callOpenAI({
             model: 'gpt-4o-mini',
             messages: [{ role: 'user', content: consolidationPrompt }],
-            temperature: 0.3,
-            max_tokens: 1000,
+            temperature: 0.2,
+            max_tokens: 2000,
           });
           
           const consMatch = consolidationResponse.choices[0].message.content.match(/\{[\s\S]*\}/);
           if (consMatch) {
             const consResult = JSON.parse(consMatch[0]);
             if (consResult.replacements) {
-              // Apply replacements
+              // Apply replacements - null means remove the tag
               for (const result of allResults) {
-                result.suggestedTags = result.suggestedTags.map(tag => {
-                  const replacement = consResult.replacements[tag];
-                  return replacement && replacement !== 'null' ? replacement : tag;
-                }).filter((tag, idx, arr) => arr.indexOf(tag) === idx); // Remove duplicates
+                result.suggestedTags = result.suggestedTags
+                  .map(tag => {
+                    const replacement = consResult.replacements[tag];
+                    if (replacement === null || replacement === 'null') return null; // Remove
+                    return replacement || tag; // Replace or keep
+                  })
+                  .filter((tag): tag is string => tag !== null) // Remove nulls
+                  .filter((tag, idx, arr) => arr.indexOf(tag) === idx); // Remove duplicates
               }
             }
           }
@@ -2525,10 +2546,10 @@ Use null if the rare tag should be kept.`;
                 {selectedPapersTags.length > 0 && (
                   <div>
                     <label className="block text-xs font-medium text-[var(--text-secondary)] mb-2">
-                      Remove Tags (click to select)
+                      Remove Tags ({selectedPapersTags.length} tags on selected papers)
                     </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedPapersTags.map((tag) => (
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 -m-1">
+                      {selectedPapersTags.slice(0, 50).map((tag) => (
                         <button
                           key={tag}
                           onClick={() => toggleBatchRemoveTag(tag)}
@@ -2540,6 +2561,11 @@ Use null if the rare tag should be kept.`;
                           {tag}
                         </button>
                       ))}
+                      {selectedPapersTags.length > 50 && (
+                        <span className="text-xs text-[var(--text-muted)] self-center">
+                          +{selectedPapersTags.length - 50} more
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
