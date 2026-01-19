@@ -211,10 +211,12 @@ CRITICAL RULES:
 - The "synthesis" paragraph should summarize paper methodology/findings.
 - The "keyInsights" should come ONLY from "My Notes" sections - these are my personal actionable takeaways and reflections I wrote while reading. If a paper has no "My Notes", do NOT generate any key insights for it.
 - Do NOT include general paper findings in keyInsights - only my personal observations from "My Notes".
+- PRESERVE ALL TODOs, action items, and inspiration points from my notes - create a SEPARATE insight for EACH one.
+- Do NOT consolidate multiple TODOs or action items into a single insight - each should be its own bullet.
 
 Please provide:
 1. A synthesis paragraph (4-6 sentences) that recaps paper methodology/findings. Write in first person. Be plain and succinct.
-2. Key insights extracted ONLY from "My Notes" sections. Keep each insight SHORT (1 sentence max). Vary the phrasing - don't start all bullets the same way. If no papers have "My Notes", return empty keyInsights array.
+2. Key insights extracted ONLY from "My Notes" sections. Create one insight per TODO/action item/key observation - do NOT over-consolidate. Vary the phrasing. If no papers have "My Notes", return empty keyInsights array.
 
 Respond in this exact JSON format:
 {
@@ -229,7 +231,7 @@ Respond in this exact JSON format:
         messages: [
           {
             role: 'system',
-            content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Use plain, succinct language—avoid dramatic or filler words like "insightful", "compelling", "profound", "fascinating", "exciting". Just state facts and observations directly. Respond with valid JSON only.',
+            content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Use plain, succinct language—avoid filler words. IMPORTANT: Preserve ALL TODOs and action items from my notes as separate insights - do not consolidate them. Respond with valid JSON only.',
           },
           {
             role: 'user',
@@ -355,10 +357,12 @@ CRITICAL RULES:
 - The "synthesis" paragraph should summarize paper methodology/findings.
 - The "keyInsights" should come ONLY from "My Notes" sections - these are my personal actionable takeaways and reflections I wrote while reading. If a paper has no "My Notes", do NOT generate any key insights for it.
 - Do NOT include general paper findings in keyInsights - only my personal observations from "My Notes".
+- PRESERVE ALL TODOs, action items, and inspiration points from my notes - create a SEPARATE insight for EACH one.
+- Do NOT consolidate multiple TODOs or action items into a single insight - each should be its own bullet.
 
 Please provide:
 1. A synthesis paragraph (4-6 sentences) that recaps paper methodology/findings. Write in first person. Be plain and succinct.
-2. Key insights extracted ONLY from "My Notes" sections. Keep each insight SHORT (1 sentence max). Vary the phrasing - don't start all bullets the same way. If no papers have "My Notes", return empty keyInsights array.
+2. Key insights extracted ONLY from "My Notes" sections. Create one insight per TODO/action item/key observation - do NOT over-consolidate. Vary the phrasing. If no papers have "My Notes", return empty keyInsights array.
 
 Respond in this exact JSON format:
 {
@@ -373,7 +377,7 @@ Respond in this exact JSON format:
         messages: [
           {
             role: 'system',
-            content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Use plain, succinct language—avoid dramatic or filler words like "insightful", "compelling", "profound", "fascinating", "exciting". Just state facts and observations directly. Respond with valid JSON only.',
+            content: 'You are helping me write my personal research journal. Write in first person from my perspective (use "I", "my research", "I found", etc.). Use plain, succinct language—avoid filler words. IMPORTANT: Preserve ALL TODOs and action items from my notes as separate insights - do not consolidate them. Respond with valid JSON only.',
           },
           {
             role: 'user',
