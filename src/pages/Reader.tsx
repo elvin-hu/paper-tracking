@@ -1886,7 +1886,7 @@ Please extract and return a JSON object with the following fields:
 - methodology: Research methodology—be direct, no filler phrases (2-3 sentences)
 - conclusion: Key findings—go straight to the point (2-3 sentences)
 - limitation: Stated or obvious limitations (2-3 sentences)
-- notes: ONLY synthesize my sticky notes (listed above) into coherent learnings. Do NOT include anything from the paper itself (methodology, conclusion, limitations) - ONLY my personal observations from stickies. If I have NOT made any sticky notes, return "N/A". Write in first person.
+- notes: Consolidate my sticky notes (listed above) into organized learnings. PRESERVE all TODOs, action items, inspiration points, and specific ideas—don't summarize these away. Group related thoughts but keep my original intent and specificity. Do NOT include anything from the paper itself (methodology, conclusion, limitations)—ONLY my personal observations from stickies. If I have NOT made any sticky notes, return "N/A". Write in first person.
 
 Return ONLY a valid JSON object, no other text. If a field cannot be determined, use an empty string. Format:
 {
@@ -1916,7 +1916,7 @@ Return ONLY a valid JSON object, no other text. If a field cannot be determined,
           messages: [
             {
               role: 'system',
-              content: 'You are a seasoned CHI paper author helping extract metadata from academic papers. For methodology, conclusion, and limitation fields: summarize from the paper. For the "notes" field: synthesize and paraphrase the user\'s sticky notes into coherent learnings - don\'t just repeat them literally. If no sticky notes exist, return "N/A". Be direct and concise. Always respond with valid JSON only.',
+              content: 'You are a seasoned CHI paper author helping extract metadata from academic papers. For methodology, conclusion, and limitation fields: summarize from the paper. For the "notes" field: organize the user\'s sticky notes into coherent learnings while PRESERVING all TODOs, action items, inspiration points, and specific ideas—group related thoughts but don\'t over-summarize or lose details. If no sticky notes exist, return "N/A". Be direct and concise. Always respond with valid JSON only.',
             },
             {
               role: 'user',
